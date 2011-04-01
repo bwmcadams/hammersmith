@@ -1,0 +1,12 @@
+target/
+reports/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project
+java_pid*.hprof
+*.swp
+tags
+\.idea/workspace.xml
+tutorial_src/build
+.idea
