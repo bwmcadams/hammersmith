@@ -21,6 +21,7 @@
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol
  */
 
+import java.util.concurrent.atomic.AtomicInteger
 import org.bson.BSONObject
 
 /**
@@ -83,9 +84,14 @@ trait MessageHeader {
  */
 trait BSONDocument extends BSONObject
 
+object MongoMessage {
+  val ID = new AtomicInteger(1)
+}
+
 abstract class MongoMessage {
   /** Standard Message Header */
   val header: MessageHeader
+
 }
 
 object UpdateFlag extends Enumeration {
@@ -104,14 +110,14 @@ object UpdateFlag extends Enumeration {
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-case class UpdateMessage(
-  override val header: MessageHeader, // standard message header
-  ZERO: Int, // 0 - reserved for future use
-  namespace: String, // Full collection name (dbname.collectionname)
-  flags: Int, // bit vector of UpdateFlags assembled from UpdateFlag
-  query: BSONDocument, // The query document to select from mongo
-  update: BSONDocument // The document specifying the update to perform
-) extends MongoMessage
+trait UpdateMessage extends MongoMessage {
+  val header: MessageHeader // standard message header
+  val ZERO: Int // 0 - reserved for future use
+  val namespace: String // Full collection name (dbname.collectionname)
+  val flags: Int // bit vector of UpdateFlags assembled from UpdateFlag
+  val query: BSONDocument // The query document to select from mongo
+  val update: BSONDocument // The document specifying the update to perform
+}
 
 /**
  * OP_INSERT Message
@@ -123,12 +129,12 @@ case class UpdateMessage(
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPINSERT
  */
-case class InsertMessage(
-  override val header: MessageHeader, // Standard message header
-  ZERO: Int, // 0 - reserved for future use
-  namespace: String, // Full collection name (dbname.collectionname)
-  documents: Seq[BSONDocument] // One or more documents to insert into the collection
-) extends MongoMessage
+trait InsertMessage extends MongoMessage {
+  val header: MessageHeader // Standard message header
+  val ZERO: Int // 0 - reserved for future use
+  val namespace: String // Full collection name (dbname.collectionname)
+  val documents: Seq[BSONDocument] // One or more documents to insert into the collection
+}
 
 object QueryFlag extends Enumeration {
   val Reserved = Value(0) // Reserved value
@@ -192,15 +198,15 @@ object QueryFlag extends Enumeration {
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPQUERY
  */
-case class QueryMessage(
-  override val header: MessageHeader, // Standard message header
-  flags: Int, // bit vector of query options, assembled from QueryFlag
-  namespace: String, // Full collection name (dbname.collectionname)
-  numberToSkip: Int, // number of documents to skip
-  numberToReturn: Int, // number of docs to return in first OP_REPLY batch
-  query: BSONDocument, // BSON Document representing the query
-  returnFields: Option[BSONDocument] = None // Optional BSON Document for fields to return
-) extends MongoMessage
+trait QueryMessage extends MongoMessage {
+  val header: MessageHeader // Standard message header
+  val flags: Int // bit vector of query options, assembled from QueryFlag
+  val namespace: String // Full collection name (dbname.collectionname)
+  val numberToSkip: Int // number of documents to skip
+  val numberToReturn: Int // number of docs to return in first OP_REPLY batch
+  val query: BSONDocument // BSON Document representing the query
+  val returnFields: Option[BSONDocument] = None // Optional BSON Document for fields to return
+}
 
 /**
  * OP_GET_MORE Message
@@ -211,13 +217,13 @@ case class QueryMessage(
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPGETMORE
  */
-case class GetMoreMessage(
-  override val header: MessageHeader, // Standard message header
-  ZERO: Int, // 0 - reserved for future use
-  namespace: String, // Full collection name (dbname.collectionname)
-  numberToReturn: Int, // number of docs to return in first OP_REPLY batch
-  cursorID: Long // CursorID from the OP_REPLY (DB Genned value)
-) extends MongoMessage
+trait GetMoreMessage extends MongoMessage {
+  val header: MessageHeader // Standard message header
+  val ZERO: Int // 0 - reserved for future use
+  val namespace: String // Full collection name (dbname.collectionname)
+  val numberToReturn: Int // number of docs to return in first OP_REPLY batch
+  val cursorID: Long // CursorID from the OP_REPLY (DB Genned value)
+}
 
 object DeleteFlag extends Enumeration {
   /**
@@ -239,13 +245,13 @@ object DeleteFlag extends Enumeration {
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
-case class DeleteMessage(
-  override val header: MessageHeader, // Standard message header
-  ZERO: Int, // 0 - reserved for future use
-  namespace: String, // Full collection name (dbname.collectionname)
-  flags: Int, // bit vector of delete flags assembled from DeleteFlag
-  query: BSONDocument // Query object for what to delete
-) extends MongoMessage
+trait DeleteMessage extends MongoMessage {
+  val header: MessageHeader // Standard message header
+  val ZERO: Int // 0 - reserved for future use
+  val namespace: String // Full collection name (dbname.collectionname)
+  val flags: Int // bit vector of delete flags assembled from DeleteFlag
+  val query: BSONDocument // Query object for what to delete
+}
 
 /**
  * OP_KILL_CURSORS
@@ -256,12 +262,12 @@ case class DeleteMessage(
  * Note that if a cursor is read until exhausted (read until OP_QUERY or OP_GET_MORE returns zero for the cursor id),
  * there is no need to kill the cursor.
  */
-case class KillCursorsMessage(
-  override val header: MessageHeader, // Standard message header
-  ZERO: Int, // 0 - reserved for future use
-  numCursors: Int, // The number of cursorIDs in the message
-  cursorIDs: Seq[Long] // Sequence of cursorIDs to close
-) extends MongoMessage
+trait KillCursorsMessage extends MongoMessage {
+  val header: MessageHeader // Standard message header
+  val ZERO: Int // 0 - reserved for future use
+  val numCursors: Int // The number of cursorIDs in the message
+  val cursorIDs: Seq[Long] // Sequence of cursorIDs to close
+}
 
 /** OP_MSG Deprecated and not implemented */
 
@@ -301,11 +307,11 @@ object ReplyFlag extends Enumeration {
  * OP_GET_MORE message.
  *
  */
-case class ReplyMessage(
-  override val header: MessageHeader, // Standard message header
-  flags: Int, // bit vector of reply flags, available in ReplyFlag
-  cursorID: Long, // cursorID, for client to do getMores
-  startingFrom: Int, // Where in the cursor this reply starts at
-  numReturned: Int, // Number of documents in the reply.
-  documents: Seq[BSONDocument] // Sequence of documents
-) extends MongoMessage
+trait ReplyMessage extends MongoMessage {
+  val header: MessageHeader // Standard message header
+  val flags: Int // bit vector of reply flags, available in ReplyFlag
+  val cursorID: Long // cursorID, for client to do getMores
+  val startingFrom: Int // Where in the cursor this reply starts at
+  val numReturned: Int // Number of documents in the reply.
+  val documents: Seq[BSONDocument] // Sequence of documents
+}
