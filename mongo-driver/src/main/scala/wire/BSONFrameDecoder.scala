@@ -26,4 +26,4 @@ import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder
  * @TODO - Toggleable setting of maxFrameLength based on server BSON Size
  * (Currently defaults to a max of 4MB)
  */
-protected[mongodb] class BSONFrameDecoder extends LengthFieldBasedFrameDecoder(1024 * 1024 * 4,  0, 4)
+protected[mongodb] class BSONFrameDecoder extends LengthFieldBasedFrameDecoder(1024 * 1024 * 4, 0, 4)
