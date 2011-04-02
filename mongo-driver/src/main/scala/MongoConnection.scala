@@ -23,6 +23,9 @@ import java.net.InetSocketAddress
 
 import com.mongodb.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
+import org.jboss.netty.buffer.ChannelBuffer
+import org.jboss.netty.channel._
+import com.mongodb.wire.BSONFrameDecoder
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -34,7 +37,21 @@ import org.jboss.netty.bootstrap.ClientBootstrap
  * @author Brendan W. McAdams <brendan@10gen.com>
  * @since 0.1
  */
-trait MongoConnection extends Logging {
+abstract class MongoConnection extends Logging {
+
+  bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
+    def getPipeline() = Channels.pipeline(new BSONFrameDecoder(), newHandler)
+  })
+
+  bootstrap.setOption("remoteAddress", addr)
+
+  private val future = bootstrap.connect()
+  protected val channel = future.awaitUninterruptibly.getChannel
+
+  if (!future.isSuccess) {
+    log.error("Failed to connect.", future.getCause)
+    bootstrap.releaseExternalResources()
+  } else log.info("Connected and retrieved a write channel (%s)", channel)
 
   /**
    * Utility method to pull back a number of pieces of information
@@ -53,6 +70,10 @@ trait MongoConnection extends Logging {
     log.debug("Already have cached master status. Skipping.")
   }
 
+  def newHandler: DirectConnectionHandler
+
+  val addr: InetSocketAddress
+
   def readMaxBSONObjectSize() = {
     0
   }
@@ -62,6 +83,51 @@ trait MongoConnection extends Logging {
   var haveMasterStatus = false
   /** Maximum size of BSON this serve allows. */
   var maxBSONObjectSize = 0
+
+  /* TODO - Can we reuse these factories across multiple connections??? */
+  /**
+   * Factory for client socket channels, reused by all connectors where possible.
+   */
+  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
+    Executors.newCachedThreadPool)
+
+  implicit val bootstrap = new ClientBootstrap(channelFactory)
+
+  bootstrap.setOption("tcpNoDelay", true)
+  bootstrap.setOption("keepAlive", true)
+
+}
+
+trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
+  val bootstrap: ClientBootstrap
+
+  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
+    val buf = e.getMessage.asInstanceOf[ChannelBuffer]
+    log.trace("Message Received: %s", buf)
+
+    // TODO - decode me!
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
+    // TODO - pass this up to the user layer?
+    log.error("Exception Caught in ConnectionHandler.", e)
+    // TODO - Close connection?
+  }
+
+  override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    log.warn("Disconnected from '%s'", remoteAddress)
+  }
+
+  override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    log.info("Channel Closed to '%s'", remoteAddress)
+    // TODO - Reconnect?
+  }
+
+  override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    log.info("Connected to '%s'", remoteAddress)
+  }
+
+  def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 
 }
 
@@ -76,17 +142,6 @@ trait MongoConnection extends Logging {
  */
 object MongoConnection extends Logging {
 
-  /**
-   * Factory for client socket channels, reused by all connectors where possible.
-   */
-  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
-    Executors.newCachedThreadPool)
-
-  implicit val bootstrap = new ClientBootstrap(channelFactory)
-
-  bootstrap.setOption("tcpNoDelay", true)
-  bootstrap.setOption("keepAlive", true)
-
   def apply(hostname: String, port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
@@ -95,3 +150,4 @@ object MongoConnection extends Logging {
   }
 
 }
+
