@@ -17,16 +17,26 @@
 
 package com.mongodb
 
+import util.Logging
+
 import java.net.InetSocketAddress
 import org.jboss.netty.bootstrap.ClientBootstrap
-import util.Logging
+import org.jboss.netty.channel.{ Channels, ChannelPipelineFactory }
+import com.mongodb.wire.BSONFrameDecoder
 
 /**
  * Direct Connection to a single mongod (or mongos) instance
  *
  * NOTE: Connection instances are instances of a *POOL*, always.
  */
-class DirectConnection(addr: InetSocketAddress)(implicit bootstrap: ClientBootstrap) extends MongoConnection
-  with Logging {
+class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with Logging {
+
   log.debug("Initializing Direct MongoDB connection on address '%s'", addr)
+
+  def newHandler = new DirectConnectionHandler(bootstrap)
+
+}
+
+protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler {
+
 }

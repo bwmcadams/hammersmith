@@ -1,5 +1,3 @@
-import org.bson.BSONObject
-
 /**
  * Copyright (c) 2010, 2011 10gen, Inc. <http://10gen.com>
  *
@@ -22,6 +20,8 @@ import org.bson.BSONObject
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol
  */
+
+import org.bson.BSONObject
 
 /**
  * Request OpCodes for communicating with MongoDB Servers
@@ -79,7 +79,7 @@ trait MessageHeader {
 }
 
 /* Placeholder for future usage
- * @todo Implement me
+ * TODO Implement me
  */
 trait BSONDocument extends BSONObject
 
@@ -170,7 +170,7 @@ object QueryFlag extends Enumeration {
    * This can be much faster when you are pulling a lot of data
    * and known you want to pull it all down at once.
    *
-   * @TODO --- This is in our proto docs but unsure what it means? ---
+   * TODO --- This is in our proto docs but unsure what it means? ---
    * NOTE: The client is *not* allowed to read all the data unless
    * it closes the connection.
    */
