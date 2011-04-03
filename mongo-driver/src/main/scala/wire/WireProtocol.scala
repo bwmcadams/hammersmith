@@ -21,8 +21,13 @@
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol
  */
 
+import com.mongodb.util.Logging
+import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
-import org.bson.BSONObject
+import org.bson.io.PoolOutputBuffer
+import org.bson.{ BSONEncoder, BSONObject }
+import org.jboss.netty.buffer.{ChannelBufferOutputStream , ChannelBuffers}
+import org.jboss.netty.channel.Channel
 
 /**
  * Request OpCodes for communicating with MongoDB Servers
@@ -88,10 +93,43 @@ object MongoMessage {
   val ID = new AtomicInteger(1)
 }
 
-abstract class MongoMessage {
-  /** Standard Message Header */
-  val header: MessageHeader
+/**
+ * TODO - Buffer Pooling like PoolOutputBuffer (which is package fucked right now and can't be subclassed for this)
+ */
+abstract class MongoMessage extends Logging {
+  /* Standard Message Header */
+  //val header: MessageHeader
+  val opCode: OpCode.Value
+  var requestID = -1
 
+  //  def apply(channel: Channel) = write
+
+  // TODO - Decouple me... this is bad design
+  def write(out: Channel) = {
+    val enc = new BSONEncoder
+    // TODO - Better pre-estimation of buffer size
+    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 1024 * 1024 * 4))
+    val buf = new PoolOutputBuffer()
+    enc.set(buf)
+
+    enc.writeInt(0) // Length, will set later; for now, placehold
+
+    val id = MongoMessage.ID.getAndIncrement()
+    log.trace("Generated Message ID '%s'", id)
+
+    enc.writeInt(id)
+    enc.writeInt(0) // Response ID left empty
+    enc.writeInt(opCode.id) // opCode Type
+    log.trace("OpCode (%s) Int Type: %s", opCode, opCode.id)
+
+    writeMessage(enc)
+    log.trace("Finishing writing core message, final length of '%s'", buf.size)
+    buf.write(new Array(buf.size.toByte), 0, 4)
+    buf.pipe(outStream)
+    out.write(outStream)
+  }
+
+  protected def writeMessage(enc: BSONEncoder)
 }
 
 object UpdateFlag extends Enumeration {
@@ -111,12 +149,32 @@ object UpdateFlag extends Enumeration {
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
 trait UpdateMessage extends MongoMessage {
-  val header: MessageHeader // standard message header
+  // val header: MessageHeader // standard message header
+  val opCode = OpCode.OpUpdate
+
   val ZERO: Int // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
-  val flags: Int // bit vector of UpdateFlags assembled from UpdateFlag
+  def flags: Int = { // bit vector of UpdateFlags assembled from UpdateFlag
+    var _f = 0
+    if (upsert) _f |= UpdateFlag.Upsert.id
+    if (multiUpdate) _f |= UpdateFlag.MultiUpdate.id
+    _f
+  }
+
+  val upsert = false
+  val multiUpdate = false
+
   val query: BSONDocument // The query document to select from mongo
   val update: BSONDocument // The document specifying the update to perform
+
+  protected def writeMessage(enc: BSONEncoder) = {
+    enc.writeInt(0)
+    enc.writeCString(namespace)
+    enc.writeInt(flags)
+    // TODO - Check against Max BSON Size
+    enc.putObject(query)
+    enc.putObject(update)
+  }
 }
 
 /**
@@ -130,7 +188,8 @@ trait UpdateMessage extends MongoMessage {
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPINSERT
  */
 trait InsertMessage extends MongoMessage {
-  val header: MessageHeader // Standard message header
+  //val header: MessageHeader // Standard message header
+  val opCode = OpCode.OpInsert
   val ZERO: Int // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[BSONDocument] // One or more documents to insert into the collection
@@ -199,7 +258,8 @@ object QueryFlag extends Enumeration {
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPQUERY
  */
 trait QueryMessage extends MongoMessage {
-  val header: MessageHeader // Standard message header
+  // val header: MessageHeader // Standard message header
+  val opCode = OpCode.OpQuery
   val flags: Int // bit vector of query options, assembled from QueryFlag
   val namespace: String // Full collection name (dbname.collectionname)
   val numberToSkip: Int // number of documents to skip
@@ -218,7 +278,8 @@ trait QueryMessage extends MongoMessage {
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPGETMORE
  */
 trait GetMoreMessage extends MongoMessage {
-  val header: MessageHeader // Standard message header
+  //val header: MessageHeader // Standard message header
+  val opCode = OpCode.OpGetMore
   val ZERO: Int // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
   val numberToReturn: Int // number of docs to return in first OP_REPLY batch
@@ -246,7 +307,8 @@ object DeleteFlag extends Enumeration {
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
 trait DeleteMessage extends MongoMessage {
-  val header: MessageHeader // Standard message header
+  // val header: MessageHeader // Standard message header
+  val opCode = OpCode.OpDelete
   val ZERO: Int // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
   val flags: Int // bit vector of delete flags assembled from DeleteFlag
@@ -263,7 +325,8 @@ trait DeleteMessage extends MongoMessage {
  * there is no need to kill the cursor.
  */
 trait KillCursorsMessage extends MongoMessage {
-  val header: MessageHeader // Standard message header
+  // val header: MessageHeader // Standard message header
+  val opCode = OpCode.OpKillCursors
   val ZERO: Int // 0 - reserved for future use
   val numCursors: Int // The number of cursorIDs in the message
   val cursorIDs: Seq[Long] // Sequence of cursorIDs to close
@@ -308,7 +371,8 @@ object ReplyFlag extends Enumeration {
  *
  */
 trait ReplyMessage extends MongoMessage {
-  val header: MessageHeader // Standard message header
+  //val header: MessageHeader // Standard message header
+  val opCode = OpCode.OpReply
   val flags: Int // bit vector of reply flags, available in ReplyFlag
   val cursorID: Long // cursorID, for client to do getMores
   val startingFrom: Int // Where in the cursor this reply starts at

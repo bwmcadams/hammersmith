@@ -16,6 +16,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src/test/scala" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/main/resources" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/resources" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src/main/scala" isTestSource="false" packagePrefix="org.bson" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="module-library" exported="" scope="TEST">
