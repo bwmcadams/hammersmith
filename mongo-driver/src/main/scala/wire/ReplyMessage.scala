@@ -19,6 +19,8 @@ package com.mongodb
 package wire
 
 import org.bson.BSONEncoder
+import com.mongodb.util.Logging
+import java.io.InputStream
 
 /**
  * OP_REPLY
@@ -43,6 +45,35 @@ trait ReplyMessage extends MongoMessage {
   protected def writeMessage(enc: BSONEncoder) =
     throw new UnsupportedOperationException("This message is not capable of being written. "
       + "Replies come only from the server.")
+}
+
+object ReplyMessage extends Logging {
+  def apply(header: MessageHeader, in: InputStream) = {
+    import org.bson.io.Bits._
+    import MongoMessage.readFromOffset
+
+    log.debug("Finishing decoding Reply Message with Header of '%s'", header)
+    val b = Array[Byte](20) // relevant non-document stream bytes from the reply content.
+    readFromOffset(in, b, 16) // Read 20 bytes starting at #16
+    log.trace("Offset data for rest of reply read: %s", b)
+    new ReplyMessage {
+      val flags = readInt(b)
+      log.trace("[Reply] Flags: %d", flags)
+      val cursorID = readLong(b)
+      log.trace("[Reply] Cursor ID: %d", cursorID)
+      val startingFrom = readInt(b)
+      log.trace("[Reply] Starting From: %d", startingFrom)
+      val numReturned = readInt(b)
+      log.trace("[Reply] Number of Documents Returned: %d", numReturned)
+      /*
+       * And here comes the hairy part.  Ideally, we want to completely amortize the
+       * decoding of these docs.  It makes *zero* sense to me to wait for a whole
+       * block of documents to decode from BSON before I can begin iteration.
+       */
+      val documents = List.empty[BSONDocument]
+    }
+  }
+
 }
 
 object ReplyFlag extends Enumeration {

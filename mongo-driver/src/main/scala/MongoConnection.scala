@@ -23,9 +23,10 @@ import java.net.InetSocketAddress
 
 import com.mongodb.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
-import org.jboss.netty.buffer.ChannelBuffer
 import org.jboss.netty.channel._
 import com.mongodb.wire.BSONFrameDecoder
+import org.jboss.netty.buffer.{ ChannelBuffers, ChannelBufferOutputStream, ChannelBuffer }
+import java.nio.ByteOrder
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -76,6 +77,13 @@ abstract class MongoConnection extends Logging {
 
   def readMaxBSONObjectSize() = {
     0
+  }
+
+  protected[mongodb] def send() {
+    // TODO - Better pre-estimation of buffer size
+    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 1024 * 1024 * 4))
+    // message.write
+    // channel.write(outStream)
   }
 
   // TODO - MAKE THESE IMMUTABLE
