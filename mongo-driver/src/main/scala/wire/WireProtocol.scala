@@ -31,6 +31,7 @@ import org.bson.io.PoolOutputBuffer
 import org.bson.{ BSONEncoder, BSONObject }
 import org.jboss.netty.buffer.{ ChannelBufferOutputStream, ChannelBuffers }
 import org.jboss.netty.channel.Channel
+import java.io.{ EOFException, InputStream, OutputStream }
 
 /**
  * Request OpCodes for communicating with MongoDB Servers
@@ -87,18 +88,87 @@ trait MessageHeader {
   val opCode: Int
 }
 
-/* Placeholder for future usage
- * TODO Implement me
- */
-trait BSONDocument extends BSONObject
-
-object MongoMessage {
+object MongoMessage extends Logging {
   val ID = new AtomicInteger(1)
+
+  def readFromOffset(in: InputStream, b: Array[Byte], offset: Int) {
+    readFromOffset(in, b, offset, b.length)
+  }
+
+  def readFromOffset(in: InputStream, b: Array[Byte], offset: Int, len: Int) {
+    var x = offset
+    while (x < len) {
+      val n = in.read(b, x, len - x)
+      if (n < 0) throw new EOFException
+      x += n
+    }
+  }
+
+  /**
+   * Extractor method for incoming streams of
+   * MongoDB data.
+   *
+   * Attempts to decode them into a coherent message.
+   *
+   * For the moment can only decode Reply messages
+   * longterm we'll support all messages for testing purposes.
+   */
+  def unapply(in: InputStream): MongoMessage = {
+    import org.bson.io.Bits._
+    log.debug("Attempting to extract a coherent MongoDB Message from '%s'", in)
+    val rawHdr = Array[Byte](16) // Message header
+    readFully(in, rawHdr)
+    log.trace("Message Header: %s", rawHdr)
+
+    val header = new MessageHeader {
+      val messageLength = readInt(rawHdr)
+      log.trace("Message Length: %i", messageLength)
+      // TODO - Validate message length
+      val requestID = readInt(rawHdr)
+      log.trace("Message ID: %i", requestID)
+      val responseTo = readInt(rawHdr)
+      log.trace("Message Response To (ID): %i", responseTo)
+      val opCode = readInt(rawHdr)
+      log.trace("Operation Code: %i", opCode)
+    }
+
+    header.opCode match {
+      case OpCode.OpReply => {
+        log.debug("[Incoming Message] OpCode is 'OP_REPLY'")
+        ReplyMessage(header, in)
+      }
+      case OpCode.OpMsg => {
+        log.warn("[Incoming Message] Deprecated message type 'OP_MSG' received.")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpUpdate => {
+        log.debug("[Incoming Message] OpCode is 'OP_UPDATE'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpInsert => {
+        log.debug("[Incoming Message] OpCode is 'OP_INSERT'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpGetMore => {
+        log.debug("[Incoming Message] OpCode is 'OP_GET_MORE'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpDelete => {
+        log.debug("[Incoming Message] OpCode is 'OP_DELETE'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpKillCursors => {
+        log.debug("[Incoming Message] OpCode is 'OP_KILL_CURSORS'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case unknown => {
+        log.error("Unkown Message OpCode '%i'", unknown)
+        throw new UnsupportedOperationException("Invalid Message Type with OpCode '%d'".format(unknown))
+      }
+    }
+  }
 }
 
-/**
- * TODO - Buffer Pooling like PoolOutputBuffer (which is package fucked right now and can't be subclassed for this)
- */
 abstract class MongoMessage extends Logging {
   /* Standard Message Header */
   //val header: MessageHeader
@@ -108,10 +178,9 @@ abstract class MongoMessage extends Logging {
   //  def apply(channel: Channel) = write
 
   // TODO - Decouple me... this is bad design
-  def write(out: Channel) = {
+  def write(out: OutputStream) = {
     val enc = new BSONEncoder
-    // TODO - Better pre-estimation of buffer size
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 1024 * 1024 * 4))
+
     val buf = new PoolOutputBuffer()
     enc.set(buf)
 
@@ -128,10 +197,15 @@ abstract class MongoMessage extends Logging {
     writeMessage(enc)
     log.trace("Finishing writing core message, final length of '%s'", buf.size)
     buf.write(new Array(buf.size.toByte), 0, 4)
-    buf.pipe(outStream)
-    out.write(outStream)
+    buf.pipe(out)
   }
 
+  /**
+   * Message specific implementation.
+   *
+   * write() puts in the header, writeMessage does a message
+   * specific writeout
+   */
   protected def writeMessage(enc: BSONEncoder)
 }
 
