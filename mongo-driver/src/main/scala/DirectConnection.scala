@@ -17,7 +17,7 @@
 
 package com.mongodb
 
-import util.Logging
+import org.bson.util.Logging
 
 import java.net.InetSocketAddress
 import org.jboss.netty.bootstrap.ClientBootstrap

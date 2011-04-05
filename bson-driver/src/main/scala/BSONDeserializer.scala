@@ -17,6 +17,23 @@
 
 package org.bson
 
-class NettyBSONEncoder extends BSONEncoder {
+import org.bson.util.Logging
+
+trait BSONDeserializer extends BSONDecoder with Logging {
+  val callback: Callback //= new DefaultBSONCallback
+  abstract class Callback extends BSONCallback {
+    /*
+     * Reset the state.  Whereever possible, we reuse callbacks
+     * to reduce overhead
+     */
+    reset()
+
+
+  }
+  abstract class DefaultBSONCallback extends Callback {
+
+  }
 
 }
+
+
