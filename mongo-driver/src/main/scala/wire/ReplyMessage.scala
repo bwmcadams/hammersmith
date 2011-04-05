@@ -18,7 +18,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 import org.bson.util.Logging
 import java.io.InputStream
 
@@ -42,7 +42,7 @@ trait ReplyMessage extends MongoMessage {
   val numReturned: Int // Number of documents in the reply.
   val documents: Seq[BSONDocument] // Sequence of documents
 
-  protected def writeMessage(enc: BSONEncoder) =
+  protected def writeMessage(enc: BSONSerializer) =
     throw new UnsupportedOperationException("This message is not capable of being written. "
       + "Replies come only from the server.")
 }

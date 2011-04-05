@@ -18,7 +18,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 import org.bson.util.Logging
 
 object QueryMessage extends Logging {
@@ -78,7 +78,7 @@ trait QueryMessage extends MongoMessage {
   val query: BSONDocument // BSON Document representing the query
   val returnFields: Option[BSONDocument] = None // Optional BSON Document for fields to return
 
-  protected def writeMessage(enc: BSONEncoder) {
+  protected def writeMessage(enc: BSONSerializer) {
     enc.writeInt(flags)
     enc.writeCString(namespace)
     enc.writeInt(numberToSkip)

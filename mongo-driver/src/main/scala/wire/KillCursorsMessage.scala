@@ -18,7 +18,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 
 /**
  * OP_KILL_CURSORS
@@ -36,7 +36,7 @@ trait KillCursorsMessage extends MongoMessage {
   val numCursors: Int // The number of cursorIDs in the message
   val cursorIDs: Seq[Long] // Sequence of cursorIDs to close
 
-  protected def writeMessage(enc: BSONEncoder) {
+  protected def writeMessage(enc: BSONSerializer) {
     enc.writeInt(ZERO)
     enc.writeInt(numCursors)
     for (_id <- cursorIDs) enc.writeLong(_id)

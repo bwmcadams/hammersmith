@@ -28,10 +28,10 @@ import org.bson.util.Logging
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import org.bson.io.PoolOutputBuffer
-import org.bson.{ BSONEncoder, BSONObject }
 import org.jboss.netty.buffer.{ ChannelBufferOutputStream, ChannelBuffers }
 import org.jboss.netty.channel.Channel
 import java.io.{ EOFException, InputStream, OutputStream }
+import org.bson._
 
 /**
  * Request OpCodes for communicating with MongoDB Servers
@@ -177,9 +177,9 @@ abstract class MongoMessage extends Logging {
 
   //  def apply(channel: Channel) = write
 
-  // TODO - Decouple me... this is bad design
   def write(out: OutputStream) = {
-    val enc = new BSONEncoder
+    // TODO - Reuse / pool Serializers for performance via reset()
+    val enc = new DefaultBSONSerializer
 
     val buf = new PoolOutputBuffer()
     enc.set(buf)
@@ -206,6 +206,6 @@ abstract class MongoMessage extends Logging {
    * write() puts in the header, writeMessage does a message
    * specific writeout
    */
-  protected def writeMessage(enc: BSONEncoder)
+  protected def writeMessage(enc: BSONSerializer)
 }
 

@@ -17,7 +17,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 
 /**
  * OP_GET_MORE Message
@@ -36,7 +36,7 @@ trait GetMoreMessage extends MongoMessage {
   val numberToReturn: Int // number of docs to return in first OP_REPLY batch
   val cursorID: Long // CursorID from the OP_REPLY (DB Genned value)
 
-  protected def writeMessage(enc: BSONEncoder) {
+  protected def writeMessage(enc: BSONSerializer) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(numberToReturn)
