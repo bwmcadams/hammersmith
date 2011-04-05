@@ -26,6 +26,8 @@ class MongoScalaNativeProject(info: ProjectInfo)
 //    val jBSON = "org.mongodb" % "bson" % "2.5.2"
     // Connection Pooling
     val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
+
+    val scalaj_collection = "org.scalaj" % "scalaj-collection_2.8.0" % "1.0"
     // Netty
     val netty = "org.jboss.netty" % "netty" % "3.2.4.Final"
     // Testing Deps
