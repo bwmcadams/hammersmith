@@ -16,7 +16,7 @@
  */
 package com.mongodb
 
-import com.mongodb.util.Logging
+import org.bson.util.Logging
 
 /**
  * Lazy decoding Cursor for MongoDB Objects

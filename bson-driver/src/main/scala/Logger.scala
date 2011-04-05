@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-
-package com.mongodb
+package org.bson
 package util
+
 
 import org.slf4j.{ Logger => SLFLogger, LoggerFactory => SLFLoggerFactory }
 
@@ -28,7 +28,7 @@ import org.slf4j.{ Logger => SLFLogger, LoggerFactory => SLFLoggerFactory }
 trait Logging {
   @transient
   @volatile
-  protected[mongodb] var log = Logger(this.getClass.getName)
+  protected var log = Logger(this.getClass.getName)
 }
 
 /**

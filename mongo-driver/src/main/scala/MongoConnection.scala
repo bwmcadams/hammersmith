@@ -21,12 +21,13 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.util.concurrent.Executors
 import java.net.InetSocketAddress
 
-import com.mongodb.util.Logging
+import org.bson.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
-import com.mongodb.wire.BSONFrameDecoder
 import org.jboss.netty.buffer.{ ChannelBuffers, ChannelBufferOutputStream, ChannelBuffer }
 import java.nio.ByteOrder
+import com.mongodb.wire.{MongoMessage , BSONFrameDecoder}
+import scala.collection.Map
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -79,11 +80,19 @@ abstract class MongoConnection extends Logging {
     0
   }
 
-  protected[mongodb] def send() {
+  /**
+   * WARNING: You *must* use an ordered list or commands won't work
+   */
+  protected[mongodb] def runCommand(dbName: String, cmd: Map[String, AnyRef]) = {
+    log.trace("Attempting to run command '%s' on DB '%s'", cmd, dbName)
+    send(null)
+  }
+  protected[mongodb] def send(msg: MongoMessage) {
     // TODO - Better pre-estimation of buffer size
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 1024 * 1024 * 4))
-    // message.write
-    // channel.write(outStream)
+    msg.write(outStream)
+    log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
+    channel.write(outStream)
   }
 
   // TODO - MAKE THESE IMMUTABLE

@@ -19,7 +19,28 @@ package com.mongodb
 package wire
 
 import org.bson.BSONEncoder
+import org.bson.util.Logging
 
+object QueryMessage extends Logging {
+  def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,
+            fields: Option[BSONDocument] = None, tailable: Boolean = false,
+            slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
+            exhaustData: Boolean = false, partialData: Boolean = false) =  new QueryMessage {
+    val tailableCursor = tailable
+    val slaveOk = slaveOkay
+    val noCursorTimeout = disableCursorTimeout
+    val awaitData = await
+    val exhaust = exhaustData
+    val partial = partialData
+
+    val namespace = ns
+    val numberToSkip = numSkip
+    val numberToReturn = numReturn
+    val query = q
+    override val returnFields = fields
+  }
+
+}
 /**
  * OP_QUERY Message
  *

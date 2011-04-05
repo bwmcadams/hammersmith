@@ -24,7 +24,7 @@ package wire
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol
  */
 
-import com.mongodb.util.Logging
+import org.bson.util.Logging
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import org.bson.io.PoolOutputBuffer

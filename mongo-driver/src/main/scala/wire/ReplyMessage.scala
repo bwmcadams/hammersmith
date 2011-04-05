@@ -19,7 +19,7 @@ package com.mongodb
 package wire
 
 import org.bson.BSONEncoder
-import com.mongodb.util.Logging
+import org.bson.util.Logging
 import java.io.InputStream
 
 /**
