@@ -18,7 +18,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 
 /**
  * OP_UPDATE Message
@@ -49,7 +49,7 @@ trait UpdateMessage extends MongoMessage {
   val query: BSONDocument // The query document to select from mongo
   val update: BSONDocument // The document specifying the update to perform
 
-  protected def writeMessage(enc: BSONEncoder) {
+  protected def writeMessage(enc: BSONSerializer) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)

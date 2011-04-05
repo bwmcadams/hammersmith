@@ -105,8 +105,6 @@ trait BSONSerializer extends BSONEncoder with Logging {
     _buf.getPosition - start
   }
 
-  def putList(name: Option[String], obj: SerializableBSONObject): Int
-
   /**
   * Sort of unecessarily overriden from the Java side but I want to use PartialFunction for future features.
   */
@@ -284,10 +282,13 @@ trait BSONSerializer extends BSONEncoder with Logging {
     _put(REGEX, name)
     _put(p.pattern)
     _put(regexFlags(p.flags))
-  }  // TODO - Implement me! (Really on Mongo side of the wall)
+  }
 
   protected def putIterable(name: String, i: Iterable[_]): Unit = putArray(name, i.toArray)
 
-  def putSpecial(name: String , o: SerializableBSONObject): Boolean = false
-  def handleSpecialObjects(name: String , o: SerializableBSONObject): Boolean = false
+  // TODO - Implement me! (Really on Mongo side of the wall)   (DBrefs and the like...)
+  def putSpecial(name: String, o: SerializableBSONObject): Boolean = false
+  def handleSpecialObjects(name: String, o: SerializableBSONObject): Boolean = false
 }
+
+class DefaultBSONSerializer extends BSONSerializer

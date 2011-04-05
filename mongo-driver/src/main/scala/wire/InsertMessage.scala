@@ -17,7 +17,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 
 /**
  * OP_INSERT Message
@@ -37,7 +37,7 @@ trait InsertMessage extends MongoMessage {
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[BSONDocument] // One or more documents to insert into the collection
 
-  protected def writeMessage(enc: BSONEncoder) {
+  protected def writeMessage(enc: BSONSerializer) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     // TODO - Limit batch insert size which should be 4 * MaxBSON

@@ -18,7 +18,7 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONEncoder
+import org.bson.BSONSerializer
 
 /**
  * OP_DELETE Message
@@ -45,7 +45,7 @@ trait DeleteMessage extends MongoMessage {
 
   val query: BSONDocument // Query object for what to delete
 
-  protected def writeMessage(enc: BSONEncoder) {
+  protected def writeMessage(enc: BSONSerializer) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)
