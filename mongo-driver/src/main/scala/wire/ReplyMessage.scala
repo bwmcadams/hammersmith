@@ -20,23 +20,23 @@ package wire
 
 import org.bson.BSONSerializer
 import org.bson.util.Logging
-import java.io.InputStream
+import java.io.{ByteArrayInputStream , InputStream}
 
 /**
- * OP_REPLY
- *
- * OP_REPLY is sent by the database in response to an OP_QUERY or
- * OP_GET_MORE message.
- *
- */
+* OP_REPLY
+*
+* OP_REPLY is sent by the database in response to an OP_QUERY or
+* OP_GET_MORE message.
+*
+*/
 trait ReplyMessage extends MongoMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpReply
   // TODO - Read flags in!
   val flags: Int // bit vector of reply flags, available in ReplyFlag
-  def cursorNotFound = flags & ReplyFlag.CursorNotFound.id
-  def queryFailure = flags & ReplyFlag.QueryFailure.id
-  def awaitCapable = flags & ReplyFlag.AwaitCapable.id
+  def cursorNotFound = (flags & ReplyFlag.CursorNotFound.id) > 0
+  def queryFailure = (flags & ReplyFlag.QueryFailure.id) > 0
+  def awaitCapable = (flags & ReplyFlag.AwaitCapable.id) > 0
   val cursorID: Long // cursorID, for client to do getMores
   val startingFrom: Int // Where in the cursor this reply starts at
   val numReturned: Int // Number of documents in the reply.
@@ -45,6 +45,9 @@ trait ReplyMessage extends MongoMessage {
   protected def writeMessage(enc: BSONSerializer) =
     throw new UnsupportedOperationException("This message is not capable of being written. "
       + "Replies come only from the server.")
+
+
+
 }
 
 object ReplyMessage extends Logging {
@@ -53,24 +56,30 @@ object ReplyMessage extends Logging {
     import MongoMessage.readFromOffset
 
     log.debug("Finishing decoding Reply Message with Header of '%s'", header)
-    val b = Array[Byte](20) // relevant non-document stream bytes from the reply content.
-    readFromOffset(in, b, 16) // Read 20 bytes starting at #16
-    log.trace("Offset data for rest of reply read: %s", b)
+    val b = new Array[Byte](20) // relevant non-document stream bytes from the reply content.
+    readFully(in, b)
+    val bin = new ByteArrayInputStream(b)
+    log.trace("Offset data for rest of reply read: %s", bin)
     new ReplyMessage {
-      val flags = readInt(b)
+      val flags = readInt(bin)
       log.trace("[Reply] Flags: %d", flags)
-      val cursorID = readLong(b)
+      val cursorID = readLong(bin)
       log.trace("[Reply] Cursor ID: %d", cursorID)
-      val startingFrom = readInt(b)
+      val startingFrom = readInt(bin)
       log.trace("[Reply] Starting From: %d", startingFrom)
-      val numReturned = readInt(b)
+      val numReturned = readInt(bin)
       log.trace("[Reply] Number of Documents Returned: %d", numReturned)
       /*
        * And here comes the hairy part.  Ideally, we want to completely amortize the
        * decoding of these docs.  It makes *zero* sense to me to wait for a whole
        * block of documents to decode from BSON before I can begin iteration.
        */
-      val documents = List.empty[BSONDocument]
+     val documents = List.empty[BSONDocument]
+
+     override def toString =
+      "ReplyMessage { " +
+      "cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s } ".format(
+         cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable)
     }
   }
 

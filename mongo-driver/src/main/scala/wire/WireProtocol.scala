@@ -30,8 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.bson.io.PoolOutputBuffer
 import org.jboss.netty.buffer.{ ChannelBufferOutputStream, ChannelBuffers }
 import org.jboss.netty.channel.Channel
-import java.io.{ EOFException, InputStream, OutputStream }
 import org.bson._
+import java.io._
 
 /**
  * Request OpCodes for communicating with MongoDB Servers
@@ -116,23 +116,25 @@ object MongoMessage extends Logging {
   def unapply(in: InputStream): MongoMessage = {
     import org.bson.io.Bits._
     log.debug("Attempting to extract a coherent MongoDB Message from '%s'", in)
-    val rawHdr = Array[Byte](16) // Message header
-    readFully(in, rawHdr)
-    log.trace("Message Header: %s", rawHdr)
+    val b = new Array[Byte](16) // Message header
+    log.trace("Raw HDR Allocated to %d", b.length)
+    readFully(in, b)
+    val rawHdr = new ByteArrayInputStream(b)
+    log.trace("Message Header: %s", rawHdr.toString)
 
     val header = new MessageHeader {
-      val messageLength = readInt(rawHdr)
-      log.trace("Message Length: %i", messageLength)
+      val messageLength: Int = readInt(rawHdr)
+      log.trace("Message Length: %d", messageLength)
       // TODO - Validate message length
       val requestID = readInt(rawHdr)
-      log.trace("Message ID: %i", requestID)
+      log.trace("Message ID: %d", requestID)
       val responseTo = readInt(rawHdr)
-      log.trace("Message Response To (ID): %i", responseTo)
+      log.trace("Message Response To (ID): %d", responseTo)
       val opCode = readInt(rawHdr)
-      log.trace("Operation Code: %i", opCode)
+      log.trace("Operation Code: %d", opCode)
     }
 
-    header.opCode match {
+    OpCode(header.opCode) match {
       case OpCode.OpReply => {
         log.debug("[Incoming Message] OpCode is 'OP_REPLY'")
         ReplyMessage(header, in)
@@ -162,7 +164,7 @@ object MongoMessage extends Logging {
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
       case unknown => {
-        log.error("Unkown Message OpCode '%i'", unknown)
+        log.error("Unknown Message OpCode '%d'", unknown)
         throw new UnsupportedOperationException("Invalid Message Type with OpCode '%d'".format(unknown))
       }
     }
@@ -184,6 +186,8 @@ abstract class MongoMessage extends Logging {
     val buf = new PoolOutputBuffer()
     enc.set(buf)
 
+    val sizePos = buf.getPosition
+
     enc.writeInt(0) // Length, will set later; for now, placehold
 
     val id = MongoMessage.ID.getAndIncrement()
@@ -196,7 +200,7 @@ abstract class MongoMessage extends Logging {
 
     writeMessage(enc)
     log.trace("Finishing writing core message, final length of '%s'", buf.size)
-    buf.write(new Array(buf.size.toByte), 0, 4)
+    buf.writeInt(sizePos, buf.getPosition - sizePos)
     buf.pipe(out)
   }
 

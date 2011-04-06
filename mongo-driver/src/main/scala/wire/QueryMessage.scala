@@ -23,9 +23,9 @@ import org.bson.util.Logging
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,
-            fields: Option[BSONDocument] = None, tailable: Boolean = false,
-            slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
-            exhaustData: Boolean = false, partialData: Boolean = false) =  new QueryMessage {
+    fields: Option[BSONDocument] = None, tailable: Boolean = false,
+    slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
+    exhaustData: Boolean = false, partialData: Boolean = false) = new QueryMessage {
     val tailableCursor = tailable
     val slaveOk = slaveOkay
     val noCursorTimeout = disableCursorTimeout
@@ -85,7 +85,7 @@ trait QueryMessage extends MongoMessage {
     enc.writeInt(numberToReturn)
     enc.putObject(query)
     // TDOO - Not sure what to write for None as this is optional
-    enc.putObject(returnFields.getOrElse(null))
+    enc.putObject(returnFields.getOrElse(Document.empty))
   }
 }
 

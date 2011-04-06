@@ -18,24 +18,59 @@
 package com.mongodb
 
 import org.bson._
-import scala.collection.mutable.{LinkedHashMap , HashMap}
+import scala.collection.generic._
+import scala.collection.mutable._
 
 /* Placeholder for future usage
 * TODO Implement me
 */
-trait BSONDocument extends SerializableBSONDocument
+trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any]
 
-class Document extends HashMap[String, Any] with BSONDocument {
+/**
+ * If you want factory fun, you need to use the Map traits.  Otherwise, roll your own.
+ */
+trait BSONDocumentFactory[T <: BSONDocument] {
+  def empty: T
+
+  def apply[A <: String, B <: Any](elems: (A, B)*): T = (newBuilder[A, B] ++= elems).result
+  def apply[A <: String, B <: Any](elems: List[(A, B)]): T = apply(elems: _*)
+
+  def newBuilder[A <: String, B <: Any]: BSONDocumentBuilder[T] = new BSONDocumentBuilder[T](empty)
+}
+
+class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, Any), T] {
+  protected var elems: T = empty
+  def +=(x: (String, Any)) = {
+    elems += x
+    this
+  }
+  def clear() { elems = empty }
+  def result: T = elems
+}
+
+class Document extends BSONDocument {
+  protected val _map = new HashMap[String, Any]
   val serializer = new DefaultBSONSerializer
-  def map = this.asInstanceOf[Map[String, Any]]
+  def map = _map
+  def self = _map
+}
+
+object Document extends BSONDocumentFactory[Document] {
+  def empty = new Document
 }
 
 /**
-* Needed for some tasks such as Commands to run safely.
-*/
-class OrderedDocument extends LinkedHashMap[String, Any] with BSONDocument {
+ * Needed for some tasks such as Commands to run safely.
+ */
+class OrderedDocument extends BSONDocument {
+  protected val _map = new LinkedHashMap[String, Any]
   val serializer = new DefaultBSONSerializer
-  def map = this.asInstanceOf[Map[String, Any]]
+  def map = _map
+  def self = _map
+}
+
+object OrderedDocument extends BSONDocumentFactory[OrderedDocument] {
+  def empty = new OrderedDocument
 }
 
 /**
