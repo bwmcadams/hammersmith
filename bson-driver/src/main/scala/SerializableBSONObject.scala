@@ -33,7 +33,7 @@ sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
    * Must be available, even with list
    * (They are encoded as dictionaries to BSON)
    */
-  val keySet: Set[String]
+  def keySet: scala.collection.Set[String]
 
   def encode(out: OutputBuffer) =
     serializer.encode(this, out)
@@ -48,11 +48,17 @@ trait SerializableBSONDocument extends SerializableBSONObject {
    * required to serialize things.
    * TODO - Should we offer some way of protecting this?
    */
-  val map: scala.collection.immutable.Map[String, Any]
+  def map: scala.collection.immutable.Map[String, Any]
 
-  val keySet = map.keySet.asInstanceOf[Set[String]]
+}
 
-  def iterator = map.iterator
+/**
+ * For custom objects rather than maps
+ */
+trait SerializableBSONCustomDocument extends SerializableBSONDocument {
+  override val keySet = map.keySet.asInstanceOf[Set[String]]
+
+  override def iterator = map.iterator
 }
 
 trait SerializableBSONList extends SerializableBSONObject  {
