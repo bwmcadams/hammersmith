@@ -83,9 +83,8 @@ abstract class MongoConnection extends Logging {
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand(dbName: String, cmd: Map[String, AnyRef]) = {
+  protected[mongodb] def runCommand(dbName: String, cmd: BSONDocument) {
     log.trace("Attempting to run command '%s' on DB '%s'", cmd, dbName)
-    send(null)
   }
   protected[mongodb] def send(msg: MongoMessage) {
     // TODO - Better pre-estimation of buffer size

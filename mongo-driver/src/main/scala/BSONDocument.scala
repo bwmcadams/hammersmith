@@ -18,11 +18,25 @@
 package com.mongodb
 
 import org.bson._
+import scala.collection.mutable.{LinkedHashMap , HashMap}
 
 /* Placeholder for future usage
- * TODO Implement me
- */
-trait BSONDocument extends BSONObject
+* TODO Implement me
+*/
+trait BSONDocument extends SerializableBSONDocument
+
+class Document extends HashMap[String, Any] with BSONDocument {
+  val serializer = new DefaultBSONSerializer
+  def map = this.asInstanceOf[Map[String, Any]]
+}
+
+/**
+* Needed for some tasks such as Commands to run safely.
+*/
+class OrderedDocument extends LinkedHashMap[String, Any] with BSONDocument {
+  val serializer = new DefaultBSONSerializer
+  def map = this.asInstanceOf[Map[String, Any]]
+}
 
 /**
  * A lazily evaluated BSON Document which
