@@ -36,6 +36,11 @@ sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
    */
   val keySet: Set[String]
 
+  def encode(out: OutputBuffer) =
+    serializer.encode(this, out)
+
+
+  def encode(): Array[Byte] = serializer.encode(this)
 }
 
 trait SerializableBSONDocument extends SerializableBSONObject {
