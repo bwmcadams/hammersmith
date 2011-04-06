@@ -27,7 +27,6 @@ import org.bson.io.{BasicOutputBuffer , OutputBuffer}
 sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
 
   val serializer: BSONSerializer
-  val deserialize: BSONDeserializer
 
   /**
    * The keys in your object

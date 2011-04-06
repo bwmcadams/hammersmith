@@ -34,9 +34,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
 
 
   }
-  abstract class DefaultBSONCallback extends Callback {
 
-  }
 
   override def decode(first: Boolean = true): Int = {
     val len = _in.readInt // hmm.. should this be parend for side effects? PEDANTRY!
@@ -213,5 +211,9 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   protected var _callback: Callback = null
 }
 
-abstract class DefaultBSONDeserializer extends BSONDeserializer
+abstract class DefaultBSONDeserializer extends BSONDeserializer {
+  abstract class DefaultBSONCallback extends Callback {
+
+  }
+}
 
