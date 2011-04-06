@@ -32,9 +32,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
      */
     reset()
 
-
   }
-
 
   override def decode(first: Boolean = true): Int = {
     val len = _in.readInt // hmm.. should this be parend for side effects? PEDANTRY!
@@ -44,23 +42,22 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     log.trace("Decoding, length: %d", len)
 
     _callback.objectStart()
-    while ( decodeElement()) {}
+    while (decodeElement()) {}
     _callback.objectDone()
 
     require(_in._read == len && first,
-            "Bad Data? Post-Read Lengths don't match up. Expected: %d, Got: %d".format(len, _in._read))
+      "Bad Data? Post-Read Lengths don't match up. Expected: %d, Got: %d".format(len, _in._read))
 
     len
   }
 
-  def decode(in: InputStream , callback: Callback): Int = try {
-   _decode(new Input(in), callback)
+  def decode(in: InputStream, callback: Callback): Int = try {
+    _decode(new Input(in), callback)
   } catch {
     case ioe: IOException => throw new BSONException("Failed to decode input data.", ioe)
   }
 
-
-  def decode(b: Array[Byte] , callback: Callback): Int = try {
+  def decode(b: Array[Byte], callback: Callback): Int = try {
     _decode(new Input(new ByteArrayInputStream(b)), callback)
   } catch {
     case ioe: IOException => throw new BSONException("Failed to decode input data.", ioe)
@@ -79,7 +76,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
       else _callback = callback
 
       decode()
-   } finally {
+    } finally {
       _in = null
       _callback = null
     }
@@ -98,7 +95,6 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     _getHandle(t)(name)
     true
   }
-
 
   protected val _getHandle: PartialFunction[Byte, Function1[String, Unit]] = {
     case NULL => {
@@ -205,8 +201,8 @@ trait BSONDeserializer extends BSONDecoder with Logging {
 
   }
   /**
-  * TODO - immutable, but we're trading off performance on pooling here
-  */
+   * TODO - immutable, but we're trading off performance on pooling here
+   */
   protected var _in: Input = null
   protected var _callback: Callback = null
 }

@@ -23,6 +23,8 @@ import java.net.InetSocketAddress
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.{ Channels, ChannelPipelineFactory }
 import com.mongodb.wire.BSONFrameDecoder
+import scala.collection.mutable.ConcurrentMap
+import com.mongodb.futures.RequestFuture
 
 /**
  * Direct Connection to a single mongod (or mongos) instance
@@ -33,10 +35,9 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
 
   log.debug("Initializing Direct MongoDB connection on address '%s'", addr)
 
-  def newHandler = new DirectConnectionHandler(bootstrap)
+  def newHandler = new DirectConnectionHandler(bootstrap, dispatcher)
 
 }
 
-protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler {
-
-}
+protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap,
+  val dispatcher: ConcurrentMap[Int, RequestFuture[_]]) extends MongoConnectionHandler

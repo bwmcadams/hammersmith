@@ -15,18 +15,18 @@
  *
  */
 
-package com.mongodb
-package wire
+import com.mongodb.MongoConnection
+import org.bson.util.{ Logger, Logging }
+import org.specs2.mutable._
+import org.specs2.runner._
 
-import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder
-import com.mongodb.casbah.commons.Logging
-import org.jboss.netty.channel._
-import org.jboss.netty.buffer.ChannelBuffer
+class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
+  //  println(org.apache.commons.logging.Log)
 
-/**
- * Decoder capable of safely decoding fragmented frames from BSON
- *
- * @TODO - Toggleable setting of maxFrameLength based on server BSON Size
- * (Currently defaults to a max of 4MB)
- */
-protected[mongodb] class BSONFrameDecoder extends LengthFieldBasedFrameDecoder(1024 * 1024 * 4, 0, 4, -4, 0) with Logging
+  "The MongoDB Direct Connection" should {
+    "Connect correctly and grab isMaster" in {
+      val conn = MongoConnection("localhost")
+      conn must not beNull
+    }
+  }
+}

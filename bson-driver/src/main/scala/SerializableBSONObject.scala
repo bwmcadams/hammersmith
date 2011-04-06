@@ -17,7 +17,7 @@
 
 package org.bson
 
-import org.bson.io.{BasicOutputBuffer , OutputBuffer}
+import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
 
 // TODO - Enforcement of Serializable types?
 /**
@@ -38,7 +38,6 @@ sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
   def encode(out: OutputBuffer) =
     serializer.encode(this, out)
 
-
   def encode(): Array[Byte] = serializer.encode(this)
 }
 
@@ -48,7 +47,7 @@ trait SerializableBSONDocument extends SerializableBSONObject {
    * required to serialize things.
    * TODO - Should we offer some way of protecting this?
    */
-  def map: scala.collection.immutable.Map[String, Any]
+  def map: scala.collection.Map[String, Any]
 
 }
 
@@ -61,11 +60,11 @@ trait SerializableBSONCustomDocument extends SerializableBSONDocument {
   override def iterator = map.iterator
 }
 
-trait SerializableBSONList extends SerializableBSONObject  {
+trait SerializableBSONList extends SerializableBSONObject {
 
   /**
-  * A sequence representation of your object
-  */
+   * A sequence representation of your object
+   */
   val list: Seq[Any]
 
   val keySet = list.indices.map(_.toString).toSet

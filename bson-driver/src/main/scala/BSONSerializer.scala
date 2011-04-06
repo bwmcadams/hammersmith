@@ -18,14 +18,14 @@
 package org.bson
 
 import org.bson.util.Logging
-import org.bson.io.{BasicOutputBuffer , OutputBuffer}
+import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
 import java.lang.String
 import org.bson.BSON._
 import org.bson.types.ObjectId
 import java.util.regex.Pattern
 import scala.util.matching.Regex
 import scalaj.collection.Imports._
-import java.util.{UUID , Date => JDKDate}
+import java.util.{ UUID, Date => JDKDate }
 
 trait BSONSerializer extends BSONEncoder with Logging {
 
@@ -84,13 +84,12 @@ trait BSONSerializer extends BSONEncoder with Logging {
       }
     }
 
-
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for document length
 
     // TODO - Support for transient fields like in the Java driver? Or does the user handle these?
 
-    for ((k, v) <- o if k != "_id" && !rewriteID)  {
+    for ((k, v) <- o if k != "_id" && !rewriteID) {
       log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
@@ -106,9 +105,9 @@ trait BSONSerializer extends BSONEncoder with Logging {
   }
 
   /**
-  * Sort of unecessarily overriden from the Java side but I want to use PartialFunction for future features.
-  */
-  override def _putObjectField(name: String , value: AnyRef){
+   * Sort of unecessarily overriden from the Java side but I want to use PartialFunction for future features.
+   */
+  override def _putObjectField(name: String, value: AnyRef) {
     log.debug("\t Put Field '%s' - '%s'", name, value)
 
     value match {
@@ -126,13 +125,13 @@ trait BSONSerializer extends BSONEncoder with Logging {
   }
 
   /**
-  * Do not taunt PartialFunction[Happy, Fun]
-  *
-  * Applied AFTER encoding Hooks.  Use orElse chaining to tack shit on, or
-  * add your own encoding hooks.
-  *
-  * TODO - Hardwire common Scala types here rather than using slower Encoding Hooks like in Casbah
-  */
+   * Do not taunt PartialFunction[Happy, Fun]
+   *
+   * Applied AFTER encoding Hooks.  Use orElse chaining to tack shit on, or
+   * add your own encoding hooks.
+   *
+   * TODO - Hardwire common Scala types here rather than using slower Encoding Hooks like in Casbah
+   */
   protected val _putHandle: PartialFunction[AnyRef, Function1[String, Unit]] = {
     case null => {
       log.trace("null value.")
@@ -174,7 +173,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
       log.trace("jDK Map value.")
       putMap(_: String, jdkMap.asScala)
     }
-    case sMap: Map[_, _] =>  {
+    case sMap: Map[_, _] => {
       log.trace("Scala Map value.")
       putMap(_: String, sMap)
     }
@@ -229,12 +228,12 @@ trait BSONSerializer extends BSONEncoder with Logging {
     }
     case default => {
       // Weird case, attempt to push specials... delegate "match failed" up a level
-      { name: String => if (!putSpecial(name, default))
-                        throw new IllegalArgumentException("Cannot serialize '%s'".format(default.getClass))
+      { name: String =>
+        if (!putSpecial(name, default))
+          throw new IllegalArgumentException("Cannot serialize '%s'".format(default.getClass))
       }
     }
   }
-
 
   protected def putArray(name: String, arr: Array[_]) {
     _put(ARRAY, name)

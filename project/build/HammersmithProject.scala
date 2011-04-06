@@ -2,7 +2,7 @@ import sbt._
 import growl._
 import com.github.olim7t.sbtscalariform._
 
-class MongoScalaNativeProject(info: ProjectInfo)
+class HammersmithProject(info: ProjectInfo)
   extends ParentProject(info) 
   with IdeaProject
   with posterous.Publish {
@@ -12,7 +12,7 @@ class MongoScalaNativeProject(info: ProjectInfo)
   lazy val bson = project("bson-driver", "bson-driver", new BSONDriverProject(_))
   lazy val mongo = project("mongo-driver", "mongo-driver", new MongoDriverProject(_), bson)
 
-  abstract class NativeBaseProject(info: ProjectInfo) 
+  abstract class HammersmithBaseProject(info: ProjectInfo) 
     extends DefaultProject(info)
     with AutoCompilerPlugins
     with IdeaProject
@@ -24,6 +24,7 @@ class MongoScalaNativeProject(info: ProjectInfo)
 
     // Use the BSON code
 //    val jBSON = "org.mongodb" % "bson" % "2.5.2"
+    val casbah = "com.mongodb.casbah" %% "casbah-bson-utils" % "2.2.0-SNAPSHOT"
     // Connection Pooling
     val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
@@ -43,12 +44,12 @@ class MongoScalaNativeProject(info: ProjectInfo)
   }
 
 
-  class BSONDriverProject(info: ProjectInfo) extends NativeBaseProject(info) {
+  class BSONDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info) {
     // For testing BSON wire formats etc from a 'known good' state
-    // val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.5.2" % "test->default"
+ // val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.5.2" % "test->default"
   }
 
-  class MongoDriverProject(info: ProjectInfo) extends NativeBaseProject(info)
+  class MongoDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info)
 
   val sbtSnapshots = "snapshots" at "http://scala-tools.org/repo-snapshots"
   val sbtReleases  = "releases" at "http://scala-tools.org/repo-releases"
