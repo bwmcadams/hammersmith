@@ -31,17 +31,18 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable.ConcurrentMap
 import com.mongodb.futures._
 import org.jboss.netty.buffer._
+import org.bson.{Document , BSONDocument}
 
 /**
- * Base trait for all connections, be it direct, replica set, etc
- *
- * This contains common code for any type of connection.
- *
- * NOTE: Connection instances are instances of a *POOL*, always.
- *
- * @author Brendan W. McAdams <brendan@10gen.com>
- * @since 0.1
- */
+* Base trait for all connections, be it direct, replica set, etc
+*
+* This contains common code for any type of connection.
+*
+* NOTE: Connection instances are instances of a *POOL*, always.
+*
+* @author Brendan W. McAdams <brendan@10gen.com>
+* @since 0.1
+*/
 abstract class MongoConnection extends Logging {
 
   /* TODO - Can we reuse these factories across multiple connections??? */

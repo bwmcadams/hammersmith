@@ -15,19 +15,12 @@
  *
  */
 
-import com.mongodb.MongoConnection
-import org.bson.util.{ Logger, Logging }
-import org.specs2.mutable._
-import org.specs2.runner._
+package org.bson
+package types
 
-class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
-  //  println(org.apache.commons.logging.Log)
+import scala.util.matching.Regex
+import java.util.regex.Pattern
 
-  "The MongoDB Direct Connection" should {
-    "Connect correctly and grab isMaster" in {
-      val conn = MongoConnection("localhost")
-      Thread.sleep(5000)
-      conn must not beNull
-    }
-  }
+class FlaggableRegex(regex: String, flags: Int, groupNames: String*) extends Regex(regex, groupNames: _*) {
+  override val pattern = Pattern.compile(regex, flags)
 }

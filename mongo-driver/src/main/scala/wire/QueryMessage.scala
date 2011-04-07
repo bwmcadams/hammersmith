@@ -18,8 +18,8 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONSerializer
 import org.bson.util.Logging
+import org.bson._
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,

@@ -17,22 +17,31 @@
 
 package org.bson
 
-import org.bson.util.Logging
 import BSON._
 import java.lang.String
 import java.io._
-import org.bson.types.ObjectId
+import org.bson.types._
+import java.util.{ UUID, Date => JDKDate }
+import org.bson.util.{ Logging }
+import scala.collection.mutable.Stack
 
+/**
+ * Deserialization handler which is expected to turn a BSON ByteStream into
+ * objects of type "T" (or a subclass thereof)
+ */
 trait BSONDeserializer extends BSONDecoder with Logging {
   val callback: Callback //= new DefaultBSONCallback
   abstract class Callback extends BSONCallback {
-    /*
-     * Reset the state.  Whereever possible, we reuse callbacks
-     * to reduce overhead
-     */
-    reset()
 
   }
+
+  def reset() {
+    callback.reset()
+    _in = null
+    _callback = null
+  }
+
+  def get = callback.get
 
   override def decode(first: Boolean = true): Int = {
     val len = _in.readInt // hmm.. should this be parend for side effects? PEDANTRY!
@@ -42,7 +51,9 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     log.trace("Decoding, length: %d", len)
 
     _callback.objectStart()
-    while (decodeElement()) {}
+    while (decodeElement()) {
+      log.trace("Decode Loop")
+    }
     _callback.objectDone()
 
     require(_in._read == len && first,
@@ -51,6 +62,20 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     len
   }
 
+  def decodeAndFetch(in: InputStream): AnyRef = {
+    log.trace("DecodeAndFetch.")
+    //reset()
+    log.trace("Reset.")
+    try {
+      decode(in, callback)
+    } catch {
+      case t: Throwable => log.error(t, "Failed to decode message with callback.")
+    }
+    log.trace("Decoded, getting.")
+    val obj = get
+    log.trace("Decoded, got %s.", obj)
+    get
+  }
   def decode(in: InputStream, callback: Callback): Int = try {
     _decode(new Input(in), callback)
   } catch {
@@ -67,11 +92,11 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     // TODO - Pooling/reusability
     require(in._read == 0, "Invalid Read Bytes State on Input Object.")
     try {
-      if (_in == null)
+      if (_in != null)
         throw new IllegalStateException("_in already defined; bad state.")
       else _in = in
 
-      if (_callback == null)
+      if (_callback != null)
         throw new IllegalStateException("_callback already defined; bad state.")
       else _callback = callback
 
@@ -87,13 +112,13 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     if (t == EOO) {
       log.trace("End of Object. ")
       false
+    } else {
+      val name = _in.readCStr
+
+      log.trace("Element Decoding with Name '%s', Type '%s'", name, t)
+      _getHandle(t)(name)
+      true
     }
-
-    val name = _in.readCStr
-
-    log.trace("Element Decoding with Name '%s', Type '%s'", name, t)
-    _getHandle(t)(name)
-    true
   }
 
   protected val _getHandle: PartialFunction[Byte, Function1[String, Unit]] = {
@@ -207,9 +232,129 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   protected var _callback: Callback = null
 }
 
-abstract class DefaultBSONDeserializer extends BSONDeserializer {
-  abstract class DefaultBSONCallback extends Callback {
+/**
+ * Default BSON Deserializer which produces instances of BSONDocument
+ */
+class DefaultBSONDeserializer extends BSONDeserializer {
+  val callback = new DefaultBSONCallback
+
+  class DefaultBSONCallback extends Callback {
+
+    log.debug("Beginning a new DefaultBSONCallback; assembling a Builder.")
+
+    protected var root = Document.empty
+
+    protected var stack = new Stack[Document]
+    protected var nameStack = new Stack[String]
+
+    // Create a new instance of myself
+    def createBSONCallback(): BSONCallback = new DefaultBSONCallback
+
+    def get: BSONDocument = root
+
+
+    def create(array: Boolean) =
+      if (array) throw new UnsupportedOperationException("No Array Support Yet") else Document.empty
+
+    def objectStart() {
+      require(stack.size == 0, "Invalid stack state; no-arg objectStart can only be called on initial decode.")
+      log.trace("Beginning a new Object w/ no args.")
+      objectStart(false)
+    }
+
+    def objectStart(array: Boolean) {
+      log.trace("Starting a new object... As Array? %s", array)
+      root = create(array)
+      stack.push(root)
+    }
+
+    def objectStart(name: String) = objectStart(false, name)
+
+    def objectStart(array: Boolean, name: String) {
+      nameStack.push(name)
+      val obj = create(array)
+      stack.top.put(name, obj)
+      log.trace("Adding '%s' to stack '%s'", obj, stack)
+      stack.push(obj)
+      log.trace("Added to stack '%s'", stack)
+    }
+
+    def objectDone() = {
+      val obj = stack.pop()
+      if (nameStack.size > 0) {
+        nameStack.pop()
+      } else if (stack.size > 0) throw new IllegalStateException("Invalid Stack State.")
+
+      // run the Decoding hooks
+      // TODO - Make Decoding hooks capable of slurping in BSONDocument!
+      log.debug("Root set: %s", root)
+      BSON.applyDecodingHooks(obj).asInstanceOf[Document]
+    }
+
+    def arrayDone() = objectDone()
+
+    def arrayStart(name: String) {
+      throw new UnsupportedOperationException("I haven't figured out how to make BSONDocuments act like Lists yet!")
+    }
+
+    def arrayStart() {
+      throw new UnsupportedOperationException("I haven't figured out how to make BSONDocuments act like Lists yet!")
+    }
+
+    def reset() {
+      root = Document.empty
+      if (stack != null) stack.clear()
+      if (nameStack != null) nameStack.clear()
+    }
+
+    // TODO - Check and test me , I think we're getting a BSONObject back not a Document
+    def gotCodeWScope(name: String, code: String, scope: AnyRef) =
+      put(name, new CodeWScope(code, scope.asInstanceOf[BSONObject]))
+
+    def gotCode(name: String, code: String) = put(name, code)
+
+    def gotUUID(name: String, part1: Long, part2: Long) = put(name, new UUID(part1, part2))
+
+    def gotBinary(name: String, t: Byte, data: Array[Byte]) = put(name, new Binary(t, data))
+
+    def gotBinaryArray(name: String, b: Array[Byte]) = put(name, b)
+
+    def gotDBRef(name: String, ns: String, id: ObjectId) = put(name, Document("$ns" -> ns, "$id" -> id))
+
+    def gotObjectId(name: String, id: ObjectId) = put(name, id)
+
+    def gotTimestamp(name: String, time: Int, inc: Int) = put(name, new BSONTimestamp(time, inc))
+
+    def gotRegex(name: String, pattern: String, flags: String) =
+      put(name, new FlaggableRegex(pattern, BSON.regexFlags(flags)))
+
+    def gotSymbol(name: String, v: String) = put(name, new Symbol(v))
+
+    def gotString(name: String, v: String) = put(name, v)
+
+    def gotDate(name: String, millis: Long) = put(name, new JDKDate(millis))
+
+    def gotLong(name: String, v: Long) = put(name, v)
+
+    def gotInt(name: String, v: Int) = put(name, v)
+
+    def gotDouble(name: String, v: Double) = put(name, v)
+
+    def gotBoolean(name: String, v: Boolean) = put(name, v)
+
+    def gotMaxKey(name: String) = cur.put(name, "MaxKey") // ??
+
+    def gotMinKey(name: String) = cur.put(name, "MinKey") // ??
+
+    def gotUndefined(name: String) { /* NOOP */ }
+
+    def gotNull(name: String) = cur.put(name, None)
+
+    def cur = stack.top
+
+    def put(k: String, v: Any) = cur.put(k, BSON.applyDecodingHooks(v))
 
   }
+
 }
 
