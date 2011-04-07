@@ -18,9 +18,10 @@
 package com.mongodb
 package wire
 
-import org.bson.BSONSerializer
 import org.bson.util.Logging
 import java.io.{ByteArrayInputStream , InputStream}
+import org.bson._
+import scala.util.control.Exception._
 
 /**
 * OP_REPLY
@@ -32,7 +33,7 @@ import java.io.{ByteArrayInputStream , InputStream}
 trait ReplyMessage extends MongoMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpReply
-  // TODO - Read flags in!
+
   val flags: Int // bit vector of reply flags, available in ReplyFlag
   def cursorNotFound = (flags & ReplyFlag.CursorNotFound.id) > 0
   def queryFailure = (flags & ReplyFlag.QueryFailure.id) > 0
@@ -51,6 +52,9 @@ trait ReplyMessage extends MongoMessage {
 }
 
 object ReplyMessage extends Logging {
+
+  // TODO - Make it possible to dyamically set a decoder.
+  val decoder = new DefaultBSONDeserializer
   def apply(header: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._
     import MongoMessage.readFromOffset
@@ -74,12 +78,13 @@ object ReplyMessage extends Logging {
        * decoding of these docs.  It makes *zero* sense to me to wait for a whole
        * block of documents to decode from BSON before I can begin iteration.
        */
-     val documents = List.empty[BSONDocument]
+      val documents = for (i <- 0 until numReturned) yield decoder.decodeAndFetch(in).asInstanceOf[BSONDocument]
 
-     override def toString =
-      "ReplyMessage { " +
-      "cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s } ".format(
-         cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable)
+      log.debug("Parsed Out Documents: %s", documents)
+
+      override def toString = "ReplyMessage { " +
+        "cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, docs: %s } ".
+        format(cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents)
     }
   }
 

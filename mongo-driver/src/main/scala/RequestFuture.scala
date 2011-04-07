@@ -22,6 +22,7 @@ import com.mongodb.wire.{ QueryMessage, MongoMessage }
 import org.bson.types.ObjectId
 import scala.concurrent.SyncVar
 import scala.actors._
+import org.bson.Document
 
 trait Cursor extends Seq[Document]
 

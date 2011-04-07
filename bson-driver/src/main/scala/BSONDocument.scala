@@ -15,15 +15,13 @@
  *
  */
 
-package com.mongodb
+package org.bson
 
 import org.bson._
 import scala.collection.generic._
 import scala.collection.mutable._
+import scala.collection.Map
 
-/* Placeholder for future usage
-* TODO Implement me
-*/
 trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any]
 
 /**
@@ -32,10 +30,10 @@ trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any]
 trait BSONDocumentFactory[T <: BSONDocument] {
   def empty: T
 
-  def apply[A <: String, B <: Any](elems: (A, B)*): T = (newBuilder[A, B] ++= elems).result
+  def apply[A <: String, B <: Any](elems: (A, B)*): T = (newBuilder ++= elems).result
   def apply[A <: String, B <: Any](elems: List[(A, B)]): T = apply(elems: _*)
 
-  def newBuilder[A <: String, B <: Any]: BSONDocumentBuilder[T] = new BSONDocumentBuilder[T](empty)
+  def newBuilder: BSONDocumentBuilder[T] = new BSONDocumentBuilder[T](empty)
 }
 
 class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, Any), T] {
