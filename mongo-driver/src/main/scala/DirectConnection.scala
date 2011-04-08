@@ -33,7 +33,7 @@ import com.mongodb.futures.RequestFuture
  */
 class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with Logging {
 
-  log.debug("Initializing Direct MongoDB connection on address '%s'", addr)
+  log.info("Initialized Direct MongoDB connection on address '%s'", addr)
 
   def newHandler = new DirectConnectionHandler(bootstrap, dispatcher)
 

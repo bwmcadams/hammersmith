@@ -91,6 +91,13 @@ trait MessageHeader {
 object MongoMessage extends Logging {
   val ID = new AtomicInteger(1)
 
+  /**
+   * For servers incapable of specifying BSON Size (< 1.8), what's their max size?
+   */
+  val DefaultMaxBSONObjectSize = 1024 * 1024 * 4
+
+
+
   def readFromOffset(in: InputStream, b: Array[Byte], offset: Int) {
     readFromOffset(in, b, offset, b.length)
   }
