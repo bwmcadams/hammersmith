@@ -134,7 +134,6 @@ trait BSONDeserializer extends BSONDecoder with Logging {
       log.trace("[Get Handle] Boolean value.")
       _callback.gotBoolean(_: String, _in.read() > 0)
     }
-    // TODO - Ordering Ok?
     case NUMBER => {
       log.trace("[Get Handle] Double Number value.")
       _callback.gotDouble(_: String, _in.readDouble)
@@ -226,7 +225,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
 
   }
   /**
-   * TODO - immutable, but we're trading off performance on pooling here
+   *  immutable, but we're trading off performance on pooling here
    */
   protected var _in: Input = null
   protected var _callback: Callback = null

@@ -120,11 +120,12 @@ abstract class MongoConnection extends Logging {
     val qMsg = QueryMessage(ns + ".$cmd", 0, -1, cmd)
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
-    // TODO Future for parsing
   }
   protected[mongodb] def send(msg: MongoMessage, f: RequestFuture) {
-    // TODO - Better pre-estimation of buffer size
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 1024 * 1024 * 4))
+    // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
+    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
+                                                  if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4
+                                                 ))
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
     dispatcher.put(msg.requestID, f)
     log.trace("PreWrite with outStream '%s'", outStream)
