@@ -33,6 +33,7 @@ import scala.util.control.Exception._
 trait ReplyMessage extends MongoMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpReply
+  val header: MessageHeader
 
   val flags: Int // bit vector of reply flags, available in ReplyFlag
   def cursorNotFound = (flags & ReplyFlag.CursorNotFound.id) > 0
@@ -55,16 +56,18 @@ object ReplyMessage extends Logging {
 
   // TODO - Make it possible to dyamically set a decoder.
   val decoder = new DefaultBSONDeserializer
-  def apply(header: MessageHeader, in: InputStream) = {
+  def apply(_hdr: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._
     import MongoMessage.readFromOffset
 
-    log.debug("Finishing decoding Reply Message with Header of '%s'", header)
+
+    log.debug("Finishing decoding Reply Message with Header of '%s'", _hdr)
     val b = new Array[Byte](20) // relevant non-document stream bytes from the reply content.
     readFully(in, b)
     val bin = new ByteArrayInputStream(b)
     log.trace("Offset data for rest of reply read: %s", bin)
     new ReplyMessage {
+      val header = _hdr
       val flags = readInt(bin)
       log.trace("[Reply] Flags: %d", flags)
       val cursorID = readLong(bin)
@@ -80,11 +83,13 @@ object ReplyMessage extends Logging {
        */
       val documents = for (i <- 0 until numReturned) yield decoder.decodeAndFetch(in).asInstanceOf[BSONDocument]
 
+      assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
+             "Wanted: %d Got: %d".format(numReturned, documents.length))
       log.debug("Parsed Out Documents: %s", documents)
 
       override def toString = "ReplyMessage { " +
-        "cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, docs: %s } ".
-        format(cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents)
+        "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, docs: %s } ".
+        format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents)
     }
   }
 

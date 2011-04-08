@@ -40,4 +40,4 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
 }
 
 protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap,
-  val dispatcher: ConcurrentMap[Int, RequestFuture[_]]) extends MongoConnectionHandler
+  val dispatcher: ConcurrentMap[Int, RequestFuture]) extends MongoConnectionHandler
