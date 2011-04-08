@@ -22,37 +22,66 @@ import com.mongodb.wire.{ QueryMessage, MongoMessage }
 import org.bson.types.ObjectId
 import scala.concurrent.SyncVar
 import scala.actors._
-import org.bson.Document
+import org.bson._
+import org.bson.util.Logging
 
-trait Cursor extends Seq[Document]
+trait Cursor extends Seq[SerializableBSONObject]
 
-trait RequestFuture[T] {
+sealed trait RequestFuture {
+  type T
   val body: (Option[T], FutureResult) => Unit
+
+  var _result: Option[FutureResult] = None
+  var _element: Option[T] = None
+
+  def result = _result
+  def result_=(r: FutureResult) = _result = Some(r)
+  def element = _element
+  def element_=(e: T) = _element = Some(e)
+
+  def apply() {
+    if (result.isEmpty) throw new IllegalStateException("No FutureResult defined.")
+    body(element, result.get)
+  }
+
   protected[futures] var completed = false
 }
+
+
+sealed trait QueryRequestFuture extends RequestFuture
 
 /**
  * Also used for getMore
  */
-trait QueryRequestFuture extends RequestFuture[Cursor]
-
-/**
- * Also used for findOne
- */
-trait CommandRequestFuture extends RequestFuture[Document]
-
-/**
- * Will pass the ObjectId along with any relevant getLastError information
- */
-trait InsertRequestFuture extends RequestFuture[ObjectId]
-
-trait FutureResult {
-  val ok: Boolean
-  val err: Option[String]
-  val n: Int
+trait CursorQueryRequestFuture extends RequestFuture {
+  type T <: Cursor
 }
 
-object RequestFutures {
+/**
+ *
+ * Used for findOne and commands
+ * Items which return a single document, and not a cursor
+ */
+trait SingleDocQueryRequestFuture extends QueryRequestFuture {
+  type T <: BSONDocument
+}
+
+/**
+ * Will pass any *generated* _id along with any relevant getLastError information
+ * For an update, don't expect to get ObjectId
+ */
+trait WriteRequestFuture extends RequestFuture {
+  type T <: AnyRef // ID Type
+}
+
+trait ObjectIdWriteRequestFuture extends WriteRequestFuture {
+  type T = ObjectId
+}
+
+
+case class FutureResult(ok: Boolean, err: Option[String], n: Int)
+
+object RequestFutures extends Logging {
   // TODO - Type Class selector
   //  def request[T : Manifest](body: (Option[T], FutureResult) => Unit): RequestFuture[T] = manifest[T] match {
   //    case c: Cursor => query(body)
@@ -61,8 +90,32 @@ object RequestFutures {
   //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
   //  }
 
-  def query(f: (Option[Cursor], FutureResult) => Unit) = new QueryRequestFuture { self => val body = f }
-  def command(f: (Option[Document], FutureResult) => Unit) = new CommandRequestFuture { self => val body = f }
-  def insert(f: (Option[ObjectId], FutureResult) => Unit) = new InsertRequestFuture { self => val body = f }
+  def query[A <: Cursor](f: (Option[A], FutureResult) => Unit) =
+    new CursorQueryRequestFuture {
+      type T = A
+      val body = f
+    }
+
+  def command[A <: BSONDocument](f: (Option[A], FutureResult) => Unit) =
+    new SingleDocQueryRequestFuture {
+      type T = A
+      val body = f
+    }
+
+  def findOne[A <: BSONDocument](f: (Option[A], FutureResult) => Unit) = command(f)
+
+  def write[Id : Manifest](f: (Option[AnyRef], FutureResult) => Unit) = manifest[Id] match {
+    case oid: ObjectId => {
+      log.trace("ObjectId write request.")
+      new ObjectIdWriteRequestFuture {
+        val body = f
+      }
+    }
+    case default => {
+      log.trace("'Default' write request.")
+      new WriteRequestFuture { val body = f }
+    }
+  }
+
 }
 

@@ -28,10 +28,10 @@ import scala.collection.Map
 import com.mongodb.wire._
 import java.util.concurrent.{ ConcurrentHashMap, Executors }
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ConcurrentMap
 import com.mongodb.futures._
 import org.jboss.netty.buffer._
-import org.bson.{Document , BSONDocument}
+import scala.collection.mutable.ConcurrentMap
+import org.bson._
 
 /**
 * Base trait for all connections, be it direct, replica set, etc
@@ -45,7 +45,14 @@ import org.bson.{Document , BSONDocument}
 */
 abstract class MongoConnection extends Logging {
 
+
+  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture] =
+    new ConcurrentHashMap[Int, RequestFuture]()
+
+  log.info("Generated a new Dispatcher object: %s", dispatcher)
+
   /* TODO - Can we reuse these factories across multiple connections??? */
+
   /**
    * Factory for client socket channels, reused by all connectors where possible.
    */
@@ -55,7 +62,7 @@ abstract class MongoConnection extends Logging {
   implicit val bootstrap = new ClientBootstrap(channelFactory)
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-    def getPipeline() = Channels.pipeline(new BSONFrameDecoder(), newHandler)
+    def getPipeline = Channels.pipeline(new BSONFrameDecoder(), newHandler)
   })
 
   bootstrap.setOption("remoteAddress", addr)
@@ -73,7 +80,7 @@ abstract class MongoConnection extends Logging {
     checkMaster()
   }
 
-  protected[mongodb] val dispatcher = JConcurrentMapWrapper(new ConcurrentHashMap[Int, RequestFuture[_]])
+
   /**
    * Utility method to pull back a number of pieces of information
    * including maxBSONObjectSize, and sort of serves as a verification
@@ -87,32 +94,32 @@ abstract class MongoConnection extends Logging {
     if (maxBSONObjectSize == 0 || force) {
       log.debug("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       readMaxBSONObjectSize()
+    } else {
+      log.debug("Already have cached master status. Skipping.")
     }
-
-    log.debug("Already have cached master status. Skipping.")
-    // NS = db + $CMD
   }
 
-  def readMaxBSONObjectSize() = {
+  def readMaxBSONObjectSize() {
     runCommand("admin", Document("isMaster" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
-      log.info("Got a result from command: %s", res)
+      log.info("Got a result from command: %s", doc)
     }))
   }
 
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand(ns: String, cmd: BSONDocument, f: CommandRequestFuture) {
-    log.trace("Attempting to run command '%s' on DB '%s.$cmd', against CommandRequestFuture: '%s'", cmd, ns, f)
+  protected[mongodb] def runCommand[A <% BSONDocument](ns: String, cmd: A, f: SingleDocQueryRequestFuture) {
+    log.trace("Attempting to run command '%s' on DB '%s.$cmd', against RequestFuture: '%s'", cmd, ns, f)
     val qMsg = QueryMessage(ns + ".$cmd", 0, -1, cmd)
-    log.trace("Created Query Message: %s", qMsg)
+    log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
     // TODO Future for parsing
   }
-  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture[_]) {
+  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture) {
     // TODO - Better pre-estimation of buffer size
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 1024 * 1024 * 4))
-    //    dispatcher.add((msg.requestID, f))
+    log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
+    dispatcher.put(msg.requestID, f)
     log.trace("PreWrite with outStream '%s'", outStream)
     msg.write(outStream)
     log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
@@ -125,15 +132,15 @@ abstract class MongoConnection extends Logging {
 
   val addr: InetSocketAddress
 
-  // TODO - MAKE THESE IMMUTABLE
-  /** Maximum size of BSON this serve allows. */
+  // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
+  /** Maximum size of BSON this server allows. */
   var maxBSONObjectSize = 0
 
 }
 
 trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
   val bootstrap: ClientBootstrap
-  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture[_]]
+  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture]
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val buf = e.getMessage.asInstanceOf[ChannelBuffer]
@@ -141,6 +148,54 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
     MongoMessage.unapply(new ChannelBufferInputStream(buf)) match {
       case reply: ReplyMessage => {
         log.trace("Reply Message Received: %s", reply)
+        // Dispatch the reply, separate into requisite parts, etc
+        /**
+        * Note - it is entirely OK to stuff a single result into
+        * a Cursor, but not multiple results into a single.  Should be obvious.
+        */
+        dispatcher.get(reply.header.responseTo) match {
+          case Some(singleResult: SingleDocQueryRequestFuture) => {
+            log.trace("Single Document Request Future.")
+            // This may actually be better as a disableable assert but for now i want it hard.
+            require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
+            // Check error state
+            // TODO - Different handling depending on type of op, GetLastError etc
+            // Though - GetLastError could dispatch back out again here and not invoke the callback!
+            if (reply.cursorNotFound) {
+              log.trace("Cursor Not Found.")
+              singleResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
+            } else if (reply.queryFailure) {
+              log.trace("Query Failure")
+              // Attempt to grab the $err document
+              val err = reply.documents.headOption match {
+                case Some(errDoc) => {
+                  log.trace("Error Document found: %s", errDoc)
+                  errDoc.getOrElse("$err", "Unknown Error.").toString
+                }
+                case None => {
+                  log.warn("No Error Document Found.")
+                  "Unknown Error."
+                }
+              }
+              singleResult.result = FutureResult(false, Some(err), 0)
+            } else {
+              singleResult.result = FutureResult(true, None, reply.numReturned)
+              singleResult.element = reply.documents.head.asInstanceOf[singleResult.T]
+            }
+            singleResult()
+          }
+          case Some(cursorResult: CursorQueryRequestFuture) => {
+            throw new UnsupportedOperationException("No support yet for cursor results.  Sorry.")
+          }
+          case None => {
+            /**
+            * Even when no response is wanted a 'Default' callback should be regged so
+            * this is definitely warnable, for now.
+            */
+            log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.",
+                     reply.header.responseTo)
+          }
+        }
       }
       case default => {
         log.warn("Unknown message type '%s'; ignoring.", default)
@@ -183,7 +238,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
  */
 object MongoConnection extends Logging {
 
-  def apply(hostname: String, port: Int = 27017) = {
+  def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
 

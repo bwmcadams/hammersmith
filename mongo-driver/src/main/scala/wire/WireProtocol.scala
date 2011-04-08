@@ -175,7 +175,9 @@ abstract class MongoMessage extends Logging {
   /* Standard Message Header */
   //val header: MessageHeader
   val opCode: OpCode.Value
-  var requestID = -1
+  var requestID = MongoMessage.ID.getAndIncrement
+  log.trace("Generated Message ID '%s'", requestID)
+
 
   //  def apply(channel: Channel) = write
 
@@ -190,10 +192,8 @@ abstract class MongoMessage extends Logging {
 
     enc.writeInt(0) // Length, will set later; for now, placehold
 
-    val id = MongoMessage.ID.getAndIncrement()
-    log.trace("Generated Message ID '%s'", id)
 
-    enc.writeInt(id)
+    enc.writeInt(requestID)
     enc.writeInt(0) // Response ID left empty
     enc.writeInt(opCode.id) // opCode Type
     log.trace("OpCode (%s) Int Type: %s", opCode, opCode.id)
