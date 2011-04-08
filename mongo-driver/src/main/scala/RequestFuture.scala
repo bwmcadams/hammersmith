@@ -82,7 +82,6 @@ trait ObjectIdWriteRequestFuture extends WriteRequestFuture {
 case class FutureResult(ok: Boolean, err: Option[String], n: Int)
 
 object RequestFutures extends Logging {
-  // TODO - Type Class selector
   //  def request[T : Manifest](body: (Option[T], FutureResult) => Unit): RequestFuture[T] = manifest[T] match {
   //    case c: Cursor => query(body)
   //    case d: Document => command(body)
