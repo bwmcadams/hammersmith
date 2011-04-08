@@ -95,12 +95,9 @@ abstract class MongoConnection extends Logging {
       val gotIsMaster = new AtomicBoolean(false)
       runCommand("admin", Document("isMaster" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
         log.info("Got a result from command: %s", doc)
-        doc match {
-          case Some(x) => {
-            isMaster = x.getOrElse("ismaster", false).asInstanceOf[Boolean]
-            maxBSONObjectSize = x.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
-          }
-          case None => {}
+        doc foreach { x =>
+          isMaster = x.getOrElse("ismaster", false).asInstanceOf[Boolean]
+          maxBSONObjectSize = x.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
         }
         gotIsMaster.set(true)
       }))
@@ -113,9 +110,7 @@ abstract class MongoConnection extends Logging {
     }
   }
 
-  def readMaxBSONObjectSize() {
 
-  }
 
   /**
    * WARNING: You *must* use an ordered list or commands won't work
