@@ -32,6 +32,7 @@ import com.mongodb.futures._
 import org.jboss.netty.buffer._
 import scala.collection.mutable.ConcurrentMap
 import org.bson._
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
 * Base trait for all connections, be it direct, replica set, etc
@@ -48,8 +49,6 @@ abstract class MongoConnection extends Logging {
 
   protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture] =
     new ConcurrentHashMap[Int, RequestFuture]()
-
-  log.info("Generated a new Dispatcher object: %s", dispatcher)
 
   /* TODO - Can we reuse these factories across multiple connections??? */
 
@@ -76,7 +75,7 @@ abstract class MongoConnection extends Logging {
     log.error("Failed to connect.", _f.getCause)
     bootstrap.releaseExternalResources()
   } else {
-    log.info("Connected and retrieved a write channel (%s)", channel)
+    log.debug("Connected and retrieved a write channel (%s)", channel)
     checkMaster()
   }
 
@@ -90,19 +89,32 @@ abstract class MongoConnection extends Logging {
    * @param requireMaster Requires a master to be found or throws an Exception
    * @throws MongoException
    */
-  def checkMaster(force: Boolean = false, requireMaster: Boolean = true) = {
+  def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
     if (maxBSONObjectSize == 0 || force) {
       log.debug("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
-      readMaxBSONObjectSize()
+      val gotIsMaster = new AtomicBoolean(false)
+      runCommand("admin", Document("isMaster" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
+        log.info("Got a result from command: %s", doc)
+        doc match {
+          case Some(x) => {
+            isMaster = x.getOrElse("ismaster", false).asInstanceOf[Boolean]
+            maxBSONObjectSize = x.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
+          }
+          case None => {}
+        }
+        gotIsMaster.set(true)
+      }))
+      // We need to block until the BSON Size is set
+      while (!gotIsMaster.get) {}
+      log.debug("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
+      if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.")
     } else {
       log.debug("Already have cached master status. Skipping.")
     }
   }
 
   def readMaxBSONObjectSize() {
-    runCommand("admin", Document("isMaster" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
-      log.info("Got a result from command: %s", doc)
-    }))
+
   }
 
   /**
@@ -124,8 +136,6 @@ abstract class MongoConnection extends Logging {
     msg.write(outStream)
     log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
     val handle = channel.write(outStream.buffer())
-    // temporary for testing
-    handle.awaitUninterruptibly()
   }
 
   def newHandler: DirectConnectionHandler
@@ -135,6 +145,7 @@ abstract class MongoConnection extends Logging {
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
   var maxBSONObjectSize = 0
+  var isMaster = false
 
 }
 
