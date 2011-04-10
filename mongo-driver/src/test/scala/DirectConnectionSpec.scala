@@ -26,6 +26,8 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
   "The MongoDB Direct Connection" should {
     "Connect correctly and grab isMaster" in {
       val conn = MongoConnection("localhost")
+
+      while (!conn.connected_?) {}
       conn must not beNull
     }
   }
