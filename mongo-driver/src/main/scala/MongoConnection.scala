@@ -46,6 +46,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 */
 abstract class MongoConnection extends Logging {
 
+  // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
+  /** Maximum size of BSON this server allows. */
+  var maxBSONObjectSize = 0
+  var isMaster = false
+
+  protected val _connected = new AtomicBoolean(false)
 
   protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture] =
     new ConcurrentHashMap[Int, RequestFuture]()
@@ -56,7 +62,7 @@ abstract class MongoConnection extends Logging {
    * Factory for client socket channels, reused by all connectors where possible.
    */
   val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
-    Executors.newCachedThreadPool)
+                                                         Executors.newCachedThreadPool)
 
   implicit val bootstrap = new ClientBootstrap(channelFactory)
 
@@ -100,16 +106,13 @@ abstract class MongoConnection extends Logging {
           maxBSONObjectSize = x.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
         }
         gotIsMaster.set(true)
+        if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connected.set(true)
+        log.debug("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
       }))
-      // We need to block until the BSON Size is set
-      while (!gotIsMaster.get) {}
-      log.debug("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
-      if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.")
     } else {
       log.debug("Already have cached master status. Skipping.")
     }
   }
-
 
 
   /**
@@ -136,12 +139,9 @@ abstract class MongoConnection extends Logging {
 
   def newHandler: DirectConnectionHandler
 
-  val addr: InetSocketAddress
+  def connected_? = _connected.get
 
-  // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
-  /** Maximum size of BSON this server allows. */
-  var maxBSONObjectSize = 0
-  var isMaster = false
+  val addr: InetSocketAddress
 
 }
 
