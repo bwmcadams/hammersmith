@@ -18,13 +18,14 @@
 package org.bson
 
 import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
+import scala.collection.mutable.BufferProxy
 
 // TODO - Enforcement of Serializable types?
 /**
  * You should always subclass SerializableBSONDocument or SerializableBSONList
  * depending on how you want your object to be treated.
  */
-sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
+sealed trait SerializableBSONObject {
 
   val serializer: BSONSerializer
 
@@ -35,50 +36,56 @@ sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
    */
   def keySet: scala.collection.Set[String]
 
+  def entries: Iterable[(String, Any)]
+
   def encode(out: OutputBuffer) =
     serializer.encode(this, out)
 
   def encode(): Array[Byte] = serializer.encode(this)
 }
 
-trait SerializableBSONDocument extends SerializableBSONObject {
+trait SerializableBSONDocument extends SerializableBSONObject with Iterable[(String, Any)] {
+  self =>
   /**
-   * A map representation of your object,
+   * A mapRepr representation of your object,
    * required to serialize things.
    * TODO - Should we offer some way of protecting this?
    */
-  def map: scala.collection.Map[String, Any]
+  def mapRepr: scala.collection.Map[String, Any]
 
+  def entries = new Iterable[(String, Any)] { def iterator = self.iterator }
 }
 
 /**
  * For custom objects rather than maps
  */
 trait SerializableBSONCustomDocument extends SerializableBSONDocument {
-  override val keySet = map.keySet.asInstanceOf[Set[String]]
+  override val keySet = mapRepr.keySet.asInstanceOf[Set[String]]
 
-  override def iterator = map.iterator
+  override def iterator = mapRepr.iterator
 }
 
-trait SerializableBSONList extends SerializableBSONObject {
-
+trait SerializableBSONList extends SerializableBSONObject with BufferProxy[Any]{
+  self =>
   /**
    * A sequence representation of your object
    */
-  val list: Seq[Any]
+  val listRepr: Seq[Any]
 
-  val keySet = list.indices.map(_.toString).toSet
+  val keySet = listRepr.indices.map(_.toString).toSet
 
-  def iterator = new Iterator[(String, Any)] {
-    private val i = list.iterator
-    private var n = 0
+  def entries = new Iterable[(String, Any)] {
+    def iterator = new Iterator[(String, Any)] {
+      private val i = listRepr.iterator
+      private var n = 0
 
-    def hasNext = i.hasNext
+      def hasNext = i.hasNext
 
-    def next() = {
-      val el = (n.toString, i.next)
-      n += 1
-      el
+      def next() = {
+        val el = (n.toString, i.next)
+        n += 1
+        el
+      }
     }
   }
 }
