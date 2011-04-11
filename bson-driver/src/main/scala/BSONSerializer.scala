@@ -74,9 +74,9 @@ trait BSONSerializer extends BSONEncoder with Logging {
         log.trace("Document Object.  Name: %s", name.getOrElse("'null'"))
         if (name.isDefined) {
           _put(OBJECT, name.get)
-          if (obj.map.contains("_id")) {
+          if (obj.mapRepr.contains("_id")) {
             log.trace("Contains '_id', rewriting.")
-            _putObjectField("_id", obj.map("_id").asInstanceOf[AnyRef])
+            _putObjectField("_id", obj.mapRepr("_id").asInstanceOf[AnyRef])
             true
           }
         }
@@ -89,7 +89,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // TODO - Support for transient fields like in the Java driver? Or does the user handle these?
 
-    for ((k, v) <- o if k != "_id" && !rewriteID) {
+    for ((k, v) <- o.entries if k != "_id" && !rewriteID) {
       log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
