@@ -18,11 +18,80 @@
 package org.bson
 
 import org.bson._
+import org.bson.types.ObjectId
 import scala.collection.generic._
 import scala.collection.mutable._
+import scala.annotation.tailrec
 import scala.collection.Map
 
-trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any]
+trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] {
+  /**
+   * as
+   *
+   * Works like apply(), unsafe, bare return of a value.
+   * Returns default if nothing matching is found, else
+   * tries to cast a value to the specified type.
+   *
+   * Unless you overrode it, default throws
+   * a NoSuchElementException
+   *
+   * @param  key (String)
+   * @tparam A
+   * @return (A)
+   * @throws NoSuchElementException
+   */
+  def as[A <: Any: Manifest](key: String): A = {
+    require(manifest[A] != manifest[scala.Nothing],
+      "Type inference failed; as[A]() requires an explicit type argument" +
+      "(e.g. document.as[<ReturnType>](\"someKey\") ) to function correctly.")
+
+    get(key) match {
+      case null => default(key).asInstanceOf[A]
+      case value => value.asInstanceOf[A]
+    }
+  }
+
+
+   /** Lazy utility method to allow typing without conflicting with Map's required get() method and causing ambiguity */
+   def getAs[A <: Any: Manifest](key: String): Option[A] = {
+     require(manifest[A] != manifest[scala.Nothing],
+       "Type inference failed; getAs[A]() requires an explicit type argument " +
+       "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
+
+     get(key) match {
+       case null => None
+       case value => Some(value.asInstanceOf[A])
+     }
+   }
+
+   /**
+    * Utility method to emulate javascript dot notation
+    * Designed to simplify the occasional insanity of working with nested objects.
+    * Your type parameter must be that of the item at the bottom of the tree you specify...
+    * If cast fails - it's your own fault.
+    */
+   def expand[A <: Any: Manifest](key: String): Option[A] = {
+     require(manifest[A] != manifest[scala.Nothing], "Type inference failed; expand[A]() requires an explicit type argument " +
+                                                     " (e.g. document[<ReturnType](\"someKey\") ) to function correctly.")
+     @tailrec
+     def _dot(dbObj: BSONDocument, key: String): Option[_] =
+       if (key.indexOf('.') < 0) {
+         dbObj.getAs[AnyRef](key)
+       } else {
+         val (pfx, sfx) = key.splitAt(key.indexOf('.'))
+         dbObj.getAs[BSONDocument](pfx) match {
+           case Some(base) => _dot(base, sfx.stripPrefix("."))
+           case None => None
+         }
+       }
+
+     _dot(this, key) match {
+       case None => None
+       case Some(value) => Some(value.asInstanceOf[A])
+     }
+   }
+
+}
 
 /**
  * If you want factory fun, you need to use the Map traits.  Otherwise, roll your own.
