@@ -18,14 +18,13 @@
 package org.bson
 
 import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
-import scala.collection.mutable.BufferProxy
 
 // TODO - Enforcement of Serializable types?
 /**
  * You should always subclass SerializableBSONDocument or SerializableBSONList
  * depending on how you want your object to be treated.
  */
-sealed trait SerializableBSONObject {
+sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
 
   val serializer: BSONSerializer
 
@@ -36,56 +35,62 @@ sealed trait SerializableBSONObject {
    */
   def keySet: scala.collection.Set[String]
 
-  def entries: Iterable[(String, Any)]
-
   def encode(out: OutputBuffer) =
     serializer.encode(this, out)
 
   def encode(): Array[Byte] = serializer.encode(this)
+
+  def array_?(): Boolean
+
+  def put(k: String, v: Any): Option[Any]
+
+  def get(k: String): Option[Any]
+
+//  def getOrElse(k: String, default: => Any): Any
+//
+//  def getOrElse[T >: Any](k: String, default: => T): T
 }
 
-trait SerializableBSONDocument extends SerializableBSONObject with Iterable[(String, Any)] {
-  self =>
+trait SerializableBSONDocument extends SerializableBSONObject {
   /**
-   * A mapRepr representation of your object,
+   * A map representation of your object,
    * required to serialize things.
    * TODO - Should we offer some way of protecting this?
    */
-  def mapRepr: scala.collection.Map[String, Any]
+  def asMap: scala.collection.Map[String, Any]
 
-  def entries = new Iterable[(String, Any)] { def iterator = self.iterator }
+  def array_?() = false
 }
 
 /**
  * For custom objects rather than maps
  */
 trait SerializableBSONCustomDocument extends SerializableBSONDocument {
-  override val keySet = mapRepr.keySet.asInstanceOf[Set[String]]
+  override val keySet = asMap.keySet.asInstanceOf[Set[String]]
 
-  override def iterator = mapRepr.iterator
+  override def iterator = asMap.iterator
 }
 
-trait SerializableBSONList extends SerializableBSONObject with BufferProxy[Any]{
-  self =>
+trait SerializableBSONList extends SerializableBSONObject {
+
+  override def array_?() = true
   /**
    * A sequence representation of your object
    */
-  val listRepr: Seq[Any]
+  def asList: Seq[Any]
 
-  val keySet = listRepr.indices.map(_.toString).toSet
+//  val keySet = asList.indices.map(_.toString).toSet
 
-  def entries = new Iterable[(String, Any)] {
-    def iterator = new Iterator[(String, Any)] {
-      private val i = listRepr.iterator
-      private var n = 0
+  def iterator = new Iterator[(String, Any)] {
+    private val i = asList.iterator
+    private var n = 0
 
-      def hasNext = i.hasNext
+    def hasNext = i.hasNext
 
-      def next() = {
-        val el = (n.toString, i.next)
-        n += 1
-        el
-      }
+    def next() = {
+      val el = (n.toString, i.next)
+      n += 1
+      el
     }
   }
 }

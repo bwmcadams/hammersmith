@@ -42,14 +42,14 @@ trait BSONSerializer extends BSONEncoder with Logging {
   }
 
   /**
-   * Encodes a SerializableBSONObject into a BSONObject (or it's wire equivelant)
+   * Encodes a SerializableBSONObject into a BSONObject (or it's wire equivalent)
    * @param o the Object to encode
    * @return The number of characters which were encoded
    */
   def putObject(o: SerializableBSONObject): Int = putObject(None, o)
   def putObject(name: String, o: SerializableBSONObject): Int = putObject(Some(name), o)
   /**
-   * Encodes a SerializableBSONObject into a BSONObject (or it's wire equivelant)
+   * Encodes a SerializableBSONObject into a BSONObject (or it's wire equivalent)
    * Primarily for embedded objects, puts them by name.
    * @param name Field name to place it in.  If None, nulls on the wire.
    * @param o the Object to encode
@@ -74,9 +74,9 @@ trait BSONSerializer extends BSONEncoder with Logging {
         log.trace("Document Object.  Name: %s", name.getOrElse("'null'"))
         if (name.isDefined) {
           _put(OBJECT, name.get)
-          if (obj.mapRepr.contains("_id")) {
+          if (obj.asMap.contains("_id")) {
             log.trace("Contains '_id', rewriting.")
-            _putObjectField("_id", obj.mapRepr("_id").asInstanceOf[AnyRef])
+            _putObjectField("_id", obj.asMap("_id").asInstanceOf[AnyRef])
             true
           }
         }
@@ -89,7 +89,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // TODO - Support for transient fields like in the Java driver? Or does the user handle these?
 
-    for ((k, v) <- o.entries if k != "_id" && !rewriteID) {
+    for ((k, v) <- o if k != "_id" && !rewriteID) {
       log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
