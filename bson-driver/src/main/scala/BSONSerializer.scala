@@ -65,7 +65,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     if (handleSpecialObjects(name.getOrElse(null), o)) _buf.getPosition - start
 
     val rewriteID = o match {
-      case list: SerializableBSONList => {
+      case list: BSONList => {
         if (name.isDefined) _put(ARRAY, name.get)
         log.trace("List Object.  Name: %s", name.getOrElse("'null'"))
         false

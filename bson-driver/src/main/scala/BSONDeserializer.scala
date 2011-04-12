@@ -241,15 +241,15 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
     log.debug("Beginning a new DefaultBSONCallback; assembling a Builder.")
 
-    protected var root: SerializableBSONObject = Document.empty
+    protected var root: BSONDocument = Document.empty
 
-    protected var stack = new Stack[SerializableBSONObject]
+    protected var stack= new Stack[BSONDocument]
     protected var nameStack = new Stack[String]
 
     // Create a new instance of myself
     def createBSONCallback(): BSONCallback = new DefaultBSONCallback
 
-    def get = root
+    def get: BSONDocument = root
 
 
     def create(array: Boolean) =
