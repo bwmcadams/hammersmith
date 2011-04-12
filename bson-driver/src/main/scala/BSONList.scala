@@ -17,16 +17,51 @@
 
 package org.bson
 
-import scala.collection._
 import scala.collection.generic.{CanBuildFrom , SeqFactory}
-import scala.collection.mutable.{GrowingBuilder , ListBuffer}
+import scala.collection.mutable._
 
-class BSONList extends SerializableBSONList {
-  protected val _buf = ListBuffer.empty[Any]
-  def self = _buf
-  val listRepr = _buf
-
+class BSONList extends SerializableBSONList with BSONDocument {
+  override def array_?() = true
+  protected val _map = new LinkedHashMap[String, Any]
+  def self = _map
   val serializer = new DefaultBSONSerializer
+  def asMap = _map
+
+  def sortedKeys = _map.keys.toList.sortWith(_ < _)
+
+  def +=(elem1: Any, elem2: Any, elems: Any*): this.type = {
+    +=(elem1)
+    +=(elem2)
+    for (x <- elems) +=(x)
+    this
+  }
+
+  def +=(elem: Any): this.type = {
+    super.+=((sortedKeys.last + 1, elem): (String, Any))
+    this
+  }
+
+  def -=(x: Any) = {
+    remove(x)
+    this
+  }
+
+  def append(elems: Any*) { for (x <- elems) +=(x) }
+
+  def appendAll(xs: TraversableOnce[Any]) { for (x <- xs) +=(x) }
+
+  def apply(n: Int): Any = apply(n.toString)
+
+  def remove(x: Any): Any = {
+    val elem = find { _._2 == x }.get
+    super.remove(elem._1)
+    elem._2
+  }
+
+  def update(n: Int, newElem: Any) { update(n.toString, newElem) }
+
+
+  // TODO - Prepend, insert, put at specific index etc
 }
 
 object BSONList {
@@ -47,12 +82,15 @@ object BSONList {
     for (xs <- xss) b ++= xs
     b.result
   }
-  def newBuilder[A <: Any] = new BSONListBuilder
+  def newBuilder[A <: Any] = new BSONListBuilder[BSONList](empty)
 }
 
-class BSONListBuilder extends GrowingBuilder[Any, BSONList](new BSONList) {
-  override def +=(x: Any) = {
-    elems += x.asInstanceOf[AnyRef] // boxing
+class BSONListBuilder[T <: BSONList](empty: T) extends Builder[Any, T] {
+  protected var elems: T = empty
+  def +=(x: Any) = {
+    elems.+=(x)
     this
   }
+  def clear() { elems = empty }
+  def result: T = elems
 }

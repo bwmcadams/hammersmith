@@ -241,19 +241,19 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
     log.debug("Beginning a new DefaultBSONCallback; assembling a Builder.")
 
-    protected var root = Document.empty
+    protected var root: SerializableBSONObject = Document.empty
 
-    protected var stack = new Stack[Document]
+    protected var stack = new Stack[SerializableBSONObject]
     protected var nameStack = new Stack[String]
 
     // Create a new instance of myself
     def createBSONCallback(): BSONCallback = new DefaultBSONCallback
 
-    def get: BSONDocument = root
+    def get = root
 
 
     def create(array: Boolean) =
-      if (array) throw new UnsupportedOperationException("No Array Support Yet") else Document.empty
+      if (array) BSONList.empty else Document.empty
 
     def objectStart() {
       require(stack.size == 0, "Invalid stack state; no-arg objectStart can only be called on initial decode.")
@@ -293,11 +293,11 @@ class DefaultBSONDeserializer extends BSONDeserializer {
     def arrayDone() = objectDone()
 
     def arrayStart(name: String) {
-      throw new UnsupportedOperationException("I haven't figured out how to make BSONDocuments act like Lists yet!")
+      objectStart(true, name)
     }
 
     def arrayStart() {
-      throw new UnsupportedOperationException("I haven't figured out how to make BSONDocuments act like Lists yet!")
+      objectStart(true)
     }
 
     def reset() {

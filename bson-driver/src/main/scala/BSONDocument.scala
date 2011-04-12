@@ -118,7 +118,7 @@ class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, 
 class Document extends BSONDocument {
   protected val _map = new HashMap[String, Any]
   val serializer = new DefaultBSONSerializer
-  def mapRepr = _map
+  def asMap = _map
   def self = _map
 }
 
@@ -132,7 +132,7 @@ object Document extends BSONDocumentFactory[Document] {
 class OrderedDocument extends BSONDocument {
   protected val _map = new LinkedHashMap[String, Any]
   val serializer = new DefaultBSONSerializer
-  def mapRepr = _map
+  def asMap = _map
   def self = _map
 }
 
