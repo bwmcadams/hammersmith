@@ -186,6 +186,10 @@ class BSONList extends BSONDocument {
   override def toList = super.toList.sortWith(_._1 < _._1)
 
   def asList = toList.map(_._2)
+
+  def asArray = toArray.sortWith(_._1 < _._1).map(_._2)
+
+  def asIndexedSeq = toIndexedSeq.sortWith(_._1 < _._1).map(_._2)
 }
 
 object BSONList extends BSONDocumentFactory[BSONList] {
