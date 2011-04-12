@@ -40,15 +40,6 @@ sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
 
   def encode(): Array[Byte] = serializer.encode(this)
 
-  def array_?(): Boolean
-
-  def put(k: String, v: Any): Option[Any]
-
-  def get(k: String): Option[Any]
-
-//  def getOrElse(k: String, default: => Any): Any
-//
-//  def getOrElse[T >: Any](k: String, default: => T): T
 }
 
 trait SerializableBSONDocument extends SerializableBSONObject {
@@ -59,7 +50,6 @@ trait SerializableBSONDocument extends SerializableBSONObject {
    */
   def asMap: scala.collection.Map[String, Any]
 
-  def array_?() = false
 }
 
 /**
@@ -71,26 +61,3 @@ trait SerializableBSONCustomDocument extends SerializableBSONDocument {
   override def iterator = asMap.iterator
 }
 
-trait SerializableBSONList extends SerializableBSONObject {
-
-  override def array_?() = true
-  /**
-   * A sequence representation of your object
-   */
-  def asList: Seq[Any]
-
-//  val keySet = asList.indices.map(_.toString).toSet
-
-  def iterator = new Iterator[(String, Any)] {
-    private val i = asList.iterator
-    private var n = 0
-
-    def hasNext = i.hasNext
-
-    def next() = {
-      val el = (n.toString, i.next)
-      n += 1
-      el
-    }
-  }
-}
