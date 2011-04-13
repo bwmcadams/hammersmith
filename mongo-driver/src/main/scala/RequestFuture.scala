@@ -25,8 +25,6 @@ import scala.actors._
 import org.bson._
 import org.bson.util.Logging
 
-trait Cursor extends Seq[SerializableBSONObject]
-
 sealed trait RequestFuture {
   type T
   val body: (Option[T], FutureResult) => Unit
@@ -94,6 +92,8 @@ object RequestFutures extends Logging {
       type T = A
       val body = f
     }
+
+  def find[A <: Cursor](f: (Option[A], FutureResult) => Unit) = query(f)
 
   def command[A <: BSONDocument](f: (Option[A], FutureResult) => Unit) =
     new SingleDocQueryRequestFuture {

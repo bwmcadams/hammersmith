@@ -17,16 +17,53 @@
 package com.mongodb
 
 import org.bson.util.Logging
+import scala.collection.IterableLike
+import com.mongodb.wire.ReplyMessage
+import org.bson.{BSONDocument , BSONDeserializer}
 
 /**
  * Lazy decoding Cursor for MongoDB Objects
  * Works on the idea that we're better off decoding each
  * message as iteration occurs rather than trying to decode them
  * all up front
+ * TODO - Generic version with type passing
  */
-trait Cursor { // extends Stream with Logging {
-  val cursorID: Long
+class Cursor(protected val reply: ReplyMessage) extends Stream[BSONDocument] with Logging {
+  val cursorID: Long = reply.cursorID
 
-  // TODO - A more flexible definition of this answer
-  protected def tailDefined = false
+  /**
+   * Mutable internally as we push further through the cursor on the server
+   */
+  protected var _startIndex = reply.startingFrom
+
+  protected var _docs = Stream(reply.documents: _*)
+
+  protected var hasMore = true
+
+  override def isEmpty = !hasMore
+
+  override def head = _docs.head
+
+  override def tail = _docs.tail
+
+  def tailDefined: Boolean = {
+    val defined = !tail.isEmpty
+    log.debug("TailDefined called. Tail: %s Defined? %s", tail, defined)
+    // TODO Fetch more results from network, but can we do it in a way that is non blocking?
+    // Stream has defined forEach as final so I can't override in anyway to defer... may have to move to LinearSeq
+    defined
+  }
+
+  log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d, initialItems:  %d / %s", cursorID, _startIndex, _docs.size, _docs)
+
+  /**
+   * Iterates the cursor, fetching more results as needed while still being presumably async.
+   */
+//  override def foreach[B](f: (BSONDocument) => B) {
+//    log.debug("Iterating via foreach on Cursor with %s", f)
+//    _docs.foreach((doc: BSONDocument) => {
+//      f(doc)
+//    })
+//  }
+
 }

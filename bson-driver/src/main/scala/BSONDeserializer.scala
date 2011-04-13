@@ -286,8 +286,8 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
       // run the Decoding hooks
       // TODO - Make Decoding hooks capable of slurping in BSONDocument!
-      log.debug("Root set: %s", root)
-      BSON.applyDecodingHooks(obj).asInstanceOf[Document]
+      log.trace("Root set: %s", root)
+      BSON.applyDecodingHooks(obj).asInstanceOf[BSONDocument]
     }
 
     def arrayDone() = objectDone()
