@@ -31,11 +31,11 @@ class DB protected[mongodb](val dbName: String)(implicit val connection: MongoCo
     connection.send(qMsg, RequestFutures.find((cursor: Option[Cursor], res: FutureResult) => {
       log.debug("Got a result from listing collections: %s", cursor)
        //TODO - do we want to add WithFilter, etc? if !doc.getOrElse("$").contains("$")) {
-      callback(for {
+      callback((for {
         doc <- cursor.get
         val name = doc.as[String]("name")
         if !name.contains("$")
-      } yield name)
+      } yield name).toSeq)
     }))
   }
 

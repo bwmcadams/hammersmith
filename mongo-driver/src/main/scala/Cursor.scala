@@ -17,51 +17,93 @@
 package com.mongodb
 
 import org.bson.util.Logging
-import scala.collection.IterableLike
 import com.mongodb.wire.ReplyMessage
-import org.bson.{BSONDocument , BSONDeserializer}
+import org.bson._
+import scala.collection.Iterator
+import scala.collection.mutable.Queue
+import java.util.concurrent.CountDownLatch
 
 /**
- * Lazy decoding Cursor for MongoDB Objects
- * Works on the idea that we're better off decoding each
- * message as iteration occurs rather than trying to decode them
- * all up front
+ * Cursor for MongoDB
+ *
+ * Currently, using next() will block when it needs to do a getmore.
+ * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
  * TODO - Generic version with type passing
  */
-class Cursor(protected val reply: ReplyMessage) extends Stream[BSONDocument] with Logging {
+class Cursor(protected val reply: ReplyMessage) extends Iterator[BSONDocument] with Logging {
   val cursorID: Long = reply.cursorID
+
+  /**
+  * Cursor ID 0 indicates "No more results"
+  * HOWEVER - Cursors can be positive OR negative
+  */
+  protected var cursorEmpty = false
 
   /**
    * Mutable internally as we push further through the cursor on the server
    */
-  protected var _startIndex = reply.startingFrom
+  protected var startIndex = reply.startingFrom
 
-  protected var _docs = Stream(reply.documents: _*)
+  protected val docs = Queue(reply.documents: _*)
 
-  protected var hasMore = true
+  log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d, initialItems:  %d / %s", cursorID, startIndex,
+                                                                                                   docs.size, docs)
 
-  override def isEmpty = !hasMore
+  override def isTraversableAgain = false // Too much hassle in "reiterating"
 
-  override def head = _docs.head
+  // Whether or not there are more docs *on the server*
+  protected def hasMore =  !cursorEmpty
 
-  override def tail = _docs.tail
-
-  def tailDefined: Boolean = {
-    val defined = !tail.isEmpty
-    log.debug("TailDefined called. Tail: %s Defined? %s", tail, defined)
-    // TODO Fetch more results from network, but can we do it in a way that is non blocking?
-    // Stream has defined forEach as final so I can't override in anyway to defer... may have to move to LinearSeq
-    defined
+  def hasNext = {
+    /**
+     * Possibly a bit tricky
+     * As we're looking for:
+     *  a) Are there more docs in the stream CURRENTLY
+     *  b) AND, if not, are there possibly more available on the server?
+     */
+    if (docs.length > 0) {
+      log.trace("Still docs in the queue.  Has Next.")
+      true
+    } else if (hasMore) {
+      log.trace("Queue is empty but non-zero cursor ID.  Will need to fetch more.")
+      getMore()
+      true
+    } else {
+      log.trace("Empty queue, zeroed cursorID.  No More Next.")
+      false
+    }
   }
 
-  log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d, initialItems:  %d / %s", cursorID, _startIndex, _docs.size, _docs)
+  protected var gettingMore = new CountDownLatch(0)
+
+  protected def getMore() = docs.synchronized {
+    if (gettingMore.getCount > 0) {
+      log.warn("GetMore called while Latch is set.  Ignoring GetMore call.")
+    } else {
+      gettingMore = new CountDownLatch(1)
+      log.trace("Invoking getMore()")
+    }
+  }
+  /**
+  * WARNING - Currently blocks during getMore  Be careful.
+  * TODO - I think we HAVE To block here for someone treating us like an iterator...
+  */
+  def next() = {
+    if (docs.length ==  0 && hasMore) {
+      log.trace("Waiting for more from the server.")
+      log.warn("Blocking on the getMore op.")
+      gettingMore.await()
+    }
+    log.trace("Next: Have docs, dequeueing.")
+    docs.dequeue()
+  }
 
   /**
    * Iterates the cursor, fetching more results as needed while still being presumably async.
    */
 //  override def foreach[B](f: (BSONDocument) => B) {
 //    log.debug("Iterating via foreach on Cursor with %s", f)
-//    _docs.foreach((doc: BSONDocument) => {
+//    docs.foreach((doc: BSONDocument) => {
 //      f(doc)
 //    })
 //  }
