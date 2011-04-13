@@ -28,6 +28,11 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
       val conn = MongoConnection("localhost")
 
       while (!conn.connected_?) {}
+      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.info("DB: %s", _))})
+      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.info("Collection: %s", _))})
+      // TODO - This highlights the need for a blockable future
+      Thread.sleep(2500)
+
       conn must not beNull
     }
   }

@@ -46,8 +46,8 @@ trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] {
       "(e.g. document.as[<ReturnType>](\"someKey\") ) to function correctly.")
 
     get(key) match {
-      case null => default(key).asInstanceOf[A]
-      case value => value.asInstanceOf[A]
+      case None => default(key).asInstanceOf[A]
+      case Some(value) => value.asInstanceOf[A]
     }
   }
 
@@ -112,7 +112,7 @@ class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, 
     this
   }
   def clear() { elems = empty }
-  def result: T = elems
+  def result(): T = elems
 }
 
 

@@ -124,6 +124,7 @@ abstract class MongoConnection extends Logging {
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
   }
+
   protected[mongodb] def send(msg: MongoMessage, f: RequestFuture) {
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
@@ -136,6 +137,30 @@ abstract class MongoConnection extends Logging {
     log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
     val handle = channel.write(outStream.buffer())
   }
+
+  /**
+   * Remember, a DB is basically a future since it doesn't have to exist.
+   */
+  def apply(dbName: String): DB = database(dbName)
+
+  /**
+   * Remember, a DB is basically a future since it doesn't have to exist.
+   */
+  def database(dbName: String): DB = new DB(dbName)(this)
+
+  def databaseNames(callback: Seq[String] => Unit) {
+    runCommand("admin", Document("listDatabases" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
+      log.debug("Got a result from 'listDatabases' command: %s", doc)
+      if (res.ok && doc.isDefined) {
+        val dbs = doc.get.as[BSONList]("databases").asList.map(_.asInstanceOf[Document].as[String]("name"))
+        callback(dbs)
+      } else {
+        log.warning("Command 'listDatabases' failed: %s / Doc: %s", res, doc.getOrElse(Document.empty))
+        callback(List.empty[String])
+      }
+    }))
+  }
+
 
   def newHandler: DirectConnectionHandler
 
@@ -192,7 +217,32 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
             singleResult()
           }
           case Some(cursorResult: CursorQueryRequestFuture) => {
-            throw new UnsupportedOperationException("No support yet for cursor results.  Sorry.")
+            log.debug("Cursor Result Wanted: %s", reply.documents)
+            log.trace("Cursor Document Request Future.")
+            // TODO - Different handling depending on type of op, GetLastError etc
+            // Though - GetLastError could dispatch back out again here and not invoke the callback!
+            if (reply.cursorNotFound) {
+              log.debug("Cursor Not Found.")
+              cursorResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
+            } else if (reply.queryFailure) {
+              log.debug("Query Failure")
+              // Attempt to grab the $err document
+              val err = reply.documents.headOption match {
+                case Some(errDoc) => {
+                  log.trace("Error Document found: %s", errDoc)
+                  errDoc.getOrElse("$err", "Unknown Error.").toString
+                }
+                case None => {
+                  log.warn("No Error Document Found.")
+                  "Unknown Error."
+                }
+              }
+              cursorResult.result = FutureResult(false, Some(err), 0)
+            } else {
+              cursorResult.result = FutureResult(true, None, reply.numReturned)
+              cursorResult.element = new Cursor(reply).asInstanceOf[cursorResult.T]
+            }
+            cursorResult()
           }
           case None => {
             /**
