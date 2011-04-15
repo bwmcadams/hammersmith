@@ -35,9 +35,9 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
 
   log.info("Initialized Direct MongoDB connection on address '%s'", addr)
 
-  def newHandler = new DirectConnectionHandler(bootstrap, dispatcher)
+  lazy val handler = new DirectConnectionHandler(bootstrap)
+
 
 }
 
-protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap,
-  val dispatcher: ConcurrentMap[Int, RequestFuture]) extends MongoConnectionHandler
+protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler

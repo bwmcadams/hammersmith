@@ -18,6 +18,7 @@ package com.mongodb
 package wire
 
 import org.bson.BSONSerializer
+import org.bson.util.Logging
 
 /**
  * OP_GET_MORE Message
@@ -41,5 +42,13 @@ trait GetMoreMessage extends MongoMessage {
     enc.writeCString(namespace)
     enc.writeInt(numberToReturn)
     enc.writeLong(cursorID)
+  }
+}
+
+object GetMoreMessage extends Logging {
+  def apply(ns: String, numReturn: Int, id: Long) = new GetMoreMessage {
+    val namespace = ns
+    val numberToReturn = numReturn
+    val cursorID = id
   }
 }
