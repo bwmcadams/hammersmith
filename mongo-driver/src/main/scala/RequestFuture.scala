@@ -18,12 +18,14 @@
 package com.mongodb
 package futures
 
-import com.mongodb.wire.{ QueryMessage, MongoMessage }
 import org.bson.types.ObjectId
 import scala.concurrent.SyncVar
 import scala.actors._
 import org.bson._
 import org.bson.util.Logging
+import com.mongodb.wire._
+
+case class CompletableRequest(request: MongoClientMessage, future: RequestFuture)
 
 sealed trait RequestFuture {
   type T

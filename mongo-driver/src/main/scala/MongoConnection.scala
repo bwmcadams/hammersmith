@@ -174,7 +174,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
         * a Cursor, but not multiple results into a single.  Should be obvious.
         */
         MongoConnection.dispatcher.get(reply.header.responseTo) match {
-          case Some(singleResult: SingleDocQueryRequestFuture) => {
+          case Some(CompletableRequest(msg, singleResult: SingleDocQueryRequestFuture)) => {
             log.trace("Single Document Request Future.")
             // This may actually be better as a disableable assert but for now i want it hard.
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
@@ -204,7 +204,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
             }
             singleResult()
           }
-          case Some(cursorResult: CursorQueryRequestFuture) => {
+          case Some(CompletableRequest(msg, cursorResult: CursorQueryRequestFuture)) => {
             log.debug("Cursor Result Wanted: %s", reply.documents)
             log.trace("Cursor Document Request Future.")
             // TODO - Different handling depending on type of op, GetLastError etc
@@ -232,6 +232,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
             }
             cursorResult()
           }
+          case Some(unknown) => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
           case None => {
             /**
             * Even when no response is wanted a 'Default' callback should be regged so
@@ -284,8 +285,8 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
  */
 object MongoConnection extends Logging {
 
-  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture] =
-    new ConcurrentHashMap[Int, RequestFuture]()
+  protected[mongodb] val dispatcher: ConcurrentMap[Int, CompletableRequest] =
+    new ConcurrentHashMap[Int, CompletableRequest]()
 
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
@@ -301,7 +302,7 @@ object MongoConnection extends Logging {
                                                                                if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4
                                                                               ))
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
-    dispatcher.put(msg.requestID, f)
+    dispatcher.put(msg.requestID, CompletableRequest(msg, f))
     log.trace("PreWrite with outStream '%s'", outStream)
     msg.write(outStream)
     log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
