@@ -22,6 +22,7 @@ import org.bson._
 import scala.collection.Iterator
 import scala.collection.mutable.Queue
 import java.util.concurrent.CountDownLatch
+import org.jboss.netty.channel.ChannelHandlerContext
 
 /**
  * Cursor for MongoDB
@@ -30,14 +31,21 @@ import java.util.concurrent.CountDownLatch
  * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
  * TODO - Generic version with type passing
  */
-class Cursor(protected val reply: ReplyMessage) extends Iterator[BSONDocument] with Logging {
+class Cursor(protected val reply: ReplyMessage)
+            (implicit val ctx: ChannelHandlerContext) extends Iterator[BSONDocument] with Logging {
+
   val cursorID: Long = reply.cursorID
 
+  protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
+  protected implicit val channel = ctx.getChannel
+  protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize
   /**
   * Cursor ID 0 indicates "No more results"
   * HOWEVER - Cursors can be positive OR negative
+  * If we were initialized with a cursorID of 0, there are no more results
+  * otherwise we'll flip this later during our getMores
   */
-  protected var cursorEmpty = false
+  protected var cursorEmpty = cursorID == 0
 
   /**
    * Mutable internally as we push further through the cursor on the server
@@ -50,6 +58,14 @@ class Cursor(protected val reply: ReplyMessage) extends Iterator[BSONDocument] w
                                                                                                    docs.size, docs)
 
   override def isTraversableAgain = false // Too much hassle in "reiterating"
+
+  /**
+   * Batch size; defaults to 0 which lets mongo control the size
+  */
+  protected var batch = 0
+
+  def batchSize = batch
+  def batchSize_=(size: Int) { batch = size }
 
   // Whether or not there are more docs *on the server*
   protected def hasMore =  !cursorEmpty
@@ -87,6 +103,8 @@ class Cursor(protected val reply: ReplyMessage) extends Iterator[BSONDocument] w
   /**
   * WARNING - Currently blocks during getMore  Be careful.
   * TODO - I think we HAVE To block here for someone treating us like an iterator...
+  * This is probably a HORRBIBLE fucking idea and longterm we should probably NOT be Iterator,
+  * but just implement Foreach, flatMap, etc. internally in a way that the callbacks can run w/o any blocking.
   */
   def next() = {
     if (docs.length ==  0 && hasMore) {

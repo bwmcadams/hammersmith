@@ -48,9 +48,6 @@ sealed trait RequestFuture {
 
 sealed trait QueryRequestFuture extends RequestFuture
 
-/**
- * Also used for getMore
- */
 trait CursorQueryRequestFuture extends RequestFuture {
   type T <: Cursor
 }

@@ -12,6 +12,7 @@ class HammersmithProject(info: ProjectInfo)
   lazy val bson = project("bson-driver", "bson-driver", new BSONDriverProject(_))
   lazy val mongo = project("mongo-driver", "mongo-driver", new MongoDriverProject(_), bson)
 
+
   abstract class HammersmithBaseProject(info: ProjectInfo) 
     extends DefaultProject(info)
     with AutoCompilerPlugins
@@ -31,6 +32,10 @@ class HammersmithProject(info: ProjectInfo)
     val scalaj_collection = "org.scalaj" % "scalaj-collection_2.8.0" % "1.0"
     // Netty
     val netty = "org.jboss.netty" % "netty" % "3.2.4.Final"
+
+    // Twitter-util
+    val twitterUtilCore = "com.twitter" % "util-core" % "1.8.9"
+
     // Testing Deps
     val specs2 = "org.specs2" %% "specs2" % "1.0.1"
 
@@ -55,6 +60,7 @@ class HammersmithProject(info: ProjectInfo)
   val sbtReleases  = "releases" at "http://scala-tools.org/repo-releases"
 
   val jbossRepo = "JBoss Public Repo" at "https://repository.jboss.org/nexus/content/groups/public-jboss/"
+  val twttrRepo = "Twitter Public Repo" at "http://maven.twttr.com"
 }
 
 // vim: set ts=2 sw=2 sts=2 et:

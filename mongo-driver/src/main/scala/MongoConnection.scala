@@ -48,13 +48,11 @@ abstract class MongoConnection extends Logging {
 
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
-  var maxBSONObjectSize = 0
-  var isMaster = false
+  protected implicit var maxBSONObjectSize = 0
+  protected var isMaster = false
 
   protected val _connected = new AtomicBoolean(false)
 
-  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture] =
-    new ConcurrentHashMap[Int, RequestFuture]()
 
   /* TODO - Can we reuse these factories across multiple connections??? */
 
@@ -64,16 +62,16 @@ abstract class MongoConnection extends Logging {
   val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
                                                          Executors.newCachedThreadPool)
 
-  implicit val bootstrap = new ClientBootstrap(channelFactory)
+  protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-    def getPipeline = Channels.pipeline(new BSONFrameDecoder(), newHandler)
+    def getPipeline = Channels.pipeline(new BSONFrameDecoder(), handler)
   })
 
   bootstrap.setOption("remoteAddress", addr)
 
   private val _f = bootstrap.connect()
-  protected val channel = _f.awaitUninterruptibly.getChannel
+  protected implicit val channel = _f.awaitUninterruptibly.getChannel
 
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("keepAlive", true)
@@ -107,6 +105,7 @@ abstract class MongoConnection extends Logging {
         }
         gotIsMaster.set(true)
         if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connected.set(true)
+        handler.maxBSONObjectSize = maxBSONObjectSize
         log.debug("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
       }))
     } else {
@@ -125,18 +124,8 @@ abstract class MongoConnection extends Logging {
     send(qMsg, f)
   }
 
-  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture) {
-    // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
-                                                  if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4
-                                                 ))
-    log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
-    dispatcher.put(msg.requestID, f)
-    log.trace("PreWrite with outStream '%s'", outStream)
-    msg.write(outStream)
-    log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
-    val handle = channel.write(outStream.buffer())
-  }
+  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture) = MongoConnection.send(msg, f)
+
 
   /**
    * Remember, a DB is basically a future since it doesn't have to exist.
@@ -162,7 +151,7 @@ abstract class MongoConnection extends Logging {
   }
 
 
-  def newHandler: DirectConnectionHandler
+  val handler: MongoConnectionHandler
 
   def connected_? = _connected.get
 
@@ -172,7 +161,6 @@ abstract class MongoConnection extends Logging {
 
 trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
   val bootstrap: ClientBootstrap
-  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture]
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val buf = e.getMessage.asInstanceOf[ChannelBuffer]
@@ -185,7 +173,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
         * Note - it is entirely OK to stuff a single result into
         * a Cursor, but not multiple results into a single.  Should be obvious.
         */
-        dispatcher.get(reply.header.responseTo) match {
+        MongoConnection.dispatcher.get(reply.header.responseTo) match {
           case Some(singleResult: SingleDocQueryRequestFuture) => {
             log.trace("Single Document Request Future.")
             // This may actually be better as a disableable assert but for now i want it hard.
@@ -240,7 +228,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               cursorResult.result = FutureResult(false, Some(err), 0)
             } else {
               cursorResult.result = FutureResult(true, None, reply.numReturned)
-              cursorResult.element = new Cursor(reply).asInstanceOf[cursorResult.T]
+              cursorResult.element = new Cursor(reply)(ctx).asInstanceOf[cursorResult.T]
             }
             cursorResult()
           }
@@ -282,6 +270,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
 
   def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 
+  var maxBSONObjectSize = 1024 * 4 * 4 // default
 }
 
 /**
@@ -295,6 +284,9 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
  */
 object MongoConnection extends Logging {
 
+  protected[mongodb] val dispatcher: ConcurrentMap[Int, RequestFuture] =
+    new ConcurrentHashMap[Int, RequestFuture]()
+
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
@@ -302,5 +294,18 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
+  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture)
+                             (implicit channel: Channel, maxBSONObjectSize: Int) {
+    // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
+    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
+                                                                               if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4
+                                                                              ))
+    log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
+    dispatcher.put(msg.requestID, f)
+    log.trace("PreWrite with outStream '%s'", outStream)
+    msg.write(outStream)
+    log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
+    channel.write(outStream.buffer())
+  }
 }
 
