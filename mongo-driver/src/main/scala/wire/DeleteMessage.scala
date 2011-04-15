@@ -30,7 +30,7 @@ import org.bson.{BSONDocument , BSONSerializer}
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
-trait DeleteMessage extends MongoMessage {
+trait DeleteMessage extends MongoClientMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use

@@ -29,7 +29,7 @@ import org.bson.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPGETMORE
  */
-trait GetMoreMessage extends MongoMessage {
+trait GetMoreMessage extends MongoClientMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpGetMore
   val ZERO: Int = 0 // 0 - reserved for future use
