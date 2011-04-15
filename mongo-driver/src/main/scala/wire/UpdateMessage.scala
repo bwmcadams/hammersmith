@@ -30,7 +30,7 @@ import org.bson.{BSONDocument , BSONSerializer}
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-trait UpdateMessage extends MongoMessage {
+trait UpdateMessage extends MongoClientMessage {
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
 

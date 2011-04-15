@@ -30,7 +30,7 @@ import scala.util.control.Exception._
 * OP_GET_MORE message.
 *
 */
-trait ReplyMessage extends MongoMessage {
+trait ReplyMessage extends MongoServerMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpReply
   val header: MessageHeader

@@ -29,7 +29,7 @@ import org.bson.BSONSerializer
  * Note that if a cursor is read until exhausted (read until OP_QUERY or OP_GET_MORE returns zero for the cursor id),
  * there is no need to kill the cursor.
  */
-trait KillCursorsMessage extends MongoMessage {
+trait KillCursorsMessage extends MongoClientMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpKillCursors
   val ZERO: Int = 0 // 0 - reserved for future use

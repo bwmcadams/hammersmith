@@ -124,7 +124,7 @@ abstract class MongoConnection extends Logging {
     send(qMsg, f)
   }
 
-  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture) = MongoConnection.send(msg, f)
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture) = MongoConnection.send(msg, f)
 
 
   /**
@@ -294,7 +294,7 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
-  protected[mongodb] def send(msg: MongoMessage, f: RequestFuture)
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)
                              (implicit channel: Channel, maxBSONObjectSize: Int) {
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,

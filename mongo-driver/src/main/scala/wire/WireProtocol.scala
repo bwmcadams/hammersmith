@@ -220,3 +220,13 @@ abstract class MongoMessage extends Logging {
   protected def writeMessage(enc: BSONSerializer)
 }
 
+/**
+ * A message sent from a client to a mongodb server
+ */
+abstract class MongoClientMessage extends MongoMessage
+
+/**
+ * A message sent from a mongodb server to a client
+ */
+abstract class MongoServerMessage extends MongoMessage
+
