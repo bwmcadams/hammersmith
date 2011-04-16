@@ -31,23 +31,13 @@ class DB protected[mongodb](val dbName: String)(implicit val connection: MongoCo
     connection.send(qMsg, RequestFutures.find((cursor: Option[Cursor], res: FutureResult) => {
       log.debug("Got a result from listing collections: %s", cursor)
       val b = Seq.newBuilder[String]
-      def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-        case Cursor.Entry(doc) =>  {
-          val name = doc.as[String]("name")
-          if (!name.contains("$")) b += name
-          Cursor.Next(next)
-        }
-        case Cursor.Empty => {
-          Cursor.NextBatch(next)
-        }
-        case Cursor.EOF => {
-          Cursor.Done
-        }
+
+      Cursor.basicIter(cursor.get) { doc =>
+        val name = doc.as[String]("name")
+        if (!name.contains("$")) b += name
       }
 
-      cursor.get.iterate(next)
-
-      callback(b.result)
+      callback(b.result())
     }))
   }
 
