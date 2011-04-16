@@ -27,17 +27,17 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
   //  println(org.apache.commons.logging.Log)
 
   "The MongoDB Direct Connection" should {
-//    "Connect correctly and grab isMaster" in {
-//      val conn = MongoConnection("localhost")
-//
-//      while (!conn.connected_?) {}
-//      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.info("DB: %s", _))})
-//      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.info("Collection: %s", _))})
-//      // TODO - This highlights the need for a blockable future
-//      Thread.sleep(2500)
-//
-//      conn must not beNull
-//    }
+    "Connect correctly and grab isMaster" in {
+      val conn = MongoConnection("localhost")
+
+      while (!conn.connected_?) {}
+      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.info("DB: %s", _))})
+      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.info("Collection: %s", _))})
+      // TODO - This highlights the need for a blockable future
+      Thread.sleep(2500)
+
+      conn must not beNull
+    }
     "Iterate a Cursor Correctly" in {
       val conn = MongoConnection("localhost")
 
@@ -45,7 +45,6 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
       conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Option[Cursor], res: FutureResult) => {
         if (res.ok && cursor.isDefined) {
           log.debug("Got a result from 'find' command")
-          var x = 0
           def next(op: Cursor.IterState): Cursor.IterCmd = op match {
             case Cursor.Entry(doc) =>  {
               log.debug("Got a doc: %s", doc)
