@@ -151,6 +151,8 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
   }
 
   /**
+  * TODO - It is probably significantly less costly time and resource wise to test length
+  * instead of catching a NoSuchElement
   */
   def next() = try {
     Cursor.Entry(docs.dequeue())
@@ -161,7 +163,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
         log.debug("Has More.")
         Cursor.Empty
       } else {
-        log.debug("Cursor Exhuasted.")
+        log.debug("Cursor Exhausted.")
         Cursor.EOF
       }
     }
@@ -169,6 +171,16 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
 
   def close() = {
     log.warning("WARNING: Close called but not currently implemented.")
+    /**
+     * TODO - Implement close.
+     * Basically if the cursorEmpty is true we can just NOOP
+     * as MongoDB automatically cleans up fully iterated cursors.
+     *
+     * But if cursorEmpty is false we should to call killcursors
+     * or probably more efficiently queue the cursorID to a timed
+     * batch runner to call kill every so often.
+     */
+
   }
 
   def iterate = Cursor.iterate(this) _
