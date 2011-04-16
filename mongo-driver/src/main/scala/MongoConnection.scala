@@ -165,7 +165,8 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val buf = e.getMessage.asInstanceOf[ChannelBuffer]
     log.debug("Incoming Message received on (%s) Length: %s", buf, buf.readableBytes())
-    MongoMessage.unapply(new ChannelBufferInputStream(buf)) match {
+    val _msg = MongoMessage.unapply(new ChannelBufferInputStream(buf));
+    _msg match {
       case reply: ReplyMessage => {
         log.trace("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
@@ -174,7 +175,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
         * a Cursor, but not multiple results into a single.  Should be obvious.
         */
         MongoConnection.dispatcher.get(reply.header.responseTo) match {
-          case Some(CompletableRequest(msg, singleResult: SingleDocQueryRequestFuture)) => {
+          case Some(CompletableRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture)) => {
             log.trace("Single Document Request Future.")
             // This may actually be better as a disableable assert but for now i want it hard.
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
@@ -204,20 +205,17 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
             }
             singleResult()
           }
-          case Some(CompletableRequest(msg, cursorResult: CursorQueryRequestFuture)) => {
-            log.debug("Cursor Result Wanted: %s", reply.documents)
-            log.trace("Cursor Document Request Future.")
-            // TODO - Different handling depending on type of op, GetLastError etc
-            // Though - GetLastError could dispatch back out again here and not invoke the callback!
+          case Some(CompletableRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture)) => {
+            log.trace("Cursor Request Future.")
             if (reply.cursorNotFound) {
-              log.debug("Cursor Not Found.")
+              log.warn("Cursor Not Found.")
               cursorResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
             } else if (reply.queryFailure) {
-              log.debug("Query Failure")
+              log.warn("Query Failure")
               // Attempt to grab the $err document
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
-                  log.trace("Error Document found: %s", errDoc)
+                  log.debug("Error Document found: %s", errDoc)
                   errDoc.getOrElse("$err", "Unknown Error.").toString
                 }
                 case None => {
@@ -228,9 +226,34 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               cursorResult.result = FutureResult(false, Some(err), 0)
             } else {
               cursorResult.result = FutureResult(true, None, reply.numReturned)
-              cursorResult.element = new Cursor(reply)(ctx).asInstanceOf[cursorResult.T]
+              cursorResult.element = new Cursor(msg.namespace, reply)(ctx).asInstanceOf[cursorResult.T]
             }
             cursorResult()
+          }
+          case Some(CompletableRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture)) => {
+            log.trace("Get More Request Future.")
+            if (reply.cursorNotFound) {
+              log.warn("Cursor Not Found.")
+              getMoreResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
+            } else if (reply.queryFailure) {
+              log.warn("Query Failure")
+              // Attempt to grab the $err document
+              val err = reply.documents.headOption match {
+                case Some(errDoc) => {
+                  log.debug("Error Document found: %s", errDoc)
+                  errDoc.getOrElse("$err", "Unknown Error.").toString
+                }
+                case None => {
+                  log.warn("No Error Document Found.")
+                  "Unknown Error."
+                }
+              }
+              getMoreResult.result = FutureResult(false, Some(err), 0)
+            } else {
+              getMoreResult.result = FutureResult(true, None, reply.numReturned)
+              getMoreResult.element = (reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T]
+            }
+            getMoreResult()
           }
           case Some(unknown) => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
           case None => {
@@ -305,7 +328,7 @@ object MongoConnection extends Logging {
     dispatcher.put(msg.requestID, CompletableRequest(msg, f))
     log.trace("PreWrite with outStream '%s'", outStream)
     msg.write(outStream)
-    log.trace("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
+    log.debug("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
     channel.write(outStream.buffer())
   }
 }

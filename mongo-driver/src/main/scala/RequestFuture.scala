@@ -52,6 +52,11 @@ sealed trait QueryRequestFuture extends RequestFuture
 
 trait CursorQueryRequestFuture extends RequestFuture {
   type T <: Cursor
+
+}
+
+trait GetMoreRequestFuture extends RequestFuture {
+  type T = (Long, Seq[Document])
 }
 
 /**
@@ -85,6 +90,10 @@ object RequestFutures extends Logging {
   //    case o: ObjectId => insert(body)
   //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
   //  }
+  def getMore(f: (Option[(Long, Seq[Document])], FutureResult) => Unit) =
+    new GetMoreRequestFuture {
+      val body = f
+    }
 
   def query[A <: Cursor](f: (Option[A], FutureResult) => Unit) =
     new CursorQueryRequestFuture {

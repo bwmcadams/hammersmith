@@ -71,11 +71,11 @@ object ReplyMessage extends Logging {
       val flags = readInt(bin)
       log.trace("[Reply] Flags: %d", flags)
       val cursorID = readLong(bin)
-      log.trace("[Reply] Cursor ID: %d", cursorID)
+      log.debug("[Reply] Cursor ID: %d", cursorID)
       val startingFrom = readInt(bin)
       log.trace("[Reply] Starting From: %d", startingFrom)
       val numReturned = readInt(bin)
-      log.trace("[Reply] Number of Documents Returned: %d", numReturned)
+      log.debug("[Reply] Number of Documents Returned: %d", numReturned)
       /*
        * And here comes the hairy part.  Ideally, we want to completely amortize the
        * decoding of these docs.  It makes *zero* sense to me to wait for a whole
@@ -85,7 +85,7 @@ object ReplyMessage extends Logging {
 
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
              "Wanted: %d Got: %d".format(numReturned, documents.length))
-      log.debug("Parsed Out Documents: %s", documents)
+      log.trace("Parsed Out Documents: %s", documents)
 
       override def toString = "ReplyMessage { " +
         "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, docs: %s } ".
