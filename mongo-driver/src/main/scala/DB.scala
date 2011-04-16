@@ -31,19 +31,26 @@ class DB protected[mongodb](val dbName: String)(implicit val connection: MongoCo
     connection.send(qMsg, RequestFutures.find((cursor: Option[Cursor], res: FutureResult) => {
       log.debug("Got a result from listing collections: %s", cursor)
        //TODO - do we want to add WithFilter, etc? if !doc.getOrElse("$").contains("$")) {
-      callback((for {
+//      callback(
+/*                (for {
         doc <- cursor.get
         val name = doc.as[String]("name")
         if !name.contains("$")
-      } yield name).toSeq)
+      } yield name).toSeq)*/
     }))
   }
 
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand[A <% BSONDocument](collection: String, cmd: A, f: SingleDocQueryRequestFuture) =
+  def runCommand[A <% BSONDocument](collection: String, cmd: A, f: SingleDocQueryRequestFuture) =
     connection.runCommand("%s.%s".format(dbName, collection), cmd, f)
 
+  def find[A <% BSONDocument, B <% BSONDocument](collection: String)
+                                                (query: A, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)
+                                                (callback: (Option[Cursor], FutureResult) => Unit) = {
+    val qMsg = QueryMessage(dbName + "." + collection, numToSkip, batchSize, query,  if (fields.isEmpty) None else Some(fields))
+    connection.send(qMsg, RequestFutures.query(callback))
+  }
 
 }
