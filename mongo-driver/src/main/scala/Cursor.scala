@@ -36,6 +36,25 @@ object Cursor extends Logging {
   case class Next(op: (IterState) => IterCmd) extends IterCmd
   case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
 
+  /**
+   * Internal helper, more or less a "default" iterator for internal usage
+   * Not exposed publicly but useful as an example.
+   */
+  protected[mongodb] def basicIter(cursor: Cursor)(f: BSONDocument => Unit) = {
+    def next(op: Cursor.IterState): Cursor.IterCmd = op match {
+      case Cursor.Entry(doc) =>  {
+        f(doc)
+        Cursor.Next(next)
+      }
+      case Cursor.Empty => {
+        Cursor.NextBatch(next)
+      }
+      case Cursor.EOF => {
+        Cursor.Done
+      }
+    }
+    iterate(cursor)(next)
+  }
   def iterate(cursor: Cursor)(op: (IterState) => IterCmd) {
     log.debug("Iterating '%s' with op: '%s'", cursor, op)
     @tailrec def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
