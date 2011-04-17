@@ -152,6 +152,30 @@ abstract class MongoConnection extends Logging {
 
   val addr: InetSocketAddress
 
+  protected[mongodb] var _writeConcern: WriteConcern = WriteConcern.Normal
+
+  /**
+   *
+   * Set the write concern for this database.
+   * Will be used for writes to any collection in this database.
+   * See the documentation for {@link WriteConcern} for more info.
+   *
+   * @param concern (WriteConcern) The write concern to use
+   * @see WriteConcern
+   * @see http://www.thebuzzmedia.com/mongodb-single-server-data-durability-guide/
+   */
+  def writeConcern_=(concern: WriteConcern) = _writeConcern = concern
+
+  /**
+   *
+   * get the write concern for this database,
+   * which is used for writes to any collection in this database.
+   * See the documentation for {@link WriteConcern} for more info.
+   *
+   * @see WriteConcern
+   * @see http://www.thebuzzmedia.com/mongodb-single-server-data-durability-guide/
+   */
+  def writeConcern = _writeConcern
 }
 
 trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
