@@ -21,37 +21,179 @@ import org.bson.util.Logging
 import org.bson._
 import com.mongodb.futures._
 import com.mongodb.wire.QueryMessage
+import java.io.{IOException , ByteArrayOutputStream}
+import java.security.MessageDigest
+
+class DB protected[mongodb](val name: String)(implicit val connection: MongoConnection) extends Logging {
+
+  // TODO - Implement as well as supporting "getCollectionFromString" from the Java driver
+  //  def apply(collection: String) = Collection(this)
+
+  // def addUser(username: String, password: String)(f: )
+  // def removeUser
+
+  def authenticate(username: String, password: String)(callback: DB => Unit) {
+    require(username != null, "Username cannot be null.")
+    require(password != null, "Password cannot be null.")
+    assume(!authenticated_?, "Already authenticated.")
+    val hash = hashPassword(username, password)
+    log.debug("Hashed Password: '%s'", hash)
+    command("getnonce")(RequestFutures.findOne((doc: Option[Document], res: FutureResult) => doc match {
+      // TODO - a Document extractor could be AWFULLY useful
+      // TODO - Callback on failure
+      // TODO - We need a getAsOrElse
+      case Some(d) => d.getAs[Int]("ok").getOrElse(0) match {
+        case 1 => {
+          val nonce = d.as[String]("nonce")
+          log.debug("Got Nonce: '%s'", nonce)
+          val authCmd = OrderedDocument("authenticate" -> 1,
+                                        "user" -> username,
+                                        "nonce" -> nonce,
+                                        "key" -> hexMD5(nonce + username + hash))
+          log.debug("Auth Command: %s", authCmd)
+
+          command(authCmd)(RequestFutures.findOne((doc: Option[Document], res: FutureResult) => {
+            doc match {
+              case Some(d) => d.getAs[Int]("ok").getOrElse(0) match {
+                case 1 => {
+                  log.info("Authenticate succeeded.")
+                  login = Some(username)
+                  authHash = Some(hash)
+                }
+                case other => log.error("Authentication Failed. '%d' OK status. %s", other, d)
+              }
+              case None => log.error("Authentication Failed. No Response Document.")
+            }
+            callback(this)
+          }))
+        }
+        case other => log.error("Failed to get nonce: %s (OK: %s)", d, other)
+      }
+      case None => log.error("Failed to get nonce: %s", res)
+    }))
+  }
 
 
-class DB protected[mongodb](val dbName: String)(implicit val connection: MongoConnection) extends Logging {
+  protected[mongodb] def hashPassword(username: String, password: String) = {
+    val b = new ByteArrayOutputStream(username.length + 20 + password.length)
+    try {
+      b.write(username.getBytes)
+      b.write(":mongo:".getBytes)
+      for (i <- 1 to password.length) {
+        // todo there has to be a more efficient way to check this
+        assume(password(i) < 128, "Cannot currently support non-ascii passwords.")
+        b.write(password(i))
+      }
+
+    } catch {
+      case ioE: IOException => throw new Exception("Unable to hash Password.", ioE)
+    }
+
+    hexMD5(b.toByteArray)
+  }
+
+  protected[mongodb] def hexMD5(str: String): String = hexMD5(str.getBytes)
+  protected[mongodb] def hexMD5(bytes: Array[Byte]) = {
+    md5.reset()
+    md5.update(bytes)
+    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft(""){_ + _}
+  }
+
+  // TODO Fix me
+  def authenticated_? = login.isDefined && authHash.isDefined
+
 
   def collectionNames(callback: Seq[String] => Unit) {
-    val qMsg = QueryMessage("%s.system.namespaces".format(dbName), 0, 0, Document.empty)
-    log.debug("[%s] Querying for Collection Names with: %s", dbName, qMsg)
+    val qMsg = QueryMessage("%s.system.namespaces".format(name), 0, 0, Document.empty)
+    log.debug("[%s] Querying for Collection Names with: %s", name, qMsg)
     connection.send(qMsg, RequestFutures.find((cursor: Option[Cursor], res: FutureResult) => {
       log.debug("Got a result from listing collections: %s", cursor)
       val b = Seq.newBuilder[String]
 
       Cursor.basicIter(cursor.get) { doc =>
-        val name = doc.as[String]("name")
-        if (!name.contains("$")) b += name
+        val n = doc.as[String]("name")
+        if (!n.contains("$")) b += n.split(name + "\\.")(1)
       }
 
       callback(b.result())
     }))
   }
+  /**
+   * Creates a collection with a given name and options.
+   * If the collection does not exist, a new collection is created.
+   * Note that if the options parameter is null,
+   * the creation will be deferred to when the collection is written to.
+   * Possible options:
+   * <dl>
+   * <dt>capped</dt><dd><i>boolean</i>: if the collection is capped</dd>
+   * <dt>size</dt><dd><i>int</i>: collection size (in bytes)</dd>
+   * <dt>max</dt><dd><i>int</i>: max number of documents</dd>
+   * </dl>
+   * @param name the name of the collection to return
+   * @param options options
+   *
+   * The callback will be invoked, when the collection is created, with an instance of the new collection.
+   */
+  def createCollection(name: String, options: BSONDocument)(callback: Collection => Unit) = {
+
+  }
 
   /**
-   * WARNING: You *must* use an ordered list or commands won't work
+   * Evaluates a JavaScript function on the server
    */
-  def runCommand[A <% BSONDocument](collection: String, cmd: A, f: SingleDocQueryRequestFuture) =
-    connection.runCommand("%s.%s".format(dbName, collection), cmd, f)
+  //def eval(code: String, args: Any*)
+  /**
+   * WARNING: You *must* use an ordered list or commands won't work
+   * TODO - Support Options here
+   */
+  def command[A <% BSONDocument](cmd: A)(f: SingleDocQueryRequestFuture) {
+    connection.runCommand(name, cmd)(f)
+  }
 
-  def find[A <% BSONDocument, B <% BSONDocument](collection: String)
-                                                (query: A, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)
-                                                (callback: (Option[Cursor], FutureResult) => Unit) = {
-    val qMsg = QueryMessage(dbName + "." + collection, numToSkip, batchSize, query,  if (fields.isEmpty) None else Some(fields))
+  def command(cmd: String): SingleDocQueryRequestFuture => Unit =
+    command(Document(cmd -> 1))_
+
+  def find[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: (Option[Cursor], FutureResult) => Unit) = {
+    val qMsg = QueryMessage(name + "." + collection, numToSkip, batchSize, query, if (fields.isEmpty) None else Some(fields))
     connection.send(qMsg, RequestFutures.query(callback))
   }
 
+  /**
+   * invokes the 'dbStats' command
+   */
+  def stats() = command("dbstats")
+
+  /**
+   * TODO - This is done the same way as the Java Driver's but rather inefficient
+   * in that it iterates all of system.namespaces... might be better to findOne
+   */
+  def collectionExists(name: String)(callback: Boolean => Unit) = collectionNames({ colls: Seq[String] =>
+    callback(colls.contains(name))
+  })
+
+  // TODO - We can't allow free form getLastError due to the async nature.. it must be locked to the call
+
+  /**
+   * Drops the database completely, removing all data from disk.
+   * *** USE WITH CAUTION ***
+   * Not called drop() as that would conflict with an existing expected Scala method
+   * TODO - Ensure getLastError on this?
+   * TODO - Remove from any cached db listings
+   */
+  def dropDatabase() = command("dropDatabase")
+
+  /**
+   * Gets another database on the same server (without having to go up to connection)
+   * @param name Name of the database
+   * No serverside op needed so doesn't have to callback
+   */
+  def sisterDB(name: String) = connection(name)
+
+  // TODO - Slave OK
+
+  override def toString = name
+
+  private val md5 = MessageDigest.getInstance("MD5")
+  protected var login: Option[String] = None
+  protected var authHash: Option[String] = None
 }

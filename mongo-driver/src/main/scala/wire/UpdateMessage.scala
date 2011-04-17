@@ -18,7 +18,7 @@
 package com.mongodb
 package wire
 
-import org.bson.{BSONDocument , BSONSerializer}
+import org.bson.{ BSONDocument, BSONSerializer }
 
 /**
  * OP_UPDATE Message

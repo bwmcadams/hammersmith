@@ -19,17 +19,17 @@ package com.mongodb
 package wire
 
 import org.bson.util.Logging
-import java.io.{ByteArrayInputStream , InputStream}
+import java.io.{ ByteArrayInputStream, InputStream }
 import org.bson._
 import scala.util.control.Exception._
 
 /**
-* OP_REPLY
-*
-* OP_REPLY is sent by the database in response to an OP_QUERY or
-* OP_GET_MORE message.
-*
-*/
+ * OP_REPLY
+ *
+ * OP_REPLY is sent by the database in response to an OP_QUERY or
+ * OP_GET_MORE message.
+ *
+ */
 trait ReplyMessage extends MongoServerMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpReply
@@ -48,8 +48,6 @@ trait ReplyMessage extends MongoServerMessage {
     throw new UnsupportedOperationException("This message is not capable of being written. "
       + "Replies come only from the server.")
 
-
-
 }
 
 object ReplyMessage extends Logging {
@@ -59,7 +57,6 @@ object ReplyMessage extends Logging {
   def apply(_hdr: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._
     import MongoMessage.readFromOffset
-
 
     log.debug("Finishing decoding Reply Message with Header of '%s'", _hdr)
     val b = new Array[Byte](20) // relevant non-document stream bytes from the reply content.
@@ -84,7 +81,7 @@ object ReplyMessage extends Logging {
       val documents = for (i <- 0 until numReturned) yield decoder.decodeAndFetch(in).asInstanceOf[BSONDocument]
 
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
-             "Wanted: %d Got: %d".format(numReturned, documents.length))
+        "Wanted: %d Got: %d".format(numReturned, documents.length))
       log.trace("Parsed Out Documents: %s", documents)
 
       override def toString = "ReplyMessage { " +

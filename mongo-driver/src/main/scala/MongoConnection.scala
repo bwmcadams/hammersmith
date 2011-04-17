@@ -35,15 +35,15 @@ import org.bson._
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
-* Base trait for all connections, be it direct, replica set, etc
-*
-* This contains common code for any type of connection.
-*
-* NOTE: Connection instances are instances of a *POOL*, always.
-*
-* @author Brendan W. McAdams <brendan@10gen.com>
-* @since 0.1
-*/
+ * Base trait for all connections, be it direct, replica set, etc
+ *
+ * This contains common code for any type of connection.
+ *
+ * NOTE: Connection instances are instances of a *POOL*, always.
+ *
+ * @author Brendan W. McAdams <brendan@10gen.com>
+ * @since 0.1
+ */
 abstract class MongoConnection extends Logging {
 
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
@@ -53,14 +53,13 @@ abstract class MongoConnection extends Logging {
 
   protected val _connected = new AtomicBoolean(false)
 
-
   /* TODO - Can we reuse these factories across multiple connections??? */
 
   /**
    * Factory for client socket channels, reused by all connectors where possible.
    */
   val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
-                                                         Executors.newCachedThreadPool)
+    Executors.newCachedThreadPool)
 
   protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
@@ -83,7 +82,6 @@ abstract class MongoConnection extends Logging {
     checkMaster()
   }
 
-
   /**
    * Utility method to pull back a number of pieces of information
    * including maxBSONObjectSize, and sort of serves as a verification
@@ -97,7 +95,7 @@ abstract class MongoConnection extends Logging {
     if (maxBSONObjectSize == 0 || force) {
       log.debug("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
-      runCommand("admin", Document("isMaster" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
+      runCommand("admin", Document("isMaster" -> 1))(RequestFutures.command((doc: Option[Document], res: FutureResult) => {
         log.info("Got a result from command: %s", doc)
         doc foreach { x =>
           isMaster = x.getOrElse("ismaster", false).asInstanceOf[Boolean]
@@ -113,11 +111,10 @@ abstract class MongoConnection extends Logging {
     }
   }
 
-
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand[A <% BSONDocument](ns: String, cmd: A, f: SingleDocQueryRequestFuture) {
+  protected[mongodb] def runCommand[A <% BSONDocument](ns: String, cmd: A)(f: SingleDocQueryRequestFuture) {
     log.trace("Attempting to run command '%s' on DB '%s.$cmd', against RequestFuture: '%s'", cmd, ns, f)
     val qMsg = QueryMessage(ns + ".$cmd", 0, -1, cmd)
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
@@ -125,7 +122,6 @@ abstract class MongoConnection extends Logging {
   }
 
   protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture) = MongoConnection.send(msg, f)
-
 
   /**
    * Remember, a DB is basically a future since it doesn't have to exist.
@@ -138,7 +134,7 @@ abstract class MongoConnection extends Logging {
   def database(dbName: String): DB = new DB(dbName)(this)
 
   def databaseNames(callback: Seq[String] => Unit) {
-    runCommand("admin", Document("listDatabases" -> 1), RequestFutures.command((doc: Option[Document], res: FutureResult) => {
+    runCommand("admin", Document("listDatabases" -> 1))(RequestFutures.command((doc: Option[Document], res: FutureResult) => {
       log.debug("Got a result from 'listDatabases' command: %s", doc)
       if (res.ok && doc.isDefined) {
         val dbs = doc.get.as[BSONList]("databases").asList.map(_.asInstanceOf[Document].as[String]("name"))
@@ -149,7 +145,6 @@ abstract class MongoConnection extends Logging {
       }
     }))
   }
-
 
   val handler: MongoConnectionHandler
 
@@ -171,9 +166,9 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
         log.trace("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
         /**
-        * Note - it is entirely OK to stuff a single result into
-        * a Cursor, but not multiple results into a single.  Should be obvious.
-        */
+         * Note - it is entirely OK to stuff a single result into
+         * a Cursor, but not multiple results into a single.  Should be obvious.
+         */
         MongoConnection.dispatcher.get(reply.header.responseTo) match {
           case Some(CompletableRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture)) => {
             log.trace("Single Document Request Future.")
@@ -258,11 +253,11 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
           case Some(unknown) => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
           case None => {
             /**
-            * Even when no response is wanted a 'Default' callback should be regged so
-            * this is definitely warnable, for now.
-            */
+             * Even when no response is wanted a 'Default' callback should be regged so
+             * this is definitely warnable, for now.
+             */
             log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.",
-                     reply.header.responseTo)
+              reply.header.responseTo)
           }
         }
       }
@@ -318,12 +313,10 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)
-                             (implicit channel: Channel, maxBSONObjectSize: Int) {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int) {
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
-                                                                               if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4
-                                                                              ))
+      if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4))
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
     dispatcher.put(msg.requestID, CompletableRequest(msg, f))
     log.trace("PreWrite with outStream '%s'", outStream)
