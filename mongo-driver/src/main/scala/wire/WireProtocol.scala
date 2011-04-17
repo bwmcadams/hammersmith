@@ -96,8 +96,6 @@ object MongoMessage extends Logging {
    */
   val DefaultMaxBSONObjectSize = 1024 * 1024 * 4
 
-
-
   def readFromOffset(in: InputStream, b: Array[Byte], offset: Int) {
     readFromOffset(in, b, offset, b.length)
   }
@@ -185,7 +183,6 @@ abstract class MongoMessage extends Logging {
   var requestID = MongoMessage.ID.getAndIncrement
   log.trace("Generated Message ID '%s'", requestID)
 
-
   //  def apply(channel: Channel) = write
 
   def write(out: OutputStream) = {
@@ -198,7 +195,6 @@ abstract class MongoMessage extends Logging {
     val sizePos = buf.getPosition
 
     enc.writeInt(0) // Length, will set later; for now, placehold
-
 
     enc.writeInt(requestID)
     enc.writeInt(0) // Response ID left empty

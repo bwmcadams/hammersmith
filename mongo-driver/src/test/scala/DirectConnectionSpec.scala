@@ -14,9 +14,10 @@
  * limitations under the License.
  *
  */
+package com.mongodb.test
 
 import com.mongodb.futures.FutureResult
-import com.mongodb.{Cursor , MongoConnection}
+import com.mongodb.{ Cursor, MongoConnection }
 import org.bson.Document
 import org.bson.util.{ Logger, Logging }
 import org.specs2.mutable._
@@ -31,46 +32,32 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
       val conn = MongoConnection("localhost")
 
       while (!conn.connected_?) {}
-      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.info("DB: %s", _))})
-      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.info("Collection: %s", _))})
+      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.info("DB: %s", _)) })
+      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.info("Collection: %s", _)) })
       // TODO - This highlights the need for a blockable future
       Thread.sleep(2500)
 
       conn must not beNull
     }
-    "Iterate a Cursor Correctly" in {
-      val conn = MongoConnection("localhost")
-
-      while (!conn.connected_?) {}
-      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Option[Cursor], res: FutureResult) => {
-        if (res.ok && cursor.isDefined) {
-          log.debug("Got a result from 'find' command")
-          def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-            case Cursor.Entry(doc) =>  {
-              log.debug("Got a doc: %s", doc)
-              Cursor.Next(next)
-            }
-            case Cursor.Empty => {
-              log.debug("Cursor Empty")
-              Cursor.NextBatch(next)
-            }
-            case Cursor.EOF => {
-              log.debug("Cursor EOF")
-              Cursor.Done
-            }
-
-          }
-
-          cursor.get.iterate(next)
-        } else {
-          log.warning("Find failed: %s / Cursor: %s", res, cursor.get)
-        }
-      })
-      // TODO - This highlights the need for a blockable future
-      Thread.sleep(7500)
-
-      conn must not beNull
-    }
+    //    "Iterate a Cursor Correctly" in {
+    //      val conn = MongoConnection("localhost")
+    //
+    //      while (!conn.connected_?) {}
+    //      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Option[Cursor], res: FutureResult) => {
+    //        if (res.ok && cursor.isDefined) {
+    //          log.debug("Got a result from 'find' command")
+    //          Cursor.basicIter(cursor.get) { doc =>
+    //            log.info("Got a doc: %s", doc)
+    //          }
+    //        } else {
+    //          log.warning("Find failed: %s / Cursor: %s", res, cursor.get)
+    //        }
+    //      })
+    //      // TODO - This highlights the need for a blockable future
+    //      Thread.sleep(7500)
+    //
+    //      conn must not beNull
+    //    }
 
   }
 }

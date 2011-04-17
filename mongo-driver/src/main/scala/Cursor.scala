@@ -22,8 +22,8 @@ import scala.collection.Iterator
 import scala.collection.mutable.Queue
 import java.util.concurrent.CountDownLatch
 import org.jboss.netty.channel.ChannelHandlerContext
-import com.mongodb.wire.{GetMoreMessage , ReplyMessage}
-import com.mongodb.futures.{FutureResult , RequestFutures}
+import com.mongodb.wire.{ GetMoreMessage, ReplyMessage }
+import com.mongodb.futures.{ FutureResult, RequestFutures }
 import scala.annotation.tailrec
 
 object Cursor extends Logging {
@@ -42,7 +42,7 @@ object Cursor extends Logging {
    */
   protected[mongodb] def basicIter(cursor: Cursor)(f: BSONDocument => Unit) = {
     def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-      case Cursor.Entry(doc) =>  {
+      case Cursor.Entry(doc) => {
         f(doc)
         Cursor.Next(next)
       }
@@ -76,7 +76,8 @@ object Cursor extends Logging {
    */
   def iterate(cursor: Cursor)(op: (IterState) => IterCmd) {
     log.debug("Iterating '%s' with op: '%s'", cursor, op)
-    @tailrec def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
+    @tailrec
+    def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
         log.info("Closing Cursor.")
         cursor.close()
@@ -85,24 +86,24 @@ object Cursor extends Logging {
         log.debug("Next!")
         next(tOp)
       }
-      case NextBatch(tOp) => cursor.nextBatch(() => {
-        log.info("Next Batch Loaded.")
-        next(tOp)
-      })
+      case NextBatch(tOp) =>
+        cursor.nextBatch(() => {
+          log.info("Next Batch Loaded.")
+          next(tOp)
+        })
     }
     next(op)
   }
 }
 
 /**
-* Cursor for MongoDB
-*
-* Currently, using next() will block when it needs to do a getmore.
-* If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
-* TODO - Generic version with type passing
-*/
-class Cursor(val namespace: String, protected val reply: ReplyMessage)
-            (implicit val ctx: ChannelHandlerContext) extends Logging {
+ * Cursor for MongoDB
+ *
+ * Currently, using next() will block when it needs to do a getmore.
+ * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
+ * TODO - Generic version with type passing
+ */
+class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext) extends Logging {
 
   type DocType = BSONDocument
 
@@ -112,13 +113,12 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
   protected implicit val channel = ctx.getChannel
   protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize // todo - will this change ? Should we explictily grab it when needed
 
-
   /**
-  * Cursor ID 0 indicates "No more results"
-  * HOWEVER - Cursors can be positive OR negative
-  * If we were initialized with a cursorID of 0, there are no more results
-  * otherwise we'll flip this later during our getMores
-  */
+   * Cursor ID 0 indicates "No more results"
+   * HOWEVER - Cursors can be positive OR negative
+   * If we were initialized with a cursorID of 0, there are no more results
+   * otherwise we'll flip this later during our getMores
+   */
   protected def validCursor(id: Long) = id == 0
   protected var cursorEmpty = validCursor(cursorID)
 
@@ -133,46 +133,46 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
 
   /**
    * Batch size; defaults to 0 which lets mongo control the size
-  */
+   */
   protected var batch = 0
 
   def batchSize = batch
   def batchSize_=(size: Int) { batch = size }
 
   // Whether or not there are more docs *on the server*
-  def hasMore =  !cursorEmpty
+  def hasMore = !cursorEmpty
 
-  def nextBatch(notify: Function0[Unit]){
+  def nextBatch(notify: Function0[Unit]) {
     assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
     log.debug("Invoking getMore()")
     MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-                         RequestFutures.getMore((reply: Option[(Long, Seq[BSONDocument])], res: FutureResult) => {
-      if (res.ok) {
-        reply match {
-          case Some((id, batch)) => {
-            log.debug("Got a result from 'getMore' command (id: %d).", id)
-            cursorEmpty = validCursor(id)
-            docs.enqueue(batch: _*)
+      RequestFutures.getMore((reply: Option[(Long, Seq[BSONDocument])], res: FutureResult) => {
+        if (res.ok) {
+          reply match {
+            case Some((id, batch)) => {
+              log.debug("Got a result from 'getMore' command (id: %d).", id)
+              cursorEmpty = validCursor(id)
+              docs.enqueue(batch: _*)
 
+            }
+            case None => {
+              log.error("Command 'getMore' reported success but empty reply.")
+              cursorEmpty = true // assume a server issue
+            }
           }
-          case None => {
-            log.error("Command 'getMore' reported success but empty reply.")
-            cursorEmpty = true // assume a server issue
-          }
+        } else {
+          // TODO - should we have some way of signalling an error to the callback?
+          log.warning("Command 'getMore' failed: %s / Msg: %s", res, reply.getOrElse(null))
+          cursorEmpty = true // assume a server issue
         }
-      } else {
-        // TODO - should we have some way of signalling an error to the callback?
-        log.warning("Command 'getMore' failed: %s / Msg: %s", res, reply.getOrElse(null))
-        cursorEmpty = true // assume a server issue
-      }
-      notify()
-    }))
+        notify()
+      }))
   }
 
   /**
-  * TODO - It is probably significantly less costly time and resource wise to test length
-  * instead of catching a NoSuchElement
-  */
+   * TODO - It is probably significantly less costly time and resource wise to test length
+   * instead of catching a NoSuchElement
+   */
   def next() = try {
     if (docs.length > 0) Cursor.Entry(docs.dequeue()) else if (hasMore) Cursor.Empty
     else

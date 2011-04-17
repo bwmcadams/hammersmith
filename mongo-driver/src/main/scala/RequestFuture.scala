@@ -47,7 +47,6 @@ sealed trait RequestFuture {
   protected[futures] var completed = false
 }
 
-
 sealed trait QueryRequestFuture extends RequestFuture
 
 trait CursorQueryRequestFuture extends RequestFuture {
@@ -80,7 +79,6 @@ trait ObjectIdWriteRequestFuture extends WriteRequestFuture {
   type T = ObjectId
 }
 
-
 case class FutureResult(ok: Boolean, err: Option[String], n: Int)
 
 object RequestFutures extends Logging {
@@ -111,7 +109,7 @@ object RequestFutures extends Logging {
 
   def findOne[A <: BSONDocument](f: (Option[A], FutureResult) => Unit) = command(f)
 
-  def write[Id : Manifest](f: (Option[AnyRef], FutureResult) => Unit) = manifest[Id] match {
+  def write[Id: Manifest](f: (Option[AnyRef], FutureResult) => Unit) = manifest[Id] match {
     case oid: ObjectId => {
       log.trace("ObjectId write request.")
       new ObjectIdWriteRequestFuture {

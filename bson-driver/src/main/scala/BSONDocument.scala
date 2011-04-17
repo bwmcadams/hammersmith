@@ -51,45 +51,44 @@ trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] {
     }
   }
 
+  /** Lazy utility method to allow typing without conflicting with Map's required get() method and causing ambiguity */
+  def getAs[A <: Any: Manifest](key: String): Option[A] = {
+    require(manifest[A] != manifest[scala.Nothing],
+      "Type inference failed; getAs[A]() requires an explicit type argument " +
+      "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
 
-   /** Lazy utility method to allow typing without conflicting with Map's required get() method and causing ambiguity */
-   def getAs[A <: Any: Manifest](key: String): Option[A] = {
-     require(manifest[A] != manifest[scala.Nothing],
-       "Type inference failed; getAs[A]() requires an explicit type argument " +
-       "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
+    get(key) match {
+      case null => None
+      case value => Some(value.asInstanceOf[A])
+    }
+  }
 
-     get(key) match {
-       case null => None
-       case value => Some(value.asInstanceOf[A])
-     }
-   }
+  /**
+   * Utility method to emulate javascript dot notation
+   * Designed to simplify the occasional insanity of working with nested objects.
+   * Your type parameter must be that of the item at the bottom of the tree you specify...
+   * If cast fails - it's your own fault.
+   */
+  def expand[A <: Any: Manifest](key: String): Option[A] = {
+    require(manifest[A] != manifest[scala.Nothing], "Type inference failed; expand[A]() requires an explicit type argument " +
+      " (e.g. document[<ReturnType](\"someKey\") ) to function correctly.")
+    @tailrec
+    def _dot(dbObj: BSONDocument, key: String): Option[_] =
+      if (key.indexOf('.') < 0) {
+        dbObj.getAs[AnyRef](key)
+      } else {
+        val (pfx, sfx) = key.splitAt(key.indexOf('.'))
+        dbObj.getAs[BSONDocument](pfx) match {
+          case Some(base) => _dot(base, sfx.stripPrefix("."))
+          case None => None
+        }
+      }
 
-   /**
-    * Utility method to emulate javascript dot notation
-    * Designed to simplify the occasional insanity of working with nested objects.
-    * Your type parameter must be that of the item at the bottom of the tree you specify...
-    * If cast fails - it's your own fault.
-    */
-   def expand[A <: Any: Manifest](key: String): Option[A] = {
-     require(manifest[A] != manifest[scala.Nothing], "Type inference failed; expand[A]() requires an explicit type argument " +
-                                                     " (e.g. document[<ReturnType](\"someKey\") ) to function correctly.")
-     @tailrec
-     def _dot(dbObj: BSONDocument, key: String): Option[_] =
-       if (key.indexOf('.') < 0) {
-         dbObj.getAs[AnyRef](key)
-       } else {
-         val (pfx, sfx) = key.splitAt(key.indexOf('.'))
-         dbObj.getAs[BSONDocument](pfx) match {
-           case Some(base) => _dot(base, sfx.stripPrefix("."))
-           case None => None
-         }
-       }
-
-     _dot(this, key) match {
-       case None => None
-       case Some(value) => Some(value.asInstanceOf[A])
-     }
-   }
+    _dot(this, key) match {
+      case None => None
+      case Some(value) => Some(value.asInstanceOf[A])
+    }
+  }
 
 }
 
@@ -114,7 +113,6 @@ class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, 
   def clear() { elems = empty }
   def result(): T = elems
 }
-
 
 /**
  * Needed for some tasks such as Commands to run safely.
@@ -161,23 +159,24 @@ class BSONList extends BSONDocument {
 
   override def apply(key: String): Any = apply(asInt(key))
 
-  override def getOrElse[B1 >: Any](key: String , default: => B1): B1 = getOrElse(asInt(key), default)
+  override def getOrElse[B1 >: Any](key: String, default: => B1): B1 = getOrElse(asInt(key), default)
 
   override def get(key: String): Option[Any] = get(asInt(key))
 
   def asInt(key: String, err: Boolean = true): Int = try {
     Integer.parseInt(key)
   } catch {
-    case e: Exception => if (err)
-      throw new IllegalArgumentException("BSONLists can only work with Integer representable keys, failed parsing '%s'".format(key))
-    else -1
+    case e: Exception =>
+      if (err)
+        throw new IllegalArgumentException("BSONLists can only work with Integer representable keys, failed parsing '%s'".format(key))
+      else -1
   }
 
   def isDefinedAt(key: Int): Boolean = super.isDefinedAt(key.toString)
 
   def contains(key: Int): Boolean = super.contains(key.toString)
 
-  def apply(key: Int): Any =  super.apply(key.toString)
+  def apply(key: Int): Any = super.apply(key.toString)
 
   def getOrElse[B1 >: Any](key: Int, default: => B1): B1 = super.getOrElse(key.toString, default)
 

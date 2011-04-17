@@ -243,14 +243,13 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
     protected var root: BSONDocument = Document.empty
 
-    protected var stack= new Stack[BSONDocument]
+    protected var stack = new Stack[BSONDocument]
     protected var nameStack = new Stack[String]
 
     // Create a new instance of myself
     def createBSONCallback(): BSONCallback = new DefaultBSONCallback
 
     def get: BSONDocument = root
-
 
     def create(array: Boolean) =
       if (array) BSONList.empty else Document.empty

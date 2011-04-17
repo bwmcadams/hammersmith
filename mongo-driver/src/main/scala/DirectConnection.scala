@@ -37,7 +37,6 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
 
   lazy val handler = new DirectConnectionHandler(bootstrap)
 
-
 }
 
 protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler
