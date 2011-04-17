@@ -174,8 +174,10 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
   * instead of catching a NoSuchElement
   */
   def next() = try {
-    Cursor.Entry(docs.dequeue())
-  } catch {
+    if (docs.length > 0) Cursor.Entry(docs.dequeue()) else if (hasMore) Cursor.Empty
+    else
+      Cursor.EOF
+  } catch { // just in case
     case nse: java.util.NoSuchElementException => {
       log.debug("No Such Element Exception")
       if (hasMore) {
