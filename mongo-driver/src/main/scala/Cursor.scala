@@ -55,6 +55,25 @@ object Cursor extends Logging {
     }
     iterate(cursor)(next)
   }
+
+  /**
+   * Helper for the Iteratee Pattern.
+   * This is considered the safest/most canonical way to iterate any cursor.
+   * Invocation of 'next' on an instance of Cursor returns one of three instances of Cursor.IterState; you need to
+   * return a Cursor.IterCmd which instructs the control loop what operation to perform next.
+   *    - Cursor.Element(Document instance) which contains a single document representing a successful forward iteration.
+   *      Typically you should return CursorState.Next() with a callback function (usually the callback you are currently in,
+   *      hello recursion!) from this, which instructs the control loop to retrieve the next document.
+   *    - Cursor.Empty indicates that the current *BATCH* of the cursor is empty but more results exist on the server.
+   *      The typical response to this is CursorState.NextBatch() with a callback function (again, usually a copy of the same
+   *      callback you're currently in) which instructs the control loop to request the next batch from the server (OP_GET_MORE)
+   *      and continue iterating.  If the getMore succeeds your callback will next be invoked with a Cursor.Element instance.
+   *    - Cursor.EOF
+   *      Indicates that the cursor is entirely exhausted; all local and server side results have been returned.
+   *      Note the difference between this and Cursor.Empty; EOF indicates there are NO MORE RESULTS available on the server or locally.
+   *      The standard response to this should be Cursor.Done which tells the control loop to stop and shut down the Cursor.
+   *      I suppose if you want to be special you could respond with something else but it probably won't work right.
+   */
   def iterate(cursor: Cursor)(op: (IterState) => IterCmd) {
     log.debug("Iterating '%s' with op: '%s'", cursor, op)
     @tailrec def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
@@ -170,7 +189,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)
   }
 
   def close() = {
-    log.warning("WARNING: Close called but not currently implemented.")
+    log.warning("Cursor.close called but not currently implemented (not an issue for fully iterated cursors; Mongo cleans up).")
     /**
      * TODO - Implement close.
      * Basically if the cursorEmpty is true we can just NOOP
