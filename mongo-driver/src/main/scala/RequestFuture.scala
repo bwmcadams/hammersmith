@@ -29,20 +29,11 @@ case class CompletableRequest(request: MongoClientMessage, future: RequestFuture
 
 sealed trait RequestFuture {
   type T
-  val body: (Option[T], FutureResult) => Unit
+  val body: Either[Throwable, T] => Unit
 
-  var _result: Option[FutureResult] = None
-  var _element: Option[T] = None
+  def apply(error: Throwable) = body(Left(error))
 
-  def result = _result
-  def result_=(r: FutureResult) = _result = Some(r)
-  def element = _element
-  def element_=(e: T) = _element = Some(e)
-
-  def apply() {
-    if (result.isEmpty) throw new IllegalStateException("No FutureResult defined.")
-    body(element, result.get)
-  }
+  def apply[A <% T](result: A) = body(Right(result.asInstanceOf[T]))
 
   protected[futures] var completed = false
 }
@@ -72,55 +63,86 @@ trait SingleDocQueryRequestFuture extends QueryRequestFuture {
  * For an update, don't expect to get ObjectId
  */
 trait WriteRequestFuture extends RequestFuture {
-  type T <: AnyRef // ID Type
+  type T <: (Option[AnyRef] /* ID Type */, WriteResult)
 }
-
-trait ObjectIdWriteRequestFuture extends WriteRequestFuture {
-  type T = ObjectId
-}
-
-case class FutureResult(ok: Boolean, err: Option[String], n: Int)
 
 object RequestFutures extends Logging {
-  //  def request[T : Manifest](body: (Option[T], FutureResult) => Unit): RequestFuture[T] = manifest[T] match {
+  //  def request[T : Manifest](body: (Option[T], WriteResult) => Unit): RequestFuture[T] = manifest[T] match {
   //    case c: Cursor => query(body)
   //    case d: Document => command(body)
   //    case o: ObjectId => insert(body)
   //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
   //  }
-  def getMore(f: (Option[(Long, Seq[Document])], FutureResult) => Unit) =
+  def getMore(f: Either[Throwable, (Long, Seq[Document])] => Unit) =
     new GetMoreRequestFuture {
       val body = f
     }
 
-  def query[A <: Cursor](f: (Option[A], FutureResult) => Unit) =
+  def query[A <: Cursor](f: Either[Throwable, A] => Unit) =
     new CursorQueryRequestFuture {
       type T = A
       val body = f
     }
 
-  def find[A <: Cursor](f: (Option[A], FutureResult) => Unit) = query(f)
 
-  def command[A <: BSONDocument](f: (Option[A], FutureResult) => Unit) =
+  def find[A <: Cursor](f: Either[Throwable, A] => Unit) = query(f)
+
+  def command[A <: BSONDocument](f: Either[Throwable, A] => Unit) =
     new SingleDocQueryRequestFuture {
       type T = A
       val body = f
     }
 
-  def findOne[A <: BSONDocument](f: (Option[A], FutureResult) => Unit) = command(f)
+  def findOne[A <: BSONDocument](f: Either[Throwable, A] => Unit) = command(f)
 
-  def write[Id: Manifest](f: (Option[AnyRef], FutureResult) => Unit) = manifest[Id] match {
-    case oid: ObjectId => {
-      log.trace("ObjectId write request.")
-      new ObjectIdWriteRequestFuture {
+  def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
+      new WriteRequestFuture {
         val body = f
       }
-    }
-    case default => {
-      log.trace("'Default' write request.")
-      new WriteRequestFuture { val body = f }
-    }
-  }
-
 }
 
+
+/**
+ * "Simpler" request futures which swallow any errors.
+ */
+object SimpleRequestFutures extends Logging {
+  def findOne[A <: BSONDocument](f: A => Unit) = command(f)
+
+  def command[A <: BSONDocument](f: A => Unit) =
+    new SingleDocQueryRequestFuture {
+      type T = A
+      val body = (result: Either[Throwable, A]) => result match {
+        case Right(doc) => f(doc)
+        case Left(t) => log.error(t, "Command Failed.")
+      }
+    }
+
+  def getMore(f: (Long, Seq[Document]) => Unit) =
+    new GetMoreRequestFuture {
+      val body = (result: Either[Throwable, (Long, Seq[Document])]) => result match {
+        case Right((cid, docs)) => f(cid, docs)
+        case Left(t) => log.error(t, "GetMore Failed."); throw t
+      }
+    }
+
+
+  def find[A <: Cursor](f: A => Unit) = query(f)
+
+
+  def query[A <: Cursor](f: A => Unit) =
+    new CursorQueryRequestFuture {
+      type T = A
+      val body = (result: Either[Throwable, A]) => result match {
+        case Right(cursor) => f(cursor)
+        case Left(t) => log.error(t, "Query Failed."); throw t
+      }
+    }
+
+  def write(f: (Option[AnyRef], WriteResult) => Unit) =
+    new WriteRequestFuture {
+      val body = (result: Either[Throwable, (Option[AnyRef], WriteResult)]) => result match {
+        case Right((oid, wr)) => f(oid, wr)
+        case Left(t) => log.error(t, "Command Failed.")
+      }
+    }
+}

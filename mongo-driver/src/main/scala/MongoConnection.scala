@@ -95,12 +95,10 @@ abstract class MongoConnection extends Logging {
     if (maxBSONObjectSize == 0 || force) {
       log.debug("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
-      runCommand("admin", Document("isMaster" -> 1))(RequestFutures.command((doc: Option[Document], res: FutureResult) => {
+      runCommand("admin", Document("isMaster" -> 1))(SimpleRequestFutures.command((doc: Document) => {
         log.info("Got a result from command: %s", doc)
-        doc foreach { x =>
-          isMaster = x.getOrElse("ismaster", false).asInstanceOf[Boolean]
-          maxBSONObjectSize = x.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
-        }
+        isMaster = doc.getOrElse("ismaster", false).asInstanceOf[Boolean]
+        maxBSONObjectSize = doc.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
         gotIsMaster.set(true)
         if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connected.set(true)
         handler.maxBSONObjectSize = maxBSONObjectSize
@@ -134,13 +132,13 @@ abstract class MongoConnection extends Logging {
   def database(dbName: String): DB = new DB(dbName)(this)
 
   def databaseNames(callback: Seq[String] => Unit) {
-    runCommand("admin", Document("listDatabases" -> 1))(RequestFutures.command((doc: Option[Document], res: FutureResult) => {
+    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) => {
       log.debug("Got a result from 'listDatabases' command: %s", doc)
-      if (res.ok && doc.isDefined) {
-        val dbs = doc.get.as[BSONList]("databases").asList.map(_.asInstanceOf[Document].as[String]("name"))
+      if (!doc.isEmpty) {
+        val dbs = doc.as[BSONList]("databases").asList.map(_.asInstanceOf[Document].as[String]("name"))
         callback(dbs)
       } else {
-        log.warning("Command 'listDatabases' failed: %s / Doc: %s", res, doc.getOrElse(Document.empty))
+        log.warning("Command 'listDatabases' failed. Doc: %s", doc)
         callback(List.empty[String])
       }
     }))
@@ -203,76 +201,69 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
             // Though - GetLastError could dispatch back out again here and not invoke the callback!
             if (reply.cursorNotFound) {
               log.trace("Cursor Not Found.")
-              singleResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
+              singleResult(new Exception("Cursor Not Found."))
             } else if (reply.queryFailure) {
               log.trace("Query Failure")
               // Attempt to grab the $err document
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
                   log.trace("Error Document found: %s", errDoc)
-                  errDoc.getOrElse("$err", "Unknown Error.").toString
+                  singleResult(new Exception(errDoc.getOrElse("$err", "Unknown Error.").toString))
                 }
                 case None => {
                   log.warn("No Error Document Found.")
                   "Unknown Error."
+                  singleResult(new Exception("Unknown error."))
                 }
               }
-              singleResult.result = FutureResult(false, Some(err), 0)
             } else {
-              singleResult.result = FutureResult(true, None, reply.numReturned)
-              singleResult.element = reply.documents.head.asInstanceOf[singleResult.T]
+              singleResult(reply.documents.head.asInstanceOf[singleResult.T])
             }
-            singleResult()
           }
           case Some(CompletableRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture)) => {
             log.trace("Cursor Request Future.")
             if (reply.cursorNotFound) {
-              log.warn("Cursor Not Found.")
-              cursorResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
+              log.trace("Cursor Not Found.")
+              cursorResult(new Exception("Cursor Not Found."))
             } else if (reply.queryFailure) {
-              log.warn("Query Failure")
+              log.trace("Query Failure")
               // Attempt to grab the $err document
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
-                  log.debug("Error Document found: %s", errDoc)
-                  errDoc.getOrElse("$err", "Unknown Error.").toString
+                  log.trace("Error Document found: %s", errDoc)
+                  cursorResult(new Exception(errDoc.getOrElse("$err", "Unknown Error.").toString))
                 }
                 case None => {
                   log.warn("No Error Document Found.")
                   "Unknown Error."
+                  cursorResult(new Exception("Unknown error."))
                 }
               }
-              cursorResult.result = FutureResult(false, Some(err), 0)
             } else {
-              cursorResult.result = FutureResult(true, None, reply.numReturned)
-              cursorResult.element = new Cursor(msg.namespace, reply)(ctx).asInstanceOf[cursorResult.T]
+              cursorResult(new Cursor(msg.namespace, reply)(ctx).asInstanceOf[cursorResult.T])
             }
-            cursorResult()
           }
           case Some(CompletableRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture)) => {
             log.trace("Get More Request Future.")
             if (reply.cursorNotFound) {
               log.warn("Cursor Not Found.")
-              getMoreResult.result = FutureResult(false, Some("Cursor Not Found"), 0)
+              getMoreResult(new Exception("Cursor Not Found"))
             } else if (reply.queryFailure) {
               log.warn("Query Failure")
               // Attempt to grab the $err document
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
                   log.debug("Error Document found: %s", errDoc)
-                  errDoc.getOrElse("$err", "Unknown Error.").toString
+                  getMoreResult(new Exception(errDoc.getOrElse("$err", "Unknown Error.").toString))
                 }
                 case None => {
                   log.warn("No Error Document Found.")
-                  "Unknown Error."
+                  getMoreResult(new Exception("Unknown Error."))
                 }
               }
-              getMoreResult.result = FutureResult(false, Some(err), 0)
             } else {
-              getMoreResult.result = FutureResult(true, None, reply.numReturned)
-              getMoreResult.element = (reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T]
+              getMoreResult((reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T])
             }
-            getMoreResult()
           }
           case Some(unknown) => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
           case None => {

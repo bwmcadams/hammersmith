@@ -38,13 +38,13 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     assume(!authenticated_?, "Already authenticated.")
     val hash = hashPassword(username, password)
     log.debug("Hashed Password: '%s'", hash)
-    command("getnonce")(RequestFutures.findOne((doc: Option[Document], res: FutureResult) => doc match {
+    command("getnonce")(RequestFutures.findOne((result: Either[Throwable, Document]) => result match {
       // TODO - a Document extractor could be AWFULLY useful
       // TODO - Callback on failure
       // TODO - We need a getAsOrElse
-      case Some(d) => d.getAs[Int]("ok").getOrElse(0) match {
+      case Right(doc) => doc.getAs[Int]("ok").getOrElse(0) match {
         case 1 => {
-          val nonce = d.as[String]("nonce")
+          val nonce = doc.as[String]("nonce")
           log.debug("Got Nonce: '%s'", nonce)
           val authCmd = OrderedDocument("authenticate" -> 1,
                                         "user" -> username,
@@ -52,24 +52,24 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
                                         "key" -> hexMD5(nonce + username + hash))
           log.debug("Auth Command: %s", authCmd)
 
-          command(authCmd)(RequestFutures.findOne((doc: Option[Document], res: FutureResult) => {
-            doc match {
-              case Some(d) => d.getAs[Int]("ok").getOrElse(0) match {
+          command(authCmd)(RequestFutures.findOne((result: Either[Throwable, Document]) => {
+            result match {
+              case Right(_doc) => _doc.getAs[Int]("ok").getOrElse(0) match {
                 case 1 => {
                   log.info("Authenticate succeeded.")
                   login = Some(username)
                   authHash = Some(hash)
                 }
-                case other => log.error("Authentication Failed. '%d' OK status. %s", other, d)
+                case other => log.error("Authentication Failed. '%d' OK status. %s", other, _doc)
               }
-              case None => log.error("Authentication Failed. No Response Document.")
+              case Left(e) => log.error(e, "Authentication Failed.")
+              callback(this)
             }
-            callback(this)
           }))
         }
-        case other => log.error("Failed to get nonce: %s (OK: %s)", d, other)
+        case other => log.error("Failed to get nonce: %s (OK: %s)", doc, other)
       }
-      case None => log.error("Failed to get nonce: %s", res)
+      case Left(e) => log.error(e, "Failed to get nonce.")
     }))
   }
 
@@ -106,11 +106,11 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def collectionNames(callback: Seq[String] => Unit) {
     val qMsg = QueryMessage("%s.system.namespaces".format(name), 0, 0, Document.empty)
     log.debug("[%s] Querying for Collection Names with: %s", name, qMsg)
-    connection.send(qMsg, RequestFutures.find((cursor: Option[Cursor], res: FutureResult) => {
+    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor) => {
       log.debug("Got a result from listing collections: %s", cursor)
       val b = Seq.newBuilder[String]
 
-      Cursor.basicIter(cursor.get) { doc =>
+      Cursor.basicIter(cursor) { doc =>
         val n = doc.as[String]("name")
         if (!n.contains("$")) b += n.split(name + "\\.")(1)
       }
@@ -153,9 +153,9 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def command(cmd: String): SingleDocQueryRequestFuture => Unit =
     command(Document(cmd -> 1))_
 
-  def find[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: (Option[Cursor], FutureResult) => Unit) = {
+  def find[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: (Cursor) => Unit) = {
     val qMsg = QueryMessage(name + "." + collection, numToSkip, batchSize, query, if (fields.isEmpty) None else Some(fields))
-    connection.send(qMsg, RequestFutures.query(callback))
+    connection.send(qMsg, SimpleRequestFutures.query(callback))
   }
 
   /**
