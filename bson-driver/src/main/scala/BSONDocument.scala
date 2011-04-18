@@ -23,8 +23,9 @@ import scala.collection.generic._
 import scala.collection.mutable._
 import scala.annotation.tailrec
 import scala.collection.Map
+import org.bson.util.Logging
 
-trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] {
+trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] with Logging {
   /**
    * as
    *
@@ -58,8 +59,19 @@ trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] {
       "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
 
     get(key) match {
-      case null => None
-      case value => Some(value.asInstanceOf[A])
+      case None => None
+      case Some(value) => Some(value.asInstanceOf[A])
+    }
+  }
+
+  def getAsOrElse[A <: Any: Manifest](key: String, default: => A): A = getAs[A](key) match {
+    case Some(v) => {
+      log.info("Some(%s)", v)
+      v
+    }
+    case None => {
+      log.info("Default: %s", default)
+      default
     }
   }
 

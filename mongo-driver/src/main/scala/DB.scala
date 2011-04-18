@@ -21,7 +21,7 @@ import org.bson.util.Logging
 import org.bson._
 import com.mongodb.futures._
 import com.mongodb.wire.QueryMessage
-import java.io.{IOException , ByteArrayOutputStream}
+import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
 
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
@@ -42,37 +42,39 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
       // TODO - a Document extractor could be AWFULLY useful
       // TODO - Callback on failure
       // TODO - We need a getAsOrElse
-      case Right(doc) => doc.getAs[Int]("ok").getOrElse(0) match {
-        case 1 => {
-          val nonce = doc.as[String]("nonce")
-          log.debug("Got Nonce: '%s'", nonce)
-          val authCmd = OrderedDocument("authenticate" -> 1,
-                                        "user" -> username,
-                                        "nonce" -> nonce,
-                                        "key" -> hexMD5(nonce + username + hash))
-          log.debug("Auth Command: %s", authCmd)
+      case Right(doc) =>
+        doc.getAsOrElse[Int]("ok", 0) match {
+          case 1 => {
+            val nonce = doc.as[String]("nonce")
+            log.debug("Got Nonce: '%s'", nonce)
+            val authCmd = OrderedDocument("authenticate" -> 1,
+              "user" -> username,
+              "nonce" -> nonce,
+              "key" -> hexMD5(nonce + username + hash))
+            log.debug("Auth Command: %s", authCmd)
 
-          command(authCmd)(RequestFutures.findOne((result: Either[Throwable, Document]) => {
-            result match {
-              case Right(_doc) => _doc.getAs[Int]("ok").getOrElse(0) match {
-                case 1 => {
-                  log.info("Authenticate succeeded.")
-                  login = Some(username)
-                  authHash = Some(hash)
-                }
-                case other => log.error("Authentication Failed. '%d' OK status. %s", other, _doc)
+            command(authCmd)(RequestFutures.findOne((result: Either[Throwable, Document]) => {
+              result match {
+                case Right(_doc) =>
+                  _doc.getAsOrElse[Int]("ok", 0) match {
+                    case 1 => {
+                      log.info("Authenticate succeeded.")
+                      login = Some(username)
+                      authHash = Some(hash)
+                    }
+                    case other => log.error("Authentication Failed. '%d' OK status. %s", other, _doc)
+                  }
+                case Left(e) =>
+                  log.error(e, "Authentication Failed.")
+                  callback(this)
               }
-              case Left(e) => log.error(e, "Authentication Failed.")
-              callback(this)
-            }
-          }))
+            }))
+          }
+          case other => log.error("Failed to get nonce: %s (OK: %s)", doc, other)
         }
-        case other => log.error("Failed to get nonce: %s (OK: %s)", doc, other)
-      }
       case Left(e) => log.error(e, "Failed to get nonce.")
     }))
   }
-
 
   protected[mongodb] def hashPassword(username: String, password: String) = {
     val b = new ByteArrayOutputStream(username.length + 20 + password.length)
@@ -96,12 +98,11 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   protected[mongodb] def hexMD5(bytes: Array[Byte]) = {
     md5.reset()
     md5.update(bytes)
-    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft(""){_ + _}
+    md5.digest().map(0xFF & _).map { "%02x".format(_) }.foldLeft("") { _ + _ }
   }
 
   // TODO Fix me
   def authenticated_? = login.isDefined && authHash.isDefined
-
 
   def collectionNames(callback: Seq[String] => Unit) {
     val qMsg = QueryMessage("%s.system.namespaces".format(name), 0, 0, Document.empty)
