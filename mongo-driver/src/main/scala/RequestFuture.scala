@@ -63,7 +63,7 @@ trait SingleDocQueryRequestFuture extends QueryRequestFuture {
  * For an update, don't expect to get ObjectId
  */
 trait WriteRequestFuture extends RequestFuture {
-  type T <: (Option[AnyRef] /* ID Type */, WriteResult)
+  type T <: (Option[AnyRef] /* ID Type */ , WriteResult)
 }
 
 object RequestFutures extends Logging {
@@ -84,7 +84,6 @@ object RequestFutures extends Logging {
       val body = f
     }
 
-
   def find[A <: Cursor](f: Either[Throwable, A] => Unit) = query(f)
 
   def command[A <: BSONDocument](f: Either[Throwable, A] => Unit) =
@@ -96,11 +95,10 @@ object RequestFutures extends Logging {
   def findOne[A <: BSONDocument](f: Either[Throwable, A] => Unit) = command(f)
 
   def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
-      new WriteRequestFuture {
-        val body = f
-      }
+    new WriteRequestFuture {
+      val body = f
+    }
 }
-
 
 /**
  * "Simpler" request futures which swallow any errors.
@@ -125,9 +123,7 @@ object SimpleRequestFutures extends Logging {
       }
     }
 
-
   def find[A <: Cursor](f: A => Unit) = query(f)
-
 
   def query[A <: Cursor](f: A => Unit) =
     new CursorQueryRequestFuture {

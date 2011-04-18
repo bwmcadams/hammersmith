@@ -97,8 +97,8 @@ abstract class MongoConnection extends Logging {
       val gotIsMaster = new AtomicBoolean(false)
       runCommand("admin", Document("isMaster" -> 1))(SimpleRequestFutures.command((doc: Document) => {
         log.info("Got a result from command: %s", doc)
-        isMaster = doc.getOrElse("ismaster", false).asInstanceOf[Boolean]
-        maxBSONObjectSize = doc.getOrElse("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize).asInstanceOf[Int]
+        isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
+        maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
         gotIsMaster.set(true)
         if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connected.set(true)
         handler.maxBSONObjectSize = maxBSONObjectSize
@@ -208,7 +208,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
                   log.trace("Error Document found: %s", errDoc)
-                  singleResult(new Exception(errDoc.getOrElse("$err", "Unknown Error.").toString))
+                  singleResult(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
                 }
                 case None => {
                   log.warn("No Error Document Found.")
@@ -231,7 +231,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
                   log.trace("Error Document found: %s", errDoc)
-                  cursorResult(new Exception(errDoc.getOrElse("$err", "Unknown Error.").toString))
+                  cursorResult(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
                 }
                 case None => {
                   log.warn("No Error Document Found.")
@@ -254,7 +254,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               val err = reply.documents.headOption match {
                 case Some(errDoc) => {
                   log.debug("Error Document found: %s", errDoc)
-                  getMoreResult(new Exception(errDoc.getOrElse("$err", "Unknown Error.").toString))
+                  getMoreResult(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
                 }
                 case None => {
                   log.warn("No Error Document Found.")

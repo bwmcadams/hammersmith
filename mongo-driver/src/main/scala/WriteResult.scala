@@ -18,7 +18,7 @@
 package com.mongodb
 
 case class WriteResult(ok: Boolean,
-           error: Option[String] = None,
-           n: Long = 0,
-           upsertID: Option[AnyRef] = None,
-           updatedExisting: Option[Boolean] = None)
+  error: Option[String] = None,
+  n: Long = 0,
+  upsertID: Option[AnyRef] = None,
+  updatedExisting: Option[Boolean] = None)

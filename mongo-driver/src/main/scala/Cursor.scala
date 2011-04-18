@@ -153,12 +153,13 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
             cursorEmpty = validCursor(id)
             docs.enqueue(batch: _*)
           }
-          case Left(t) => {
-            // TODO - should we have some way of signalling an error to the callback?
-            log.error(t, "Command 'getMore' failed.")
-            cursorEmpty = true // assume a server issue
-          }
-          notify()
+          case Left(t) =>
+            {
+              // TODO - should we have some way of signalling an error to the callback?
+              log.error(t, "Command 'getMore' failed.")
+              cursorEmpty = true // assume a server issue
+            }
+            notify()
         }
       }))
   }
