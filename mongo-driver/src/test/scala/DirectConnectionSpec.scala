@@ -16,7 +16,6 @@
  */
 package com.mongodb.test
 
-import com.mongodb.futures.FutureResult
 import com.mongodb.{ Cursor, MongoConnection }
 import org.bson.Document
 import org.bson.util.{ Logger, Logging }
@@ -43,7 +42,7 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
     //      val conn = MongoConnection("localhost")
     //
     //      while (!conn.connected_?) {}
-    //      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Option[Cursor], res: FutureResult) => {
+    //      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Option[Cursor], res: WriteResult) => {
     //        if (res.ok && cursor.isDefined) {
     //          log.debug("Got a result from 'find' command")
     //          Cursor.basicIter(cursor.get) { doc =>

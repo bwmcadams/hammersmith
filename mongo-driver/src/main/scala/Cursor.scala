@@ -23,7 +23,7 @@ import scala.collection.mutable.Queue
 import java.util.concurrent.CountDownLatch
 import org.jboss.netty.channel.ChannelHandlerContext
 import com.mongodb.wire.{ GetMoreMessage, ReplyMessage }
-import com.mongodb.futures.{ FutureResult, RequestFutures }
+import com.mongodb.futures.RequestFutures
 import scala.annotation.tailrec
 
 object Cursor extends Logging {
@@ -146,26 +146,20 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
     assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
     log.debug("Invoking getMore()")
     MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-      RequestFutures.getMore((reply: Option[(Long, Seq[BSONDocument])], res: FutureResult) => {
-        if (res.ok) {
-          reply match {
-            case Some((id, batch)) => {
-              log.debug("Got a result from 'getMore' command (id: %d).", id)
-              cursorEmpty = validCursor(id)
-              docs.enqueue(batch: _*)
-
-            }
-            case None => {
-              log.error("Command 'getMore' reported success but empty reply.")
-              cursorEmpty = true // assume a server issue
-            }
+      RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[BSONDocument])]) => {
+        reply match {
+          case Right((id, batch)) => {
+            log.debug("Got a result from 'getMore' command (id: %d).", id)
+            cursorEmpty = validCursor(id)
+            docs.enqueue(batch: _*)
           }
-        } else {
-          // TODO - should we have some way of signalling an error to the callback?
-          log.warning("Command 'getMore' failed: %s / Msg: %s", res, reply.getOrElse(null))
-          cursorEmpty = true // assume a server issue
+          case Left(t) => {
+            // TODO - should we have some way of signalling an error to the callback?
+            log.error(t, "Command 'getMore' failed.")
+            cursorEmpty = true // assume a server issue
+          }
+          notify()
         }
-        notify()
       }))
   }
 
