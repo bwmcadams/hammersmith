@@ -17,23 +17,15 @@
 
 package com.mongodb
 
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
 
 import org.bson.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import java.nio.ByteOrder
-import scala.collection.Map
 import com.mongodb.wire._
-import java.util.concurrent.{ ConcurrentHashMap, Executors }
-import scala.collection.JavaConversions._
 import com.mongodb.futures._
 import org.jboss.netty.buffer._
-import scala.collection.mutable.ConcurrentMap
-import org.bson._
-import java.util.concurrent.atomic.AtomicBoolean
-
 /**
  * Base trait for all connections, be it direct, replica set, etc
  *

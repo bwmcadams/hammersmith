@@ -21,8 +21,6 @@ package wire
 import org.bson.util.Logging
 import java.io.{ ByteArrayInputStream, InputStream }
 import org.bson._
-import scala.util.control.Exception._
-
 /**
  * OP_REPLY
  *
@@ -56,8 +54,6 @@ object ReplyMessage extends Logging {
   val decoder = new DefaultBSONDeserializer
   def apply(_hdr: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._
-    import MongoMessage.readFromOffset
-
     log.debug("Finishing decoding Reply Message with Header of '%s'", _hdr)
     val b = new Array[Byte](20) // relevant non-document stream bytes from the reply content.
     readFully(in, b)

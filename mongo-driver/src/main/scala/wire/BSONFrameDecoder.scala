@@ -20,9 +20,6 @@ package wire
 
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder
 import com.mongodb.casbah.commons.Logging
-import org.jboss.netty.channel._
-import org.jboss.netty.buffer.ChannelBuffer
-
 /**
  * Decoder capable of safely decoding fragmented frames from BSON
  *
