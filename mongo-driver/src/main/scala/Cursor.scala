@@ -18,9 +18,7 @@ package com.mongodb
 
 import org.bson.util.Logging
 import org.bson._
-import scala.collection.Iterator
 import scala.collection.mutable.Queue
-import java.util.concurrent.CountDownLatch
 import org.jboss.netty.channel.ChannelHandlerContext
 import com.mongodb.wire.{ GetMoreMessage, ReplyMessage }
 import com.mongodb.futures.RequestFutures

@@ -24,7 +24,6 @@ import org.bson.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import java.nio.ByteOrder
-import scala.collection.Map
 import com.mongodb.wire._
 import java.util.concurrent.{ ConcurrentHashMap, Executors }
 import scala.collection.JavaConversions._

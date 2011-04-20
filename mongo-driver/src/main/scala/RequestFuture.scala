@@ -18,9 +18,6 @@
 package com.mongodb
 package futures
 
-import org.bson.types.ObjectId
-import scala.concurrent.SyncVar
-import scala.actors._
 import org.bson._
 import org.bson.util.Logging
 import com.mongodb.wire._

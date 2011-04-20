@@ -25,11 +25,8 @@ package wire
  */
 
 import org.bson.util.Logging
-import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import org.bson.io.PoolOutputBuffer
-import org.jboss.netty.buffer.{ ChannelBufferOutputStream, ChannelBuffers }
-import org.jboss.netty.channel.Channel
 import org.bson._
 import java.io._
 
