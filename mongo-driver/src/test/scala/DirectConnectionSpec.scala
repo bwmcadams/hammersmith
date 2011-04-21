@@ -14,9 +14,10 @@
  * limitations under the License.
  *
  */
-package com.mongodb.test
+package com.mongodb.async
+package test
 
-import com.mongodb.{ Cursor, MongoConnection }
+import com.mongodb.async.{ Cursor, MongoConnection }
 import org.bson.Document
 import org.bson.util.{ Logger, Logging }
 import org.specs2.mutable._

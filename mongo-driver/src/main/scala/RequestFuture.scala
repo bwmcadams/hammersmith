@@ -15,12 +15,12 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 package futures
 
 import org.bson._
 import org.bson.util.Logging
-import com.mongodb.wire._
+import com.mongodb.async.wire._
 
 case class CompletableRequest(request: MongoClientMessage, future: RequestFuture)
 

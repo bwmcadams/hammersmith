@@ -15,7 +15,7 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 
 /*
  * Note that no matter what any other settings are this is only called if

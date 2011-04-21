@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.mongodb
+package com.mongodb.async
 package wire
 
 import org.bson.{ BSONDocument, BSONSerializer }
