@@ -14,14 +14,15 @@
  * limitations under the License.
  *
  */
-package com.mongodb
+package com.mongodb.async
+
 
 import org.bson.util.Logging
 import org.bson._
 import scala.collection.mutable.Queue
 import org.jboss.netty.channel.ChannelHandlerContext
-import com.mongodb.wire.{ GetMoreMessage, ReplyMessage }
-import com.mongodb.futures.RequestFutures
+import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
+import com.mongodb.async.futures.RequestFutures
 import scala.annotation.tailrec
 
 object Cursor extends Logging {

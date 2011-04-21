@@ -17,10 +17,9 @@ class HammersmithProject(info: ProjectInfo)
     extends DefaultProject(info)
     with AutoCompilerPlugins
     with IdeaProject
-    with ScalariformPlugin
     with GrowlingTests {
 
-    override def scalariformOptions = Seq(VerboseScalariform)
+    //override def scalariformOptions = Seq(VerboseScalariform)
 
 
     // Use the BSON code

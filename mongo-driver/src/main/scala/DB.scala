@@ -15,12 +15,12 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 
 import org.bson.util.Logging
 import org.bson._
-import com.mongodb.futures._
-import com.mongodb.wire.QueryMessage
+import com.mongodb.async.futures._
+import com.mongodb.async.wire.QueryMessage
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
 

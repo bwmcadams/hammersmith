@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.mongodb
+package com.mongodb.async
 
 import org.bson.util.Logging
 

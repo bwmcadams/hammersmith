@@ -15,7 +15,7 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
@@ -24,10 +24,10 @@ import org.bson.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import java.nio.ByteOrder
-import com.mongodb.wire._
+import com.mongodb.async.wire._
 import java.util.concurrent.{ ConcurrentHashMap, Executors }
 import scala.collection.JavaConversions._
-import com.mongodb.futures._
+import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
 import scala.collection.mutable.ConcurrentMap
 import org.bson._

@@ -15,7 +15,7 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 package wire
 
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder

@@ -15,7 +15,7 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 
 case class WriteResult(ok: Boolean,
   error: Option[String] = None,

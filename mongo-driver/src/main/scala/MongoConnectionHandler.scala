@@ -15,7 +15,7 @@
  *
  */
 
-package com.mongodb
+package com.mongodb.async
 
 import java.net.InetSocketAddress
 
@@ -23,8 +23,8 @@ import org.bson.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import java.nio.ByteOrder
-import com.mongodb.wire._
-import com.mongodb.futures._
+import com.mongodb.async.wire._
+import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
 /**
  * Base trait for all connections, be it direct, replica set, etc
