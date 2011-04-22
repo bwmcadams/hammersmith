@@ -59,6 +59,7 @@ object Cursor extends Logging {
     iterate(cursor)(next)
   }
 
+
   /**
    * Helper for the Iteratee Pattern.
    * This is considered the safest/most canonical way to iterate any cursor.
@@ -209,4 +210,17 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
   }
 
   def iterate = Cursor.iterate(this) _
+
+  /**
+   * Internal use only foreach method.
+   * NOT YOURS! GET YOUR OWN!
+   * Seriously though, for safety reasons I didn't expose this publicly
+   * because using it without understanding it can be dangerous.
+   * AKA - If you want to stick your finger in this electrical socket, you'll have
+   * to build your own fork first.
+   */
+  protected[mongodb] def foreach(f: BSONDocument => Unit) = {
+    log.debug("Foreach: %s | empty? %s", f, isEmpty)
+    Cursor.basicIter(this)(f)
+  }
 }
