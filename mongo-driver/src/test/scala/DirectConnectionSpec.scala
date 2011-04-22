@@ -39,25 +39,24 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
 
       conn must not beNull
     }
-    //    "Iterate a Cursor Correctly" in {
-    //      val conn = MongoConnection("localhost")
-    //
-    //      while (!conn.connected_?) {}
-    //      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Option[Cursor], res: WriteResult) => {
-    //        if (res.ok && cursor.isDefined) {
-    //          log.debug("Got a result from 'find' command")
-    //          Cursor.basicIter(cursor.get) { doc =>
-    //            log.info("Got a doc: %s", doc)
-    //          }
-    //        } else {
-    //          log.warning("Find failed: %s / Cursor: %s", res, cursor.get)
-    //        }
-    //      })
-    //      // TODO - This highlights the need for a blockable future
-    //      Thread.sleep(7500)
-    //
-    //      conn must not beNull
-    //    }
+        "Iterate a Cursor Correctly" in {
+          val conn = MongoConnection("localhost")
+
+          while (!conn.connected_?) {}
+          conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
+            log.debug("Got a result from 'find' command")
+            var x = 0
+            Cursor.basicIter(cursor) { doc =>
+              x += 1
+              log.debug("Got a doc: %s", x)
+            }
+            log.info("Done iterating, %s results.", x)
+//            require(x == 335, "Not enough iterations. WTF?")
+          })
+          Thread.sleep(1000)
+
+          conn must not beNull
+        }
 
   }
 }
