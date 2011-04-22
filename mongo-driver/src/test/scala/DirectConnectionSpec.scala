@@ -43,17 +43,17 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
           val conn = MongoConnection("localhost")
 
           while (!conn.connected_?) {}
+          var x = 0
           conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
             log.debug("Got a result from 'find' command")
-            var x = 0
-            Cursor.basicIter(cursor) { doc =>
+            for (doc <- cursor) {
               x += 1
               log.debug("Got a doc: %s", x)
             }
             log.info("Done iterating, %s results.", x)
-//            require(x == 335, "Not enough iterations. WTF?")
           })
           Thread.sleep(1000)
+          require(x == 335, "Not enough iterations. WTF?")
 
           conn must not beNull
         }
