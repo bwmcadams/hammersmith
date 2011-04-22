@@ -25,6 +25,7 @@ import org.jboss.netty.channel.ChannelHandlerContext
 import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
 import com.mongodb.async.futures.RequestFutures
 import scala.annotation.tailrec
+import com.twitter.util.CountDownLatch
 
 object Cursor extends Logging {
   trait IterState
@@ -47,9 +48,11 @@ object Cursor extends Logging {
         Cursor.Next(next)
       }
       case Cursor.Empty => {
+        log.trace("Empty... Next batch.")
         Cursor.NextBatch(next)
       }
       case Cursor.EOF => {
+        log.info("EOF... Cursor done.")
         Cursor.Done
       }
     }
@@ -75,7 +78,7 @@ object Cursor extends Logging {
    *      I suppose if you want to be special you could respond with something else but it probably won't work right.
    */
   def iterate(cursor: Cursor)(op: (IterState) => IterCmd) {
-    log.debug("Iterating '%s' with op: '%s'", cursor, op)
+    log.trace("Iterating '%s' with op: '%s'", cursor, op)
     @tailrec
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
@@ -83,7 +86,7 @@ object Cursor extends Logging {
         cursor.close()
       }
       case Next(tOp) => {
-        log.debug("Next!")
+        log.trace("Next!")
         next(tOp)
       }
       case NextBatch(tOp) =>
@@ -121,6 +124,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
    */
   protected def validCursor(id: Long) = id == 0
   protected var cursorEmpty = validCursor(cursorID)
+  @volatile protected var gettingMore = new CountDownLatch(0)
 
   /**
    * Mutable internally as we push further through the cursor on the server
@@ -141,27 +145,32 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
 
   // Whether or not there are more docs *on the server*
   def hasMore = !cursorEmpty
+  def isEmpty = docs.length == 0 && cursorEmpty
 
   def nextBatch(notify: Function0[Unit]) {
-    assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
-    log.debug("Invoking getMore()")
-    MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-      RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[BSONDocument])]) => {
-        reply match {
-          case Right((id, batch)) => {
-            log.debug("Got a result from 'getMore' command (id: %d).", id)
-            cursorEmpty = validCursor(id)
-            docs.enqueue(batch: _*)
-          }
-          case Left(t) =>
-            {
+    if (gettingMore.isZero) {
+      gettingMore = new CountDownLatch(1)
+      assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
+      log.debug("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
+      MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
+        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[BSONDocument])]) => {
+          reply match {
+            case Right((id, batch)) => {
+              log.debug("Got a result from 'getMore' command (id: %d).", id)
+              cursorEmpty = validCursor(id)
+              docs.enqueue(batch: _*)
+            }
+            case Left(t) => {
               // TODO - should we have some way of signalling an error to the callback?
               log.error(t, "Command 'getMore' failed.")
               cursorEmpty = true // assume a server issue
             }
-            notify()
-        }
-      }))
+          }
+          gettingMore.countDown()
+          notify()
+        })
+      )
+    } else log.warn("Already gettingMore on this cursor.  May be a concurrency issue if called repeatedly.")
   }
 
   /**
