@@ -19,6 +19,7 @@ package com.mongodb.async
 
 import org.bson.util.Logging
 import org.bson._
+import org.bson.collection._
 import com.mongodb.async.futures._
 import com.mongodb.async.wire.QueryMessage
 import java.io.{ IOException, ByteArrayOutputStream }

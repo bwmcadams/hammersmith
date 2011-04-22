@@ -19,6 +19,7 @@ package com.mongodb.async
 
 import org.bson.util.Logging
 import org.bson._
+import org.bson.collection._
 import scala.collection.mutable.Queue
 import org.jboss.netty.channel.ChannelHandlerContext
 import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }

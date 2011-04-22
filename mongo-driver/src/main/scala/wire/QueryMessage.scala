@@ -20,6 +20,7 @@ package wire
 
 import org.bson.util.Logging
 import org.bson._
+import org.bson.collection.{Document , BSONDocument}
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,

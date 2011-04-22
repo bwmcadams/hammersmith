@@ -16,14 +16,12 @@
  */
 
 package org.bson
+package collection
 
-import org.bson._
 import org.bson.types.ObjectId
-import scala.collection.generic._
-import scala.collection.mutable._
 import scala.annotation.tailrec
-import scala.collection.Map
 import org.bson.util.Logging
+import scala.collection.mutable._
 
 trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] with Logging {
   /**

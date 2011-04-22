@@ -24,11 +24,12 @@ import org.bson.types._
 import java.util.{ UUID, Date => JDKDate }
 import org.bson.util.{ Logging }
 import scala.collection.mutable.Stack
+import org.bson.collection._
 
 /**
- * Deserialization handler which is expected to turn a BSON ByteStream into
- * objects of type "T" (or a subclass thereof)
- */
+* Deserialization handler which is expected to turn a BSON ByteStream into
+* objects of type "T" (or a subclass thereof)
+*/
 trait BSONDeserializer extends BSONDecoder with Logging {
   val callback: Callback //= new DefaultBSONCallback
   abstract class Callback extends BSONCallback {
