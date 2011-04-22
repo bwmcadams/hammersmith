@@ -26,6 +26,7 @@ import java.util.regex.Pattern
 import scala.util.matching.Regex
 import scalaj.collection.Imports._
 import java.util.{ UUID, Date => JDKDate }
+import org.bson.collection.BSONList
 
 trait BSONSerializer extends BSONEncoder with Logging {
 

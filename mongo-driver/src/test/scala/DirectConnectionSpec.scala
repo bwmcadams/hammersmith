@@ -18,7 +18,7 @@ package com.mongodb.async
 package test
 
 import com.mongodb.async.{ Cursor, MongoConnection }
-import org.bson.Document
+import org.bson.collection.Document
 import org.bson.util.{ Logger, Logging }
 import org.specs2.mutable._
 import org.specs2.runner._

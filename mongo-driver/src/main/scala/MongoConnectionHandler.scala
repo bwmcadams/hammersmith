@@ -20,6 +20,7 @@ package com.mongodb.async
 import java.net.InetSocketAddress
 
 import org.bson.util.Logging
+import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import java.nio.ByteOrder

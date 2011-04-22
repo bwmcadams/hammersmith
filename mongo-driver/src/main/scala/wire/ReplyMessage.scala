@@ -21,6 +21,8 @@ package wire
 import org.bson.util.Logging
 import java.io.{ ByteArrayInputStream, InputStream }
 import org.bson._
+import org.bson.collection._
+
 /**
  * OP_REPLY
  *

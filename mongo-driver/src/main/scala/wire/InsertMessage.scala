@@ -17,7 +17,8 @@
 package com.mongodb.async
 package wire
 
-import org.bson.{ BSONDocument, BSONSerializer }
+import org.bson.BSONSerializer
+import org.bson.collection.BSONDocument
 
 /**
  * OP_INSERT Message
