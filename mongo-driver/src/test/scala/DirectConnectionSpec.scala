@@ -19,44 +19,39 @@ package test
 
 import com.mongodb.async.{ Cursor, MongoConnection }
 import org.bson.collection.Document
-import org.bson.util.{ Logger, Logging }
 import org.specs2.mutable._
-import org.specs2.runner._
-import scala.annotation.tailrec
+import org.bson.util.Logging
 
 class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
   //  println(org.apache.commons.logging.Log)
 
   "The MongoDB Direct Connection" should {
+    val conn = MongoConnection("localhost")
     "Connect correctly and grab isMaster" in {
-      val conn = MongoConnection("localhost")
 
-      while (!conn.connected_?) {}
-      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.info("DB: %s", _)) })
-      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.info("Collection: %s", _)) })
-      // TODO - This highlights the need for a blockable future
-      Thread.sleep(2500)
 
-      conn must not beNull
+      conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.trace("DB: %s", _)) })
+
+      conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.trace("Collection: %s", _)) })
+
+
+      conn.connected_? must eventually(beTrue)
+
     }
-        "Iterate a Cursor Correctly" in {
-          val conn = MongoConnection("localhost")
-
-          while (!conn.connected_?) {}
-          var x = 0
-          conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
-            log.debug("Got a result from 'find' command")
-            for (doc <- cursor) {
-              x += 1
-              log.debug("Got a doc: %s", x)
-            }
-            log.info("Done iterating, %s results.", x)
-          })
-          Thread.sleep(1000)
-          require(x == 335, "Not enough iterations. WTF?")
-
-          conn must not beNull
+    // todo - this relies heavily on whats on my local workstation; needs to be generic
+    "Iterate a Cursor Correctly" in {
+      var x = 0
+      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
+        log.debug("Got a result from 'find' command")
+        for (doc <- cursor) {
+          x += 1
+          log.trace("Got a doc: %s", x)
         }
+        log.info("Done iterating, %s results.", x)
+      })
+
+      x must eventually (be_==(336))
+    }
 
   }
 }
