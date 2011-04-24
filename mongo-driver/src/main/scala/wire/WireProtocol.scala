@@ -219,6 +219,11 @@ abstract class MongoMessage extends Logging {
 abstract class MongoClientMessage extends MongoMessage
 
 /**
+ * Any client -> server message which writes
+ */
+abstract class MongoClientWriteMessage extends MongoClientMessage
+
+/**
  * A message sent from a mongodb server to a client
  */
 abstract class MongoServerMessage extends MongoMessage

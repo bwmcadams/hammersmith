@@ -31,7 +31,7 @@ import org.bson.collection._
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
-trait DeleteMessage extends MongoClientMessage {
+trait DeleteMessage extends MongoClientWriteMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use

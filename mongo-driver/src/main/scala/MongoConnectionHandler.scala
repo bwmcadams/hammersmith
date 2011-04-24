@@ -43,8 +43,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val buf = e.getMessage.asInstanceOf[ChannelBuffer]
     log.debug("Incoming Message received on (%s) Length: %s", buf, buf.readableBytes())
-    val _msg = MongoMessage.unapply(new ChannelBufferInputStream(buf));
-    _msg match {
+    MongoMessage.unapply(new ChannelBufferInputStream(buf)) match {
       case reply: ReplyMessage => {
         log.trace("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
@@ -52,8 +51,14 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
          * Note - it is entirely OK to stuff a single result into
          * a Cursor, but not multiple results into a single.  Should be obvious.
          */
-        MongoConnection.dispatcher.get(reply.header.responseTo) match {
-          case Some(CompletableRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture)) => {
+        val req = MongoConnection.dispatcher.get(reply.header.responseTo)
+        /**
+         * Even when no response is wanted a 'Default' callback should be regged so
+         * this is definitely warnable, for now.
+         */
+        if (req.isEmpty) log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.", reply.header.responseTo)
+        req.foreach(_ match {
+          case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
             log.trace("Single Document Request Future.")
             // This may actually be better as a disableable assert but for now i want it hard.
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
@@ -81,7 +86,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               singleResult(reply.documents.head.asInstanceOf[singleResult.T])
             }
           }
-          case Some(CompletableRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture)) => {
+          case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
             log.trace("Cursor Request Future.")
             if (reply.cursorNotFound) {
               log.trace("Cursor Not Found.")
@@ -104,7 +109,7 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               cursorResult(new Cursor(msg.namespace, reply)(ctx).asInstanceOf[cursorResult.T])
             }
           }
-          case Some(CompletableRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture)) => {
+          case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
             log.trace("Get More Request Future.")
             if (reply.cursorNotFound) {
               log.warn("Cursor Not Found.")
@@ -126,16 +131,8 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
               getMoreResult((reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T])
             }
           }
-          case Some(unknown) => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
-          case None => {
-            /**
-             * Even when no response is wanted a 'Default' callback should be regged so
-             * this is definitely warnable, for now.
-             */
-            log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.",
-              reply.header.responseTo)
-          }
-        }
+          case unknown => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
+        })
       }
       case default => {
         log.warn("Unknown message type '%s'; ignoring.", default)

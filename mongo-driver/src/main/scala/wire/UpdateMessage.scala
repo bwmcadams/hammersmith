@@ -31,7 +31,7 @@ import org.bson.collection._
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-trait UpdateMessage extends MongoClientMessage {
+trait UpdateMessage extends MongoClientWriteMessage {
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
 
