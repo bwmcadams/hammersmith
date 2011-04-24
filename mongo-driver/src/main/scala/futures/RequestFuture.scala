@@ -18,12 +18,9 @@
 package com.mongodb.async
 package futures
 
-import org.bson._
 import org.bson.collection._
 import org.bson.util.Logging
 import com.mongodb.async.wire._
-
-case class CompletableRequest(request: MongoClientMessage, future: RequestFuture)
 
 sealed trait RequestFuture {
   type T

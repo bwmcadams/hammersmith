@@ -30,7 +30,7 @@ import org.bson.collection.BSONDocument
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPINSERT
  */
-trait InsertMessage extends MongoClientMessage {
+trait InsertMessage extends MongoClientWriteMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpInsert
 
