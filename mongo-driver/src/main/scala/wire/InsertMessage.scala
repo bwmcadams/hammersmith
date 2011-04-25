@@ -18,7 +18,8 @@ package com.mongodb.async
 package wire
 
 import org.bson.BSONSerializer
-import org.bson.collection.BSONDocument
+import org.bson.util.Logging
+import org.bson.collection.{Document , BSONDocument}
 
 /**
  * OP_INSERT Message
@@ -44,5 +45,12 @@ trait InsertMessage extends MongoClientWriteMessage {
     // TODO - Limit batch insert size which should be 4 * MaxBSON
     for (doc <- documents) enc.putObject(doc)
 
+  }
+}
+
+object InsertMessage extends Logging {
+  def apply(ns: String, docs: Seq[Document]) = new InsertMessage {
+    val namespace = ns
+    val documents = docs
   }
 }

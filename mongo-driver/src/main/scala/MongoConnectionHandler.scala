@@ -186,7 +186,13 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
    *  Called regularly by a managed CursorCleaner thread.
    */
   protected[mongodb] def cleanup() {
-    log.debug("Cursor Cleanup running.")
+    log.trace("Cursor Cleanup running.")
+    if (deadCursors.isEmpty) {
+      log.debug("No Dead Cursors.")
+    } else deadCursors.foreach( i => {
+      log.debug("Killing Cursor %d", i)
+      // TODO - Implement me!!!
+    })
   }
 
 

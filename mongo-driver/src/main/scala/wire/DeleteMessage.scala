@@ -20,6 +20,7 @@ package wire
 
 import org.bson.BSONSerializer
 import org.bson.collection._
+import org.bson.util.Logging
 
 /**
  * OP_DELETE Message
@@ -51,6 +52,14 @@ trait DeleteMessage extends MongoClientWriteMessage {
     enc.writeCString(namespace)
     enc.writeInt(flags)
     enc.putObject(query)
+  }
+}
+
+object DeleteMessage extends Logging {
+  def apply(ns: String, q: BSONDocument, onlyRemoveOne: Boolean = false) = new DeleteMessage {
+    val namespace = ns
+    val query = q
+    val removeSingle = onlyRemoveOne
   }
 }
 
