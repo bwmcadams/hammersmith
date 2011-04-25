@@ -19,6 +19,7 @@ package com.mongodb.async
 package wire
 
 import org.bson.BSONSerializer
+import org.bson.util.Logging
 
 /**
  * OP_KILL_CURSORS
@@ -40,5 +41,12 @@ trait KillCursorsMessage extends MongoClientMessage {
     enc.writeInt(ZERO)
     enc.writeInt(numCursors)
     for (_id <- cursorIDs) enc.writeLong(_id)
+  }
+}
+
+object KillCursorsMessage extends Logging {
+  def apply(ids: Seq[Long]) = new KillCursorsMessage {
+    val numCursors = ids.length
+    val cursorIDs = ids
   }
 }

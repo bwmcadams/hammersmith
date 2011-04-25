@@ -20,6 +20,7 @@ package wire
 
 import org.bson.BSONSerializer
 import org.bson.collection._
+import org.bson.util.Logging
 
 /**
  * OP_UPDATE Message
@@ -58,6 +59,17 @@ trait UpdateMessage extends MongoClientWriteMessage {
     enc.putObject(query)
     enc.putObject(update)
   }
+}
+
+object UpdateMessage extends Logging {
+  def apply(ns: String, q: BSONDocument, updateSpec: BSONDocument, _upsert: Boolean = false, multi: Boolean = false) = new UpdateMessage {
+    val namespace = ns
+    val query = q
+    val update = updateSpec
+    val upsert = _upsert
+    val multiUpdate = multi
+  }
+
 }
 
 object UpdateFlag extends Enumeration {
