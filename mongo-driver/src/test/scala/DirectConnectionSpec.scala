@@ -20,6 +20,7 @@ package test
 import com.mongodb.async.{ Cursor, MongoConnection }
 import org.bson.collection.Document
 import org.specs2.mutable._
+import org.specs2.time.Time._
 import org.bson.util.Logging
 
 class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
@@ -51,6 +52,30 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
       })
 
       x must eventually (be_==(336))
+    }
+    "Iterate a Cursor Correctly" in {
+      var x = 0
+      conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
+        log.debug("Got a result from 'find' command")
+        log.info("Done iterating, %s results.", x)
+        def next(op: Cursor.IterState): Cursor.IterCmd = op match {
+          case Cursor.Entry(doc) => {
+            x += 1
+            if (x < 100) Cursor.Next(next) else Cursor.Done
+          }
+          case Cursor.Empty => {
+            log.trace("Empty... Next batch.")
+            if (x < 100) Cursor.NextBatch(next) else Cursor.Done
+          }
+          case Cursor.EOF => {
+            log.info("EOF... Cursor done.")
+            Cursor.Done
+          }
+        }
+        Cursor.iterate(cursor)(next)
+      })
+
+      x must eventually(5, 10.seconds) (be_==(336))
     }
 
   }
