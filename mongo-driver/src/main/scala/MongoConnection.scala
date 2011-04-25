@@ -32,7 +32,11 @@ import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
 import scala.collection.mutable.ConcurrentMap
 import org.bson._
+import com.twitter.conversions.time._
+import com.twitter.util.{ JavaTimer }
+
 import java.util.concurrent.atomic.AtomicBoolean
+import com.mongodb.async.util.CursorCleaningTimer
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -194,6 +198,8 @@ object MongoConnection extends Logging {
 
   protected[mongodb] val dispatcher: ConcurrentMap[Int, CompletableRequest] =
     new ConcurrentHashMap[Int, CompletableRequest]()
+
+  protected[mongodb] val cleaningTimer = new CursorCleaningTimer()
 
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)

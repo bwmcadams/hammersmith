@@ -195,19 +195,6 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
     }
   }
 
-  def close() = {
-    log.warning("Cursor.close called but not currently implemented (not an issue for fully iterated cursors; Mongo cleans up).")
-    /**
-     * TODO - Implement close.
-     * Basically if the cursorEmpty is true we can just NOOP
-     * as MongoDB automatically cleans up fully iterated cursors.
-     *
-     * But if cursorEmpty is false we should to call killcursors
-     * or probably more efficiently queue the cursorID to a timed
-     * batch runner to call kill every so often.
-     */
-
-  }
 
   def iterate = Cursor.iterate(this) _
 
@@ -223,4 +210,31 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
     log.debug("Foreach: %s | empty? %s", f, isEmpty)
     Cursor.basicIter(this)(f)
   }
+
+  def close() {
+    log.info("Closing out cursor: %s", this)
+    /**
+     * Basically if the cursorEmpty is true we can just NOOP here
+     * as MongoDB automatically cleans up fully iterated cursors.
+     */
+    if (hasMore) {
+      validCursor(0) // zero out the 'hasMore' status
+      handler.killCursors(cursorID)
+    }
+
+    /**
+     * Clean out any remaining items
+     */
+    docs.clear()
+  }
+
+  /**
+   * Attempts to catch and close any uncleaned up cursors.
+   */
+  override def finalize() {
+    log.debug("Finalizing Cursor (%s)", this)
+    close()
+    super.finalize()
+  }
+
 }

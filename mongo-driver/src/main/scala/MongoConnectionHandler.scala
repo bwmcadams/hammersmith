@@ -17,16 +17,16 @@
 
 package com.mongodb.async
 
-import java.net.InetSocketAddress
-
 import org.bson.util.Logging
-import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
-import java.nio.ByteOrder
 import com.mongodb.async.wire._
 import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
+import scala.collection.mutable.{Set => MutableSet}
+import java.net.InetSocketAddress
+import java.nio.ByteOrder
+
 /**
  * Base trait for all connections, be it direct, replica set, etc
  *
@@ -37,8 +37,13 @@ import org.jboss.netty.buffer._
  * @author Brendan W. McAdams <brendan@10gen.com>
  * @since 0.1
  */
-trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
-  val bootstrap: ClientBootstrap
+abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging {
+  protected val bootstrap: ClientBootstrap
+  protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
+
+  log.info("Initializing MongoConnectionHandler.")
+  MongoConnection.cleaningTimer.acquire(this)
+
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val buf = e.getMessage.asInstanceOf[ChannelBuffer]
@@ -148,11 +153,12 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.warn("Disconnected from '%s'", remoteAddress)
+    shutdown()
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.info("Channel Closed to '%s'", remoteAddress)
-    // TODO - Reconnect?
+    shutdown()
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
@@ -162,7 +168,32 @@ trait MongoConnectionHandler extends SimpleChannelHandler with Logging {
 
   def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 
-  var maxBSONObjectSize = 1024 * 4 * 4 // default
+  /**
+   * Cursors that need to be cleaned up
+   */
+  protected val deadCursors = MutableSet.empty[Long]
+
+  /**
+   * Deferred - doesn't actually happen immediately
+   */
+  protected[mongodb] def killCursors(ids: Long*) {
+    log.debug("Adding Dead Cursors to cleanup list: %s", ids)
+    deadCursors ++= ids
+  }
+
+  /**
+   *  Clean up any resources (Typically cursors)
+   *  Called regularly by a managed CursorCleaner thread.
+   */
+  protected[mongodb] def cleanup() {
+    log.debug("Cursor Cleanup running.")
+  }
+
+
+  protected[mongodb] def shutdown() {
+    log.debug("Shutting Down & Cleaning up connection handler.")
+    MongoConnection.cleaningTimer.stop(this)
+  }
 }
 
 
