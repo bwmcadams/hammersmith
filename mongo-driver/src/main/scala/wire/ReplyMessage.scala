@@ -52,7 +52,7 @@ trait ReplyMessage extends MongoServerMessage {
 
 object ReplyMessage extends Logging {
 
-  // TODO - Make it possible to dyamically set a decoder.
+  // TODO - Make it possible to dynamically set a decoder.
   val decoder = new DefaultBSONDeserializer
   def apply(_hdr: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._

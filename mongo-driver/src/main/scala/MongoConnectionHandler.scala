@@ -65,9 +65,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
             log.trace("Single Document Request Future.")
             // This may actually be better as a disableable assert but for now i want it hard.
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
-            // Check error state    k
-            // TODO - Different handling depending on type of op, GetLastError etc
-            // Though - GetLastError could dispatch back out again here and not invoke the callback!
+            // Check error state
             if (reply.cursorNotFound) {
               log.trace("Cursor Not Found.")
               singleResult(new Exception("Cursor Not Found."))

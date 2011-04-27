@@ -88,7 +88,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for document length
 
-    // TODO - Support for transient fields like in the Java driver? Or does the user handle these?
+    // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
 
     for ((k, v) <- o if k != "_id" && !rewriteID) {
       log.trace("Key: %s, Value: %s", k, v)

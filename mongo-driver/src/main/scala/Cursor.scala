@@ -175,8 +175,6 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
   }
 
   /**
-   * TODO - It is probably significantly less costly time and resource wise to test length
-   * instead of catching a NoSuchElement
    */
   def next() = try {
     if (docs.length > 0) Cursor.Entry(docs.dequeue()) else if (hasMore) Cursor.Empty

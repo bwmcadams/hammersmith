@@ -211,7 +211,11 @@ object MongoConnection extends Logging {
 
   /**
    * Cursors that need to be cleaned up
-   * TODO - Is this properly threadsafe? Should it be a set?
+   * Weak is GOOD.  The idea here with a WeakHashMap is that internally
+   * the Key is stored as a WeakReference.
+   *
+   * This means that a channel being in the deadCursors map will NOT PREVENT IT
+   * from being garbage collected.
    */
   protected[mongodb] val deadCursors = new WeakHashMap[Channel, ConcurrentQueue[Long]]
 
