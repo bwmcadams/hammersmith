@@ -40,9 +40,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     val hash = hashPassword(username, password)
     log.debug("Hashed Password: '%s'", hash)
     command("getnonce")(RequestFutures.findOne((result: Either[Throwable, Document]) => result match {
-      // TODO - a Document extractor could be AWFULLY useful
       // TODO - Callback on failure
-      // TODO - We need a getAsOrElse
       case Right(doc) =>
         doc.getAsOrElse[Int]("ok", 0) match {
           case 1 => {

@@ -75,7 +75,7 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
         Cursor.iterate(cursor)(next)
       })
 
-      x must eventually(5, 10.seconds) (be_==(336))
+      x must eventually(5, 5.seconds) (be_==(100))
     }
 
   }
