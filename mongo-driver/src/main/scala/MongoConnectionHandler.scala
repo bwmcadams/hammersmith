@@ -23,9 +23,9 @@ import org.jboss.netty.channel._
 import com.mongodb.async.wire._
 import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
-import scala.collection.mutable.{Set => MutableSet}
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
+import scala.collection.mutable.SynchronizedQueue
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -41,8 +41,6 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   protected val bootstrap: ClientBootstrap
   protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
 
-  log.info("Initializing MongoConnectionHandler.")
-  MongoConnection.cleaningTimer.acquire(this)
 
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
@@ -153,12 +151,12 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.warn("Disconnected from '%s'", remoteAddress)
-    shutdown()
+//    shutdown()
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.info("Channel Closed to '%s'", remoteAddress)
-    shutdown()
+//    shutdown()
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
@@ -168,38 +166,6 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
 
   def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 
-  /**
-   * Cursors that need to be cleaned up
-   */
-  protected val deadCursors = MutableSet.empty[Long]
-
-  /**
-   * Deferred - doesn't actually happen immediately
-   */
-  protected[mongodb] def killCursors(ids: Long*) {
-    log.debug("Adding Dead Cursors to cleanup list: %s", ids)
-    deadCursors ++= ids
-  }
-
-  /**
-   *  Clean up any resources (Typically cursors)
-   *  Called regularly by a managed CursorCleaner thread.
-   */
-  protected[mongodb] def cleanup() {
-    log.trace("Cursor Cleanup running.")
-    if (deadCursors.isEmpty) {
-      log.debug("No Dead Cursors.")
-    } else deadCursors.foreach( i => {
-      log.debug("Killing Cursor %d", i)
-      // TODO - Implement me!!!
-    })
-  }
-
-
-  protected[mongodb] def shutdown() {
-    log.debug("Shutting Down & Cleaning up connection handler.")
-    MongoConnection.cleaningTimer.stop(this)
-  }
 }
 
 
