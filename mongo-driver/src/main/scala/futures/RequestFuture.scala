@@ -60,6 +60,17 @@ trait WriteRequestFuture extends RequestFuture {
   type T <: (Option[AnyRef] /* ID Type */ , WriteResult)
 }
 
+/*
+ * For Noops that don't return anything such as OP_KILL_CURSORS
+ */
+case object NoOpRequestFuture extends RequestFuture with Logging {
+  type T = Unit
+  val body = (result: Either[Throwable, Unit]) => result match {
+    case Right(()) => {}
+    case Left(t) => log.error(t, "NoOp Command Failed.")
+  }
+}
+
 object RequestFutures extends Logging {
   //  def request[T : Manifest](body: (Option[T], WriteResult) => Unit): RequestFuture[T] = manifest[T] match {
   //    case c: Cursor => query(body)
@@ -135,4 +146,5 @@ object SimpleRequestFutures extends Logging {
         case Left(t) => log.error(t, "Command Failed.")
       }
     }
+
 }

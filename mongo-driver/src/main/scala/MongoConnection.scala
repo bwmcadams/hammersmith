@@ -26,29 +26,32 @@ import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import java.nio.ByteOrder
 import com.mongodb.async.wire._
-import java.util.concurrent.{ ConcurrentHashMap, Executors }
 import scala.collection.JavaConversions._
 import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
-import scala.collection.mutable.ConcurrentMap
 import org.bson._
 import com.twitter.conversions.time._
 import com.twitter.util.{ JavaTimer }
 
 import java.util.concurrent.atomic.AtomicBoolean
-import com.mongodb.async.util.CursorCleaningTimer
+import java.util.concurrent.{ConcurrentLinkedQueue , ConcurrentHashMap , Executors}
+import scala.collection.mutable.{ConcurrentMap , WeakHashMap}
+import com.mongodb.async.util.{ConcurrentQueue , CursorCleaningTimer}
 
 /**
- * Base trait for all connections, be it direct, replica set, etc
- *
- * This contains common code for any type of connection.
- *
- * NOTE: Connection instances are instances of a *POOL*, always.
- *
- * @author Brendan W. McAdams <brendan@10gen.com>
- * @since 0.1
- */
+* Base trait for all connections, be it direct, replica set, etc
+*
+* This contains common code for any type of connection.
+*
+* NOTE: Connection instances are instances of a *POOL*, always.
+*
+* @author Brendan W. McAdams <brendan@10gen.com>
+* @since 0.1
+*/
 abstract class MongoConnection extends Logging {
+
+  log.info("Initializing MongoConnectionHandler.")
+  MongoConnection.cleaningTimer.acquire(this)
 
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
@@ -159,6 +162,11 @@ abstract class MongoConnection extends Logging {
 
   protected[mongodb] var _writeConcern: WriteConcern = WriteConcern.Normal
 
+
+  protected[mongodb] def shutdown() {
+    log.debug("Shutting Down & Cleaning up connection handler.")
+    MongoConnection.cleaningTimer.stop(this)
+  }
   /**
    *
    * Set the write concern for this database.
@@ -201,6 +209,12 @@ object MongoConnection extends Logging {
 
   protected[mongodb] val cleaningTimer = new CursorCleaningTimer()
 
+  /**
+   * Cursors that need to be cleaned up
+   * TODO - Is this properly threadsafe? Should it be a set?
+   */
+  protected[mongodb] val deadCursors = new WeakHashMap[Channel, ConcurrentQueue[Long]]
+
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
@@ -218,6 +232,35 @@ object MongoConnection extends Logging {
     msg.write(outStream)
     log.debug("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
     channel.write(outStream.buffer())
+  }
+
+
+  /**
+   * Deferred - doesn't actually happen immediately
+   */
+  protected[mongodb] def killCursors(ids: Long*)(implicit channel: Channel) {
+    log.debug("Adding Dead Cursors to cleanup list: %s on Channel: %s", ids, channel)
+    deadCursors.getOrElseUpdate(channel, new ConcurrentQueue[Long]) ++= ids
+  }
+
+  /**
+   *  Clean up any resources (Typically cursors)
+   *  Called regularly by a managed CursorCleaner thread.
+   */
+  protected[mongodb] def cleanup() {
+    log.trace("Cursor Cleanup running.")
+    if (deadCursors.isEmpty) {
+      log.debug("No Dead Cursors.")
+    } else {
+      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => {
+        // TODO - ensure no concurrency issues / blockages here.
+        log.debug("Pre DeQueue: %s", entry._2.length)
+        val msg = KillCursorsMessage(entry._2.dequeueAll())
+        log.debug("Post DeQueue: %s", entry._2.length)
+        log.trace("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
+        MongoConnection.send(msg, NoOpRequestFuture)(entry._1, 1024 * 1024 * 4) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
+      })
+    }
   }
 }
 

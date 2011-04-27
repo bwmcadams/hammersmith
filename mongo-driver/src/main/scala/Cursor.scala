@@ -115,7 +115,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
 
   protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
   protected implicit val channel = ctx.getChannel
-  protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize // todo - will this change ? Should we explictily grab it when needed
+  protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize // todo - will this change ? Should we explicitly grab it when needed
 
   /**
    * Cursor ID 0 indicates "No more results"
@@ -219,7 +219,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
      */
     if (hasMore) {
       validCursor(0) // zero out the 'hasMore' status
-      handler.killCursors(cursorID)
+      MongoConnection.killCursors(cursorID)
     }
 
     /**

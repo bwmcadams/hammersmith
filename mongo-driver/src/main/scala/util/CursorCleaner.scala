@@ -29,13 +29,13 @@ import org.bson.util.Logging
  * Tracks if any active channels are held and turns on / off the cleaner as needed
  */
 protected[mongodb] class CursorCleaningTimer(val period: Duration = 5.seconds) extends Logging {
-  private[this] val handlers = HashSet.empty[WeakReference[MongoConnectionHandler]]
+  private[this] val connections = HashSet.empty[WeakReference[MongoConnection]]
   private[this] var underlying: Timer = null
   private[this] val factory = () => new JavaTimer(true)
 
-  def acquire(handler: MongoConnectionHandler) = synchronized {
-    handlers += new WeakReference(handler)
-    if (!handlers.isEmpty) {
+  def acquire(conn: MongoConnection) = synchronized {
+    connections += new WeakReference(conn)
+    if (!connections.isEmpty) {
       if (underlying == null) {
         underlying = factory()
         scheduleCleanup()
@@ -43,22 +43,17 @@ protected[mongodb] class CursorCleaningTimer(val period: Duration = 5.seconds) e
     }
   }
 
-  def stop(handler: MongoConnectionHandler) = synchronized {
-    handlers -= new WeakReference(handler)
-    if (handlers.isEmpty) {
-      log.info("Handlers empty.  Stopping scheduler thread.")
+  def stop(conn: MongoConnection) = synchronized {
+    connections -= new WeakReference(conn)
+    if (connections.isEmpty) {
+      log.info("Connections empty.  Stopping scheduler thread.")
       underlying.stop()
       underlying = null
     }
   }
 
-  protected[mongodb] def scheduleCleanup() {
-    underlying.schedule(period.fromNow, period) {
-      log.info("Calling scheduled cleanup.")
-      handlers.foreach { h =>
-        h().cleanup()
-      }
-    }
+  protected[mongodb] def scheduleCleanup() =  underlying.schedule(period.fromNow, period) {
+    MongoConnection.cleanup()
   }
 
 }
