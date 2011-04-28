@@ -140,7 +140,7 @@ abstract class MongoConnection extends Logging {
 
   def databaseNames(callback: Seq[String] => Unit) {
     runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) => {
-      log.debug("Got a result from 'listDatabases' command: %s", doc)
+      log.trace("Got a result from 'listDatabases' command: %s", doc)
       if (!doc.isEmpty) {
         val dbs = {
           val lst = doc.as[BSONList]("databases").asList

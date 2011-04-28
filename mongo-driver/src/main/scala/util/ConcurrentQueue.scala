@@ -40,7 +40,13 @@ class ConcurrentQueue[T](val underlying: ConcurrentLinkedQueue[T] = new Concurre
    * Beware that, unlike in most collections, this method is NOT a constant-time operation.
    * Because of the asynchronous nature of these queues, determining the current number of elements requires an O(n) traversal.
    */
-   def length: Int = underlying.size()
+   def length(): Int = size()
+
+  /** Returns the length of this queue.
+   * Beware that, unlike in most collections, this method is NOT a constant-time operation.
+   * Because of the asynchronous nature of these queues, determining the current number of elements requires an O(n) traversal.
+   */
+   def size(): Int = underlying.size()
 
   /** Checks if the queue is empty.
    *
@@ -61,7 +67,6 @@ class ConcurrentQueue[T](val underlying: ConcurrentLinkedQueue[T] = new Concurre
    *  @param  iter        an iterator
    */
    def ++=(it: TraversableOnce[T]): this.type = {
-    log.info("++= %s", it)
     underlying.addAll(it.toIterable)
     this
   }
@@ -124,4 +129,8 @@ class ConcurrentQueue[T](val underlying: ConcurrentLinkedQueue[T] = new Concurre
     else that equals underlying
 
    override def toString: String = underlying.toString
+}
+
+object ConcurrentQueue {
+  def apply[A](xs: A*): ConcurrentQueue[A] = new ConcurrentQueue[A] ++= xs
 }
