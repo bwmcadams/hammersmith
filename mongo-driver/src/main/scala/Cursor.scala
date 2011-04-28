@@ -20,10 +20,10 @@ package com.mongodb.async
 import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
-import scala.collection.mutable.Queue
 import org.jboss.netty.channel.ChannelHandlerContext
 import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
 import com.mongodb.async.futures.RequestFutures
+import com.mongodb.async.util.ConcurrentQueue
 import scala.annotation.tailrec
 import com.twitter.util.CountDownLatch
 
@@ -132,7 +132,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
    */
   protected var startIndex = reply.startingFrom
 
-  protected val docs = Queue(reply.documents: _*)
+  protected val docs = ConcurrentQueue(reply.documents: _*)
 
   log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d", cursorID, startIndex)
 
