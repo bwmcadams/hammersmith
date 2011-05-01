@@ -47,7 +47,7 @@ trait DeleteMessage extends MongoClientWriteMessage {
 
   val query: BSONDocument // Query object for what to delete
 
-  protected def writeMessage(enc: BSONSerializer) {
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)

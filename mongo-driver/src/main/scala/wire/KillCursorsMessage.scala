@@ -37,7 +37,7 @@ trait KillCursorsMessage extends MongoClientMessage {
   val numCursors: Int // The number of cursorIDs in the message
   val cursorIDs: Seq[Long] // Sequence of cursorIDs to close
 
-  protected def writeMessage(enc: BSONSerializer) {
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeInt(numCursors)
     for (_id <- cursorIDs) enc.writeLong(_id)

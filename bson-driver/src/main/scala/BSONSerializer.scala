@@ -289,6 +289,14 @@ trait BSONSerializer extends BSONEncoder with Logging {
   // TODO - Implement me! (Really on Mongo side of the wall)   (DBrefs and the like...)
   def putSpecial(name: String, o: SerializableBSONObject): Boolean = false
   def handleSpecialObjects(name: String, o: SerializableBSONObject): Boolean = false
+
+  /** Size of the Buffer */
+  def size = _buf.size()
+
+  def seek(bytes: Int) = {
+    val pos = _buf.getPosition + bytes
+    log.debug("Seeking to %d", pos)
+  }
 }
 
 class DefaultBSONSerializer extends BSONSerializer

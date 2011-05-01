@@ -170,6 +170,27 @@ abstract class MongoConnection extends Logging {
     findOne(db)(collection)(Document("_id" -> id))(callback)
 
 
+  // TODO - Support disabling add ID?
+  // TODO - Generate ID + Capture generated ID for callback
+  def insert[A >: Nothing <: Any](db: String)(collection: String)(docs: A*)
+                                 (callback: WriteRequestFuture)(implicit concern: WriteConcern = _writeConcern, evidence: (A) => BSONDocument) {
+    log.debug("Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
+    // TODO - Check for invalid keys
+    // TODO - ID Gen ... DBApiLayer:221
+    send(InsertMessage(db + "." + collection, docs.map(evidence): _*), callback)
+  }
+
+  def update[A >: Nothing <: Any, B >: Nothing <: Any](db: String)(collection: String)(query: A, update: B, upsert: Boolean = false, multi: Boolean = false)
+                                                      (callback: WriteRequestFuture)(implicit concern: WriteConcern = _writeConcern, evidenceA: (A) => BSONDocument, evidenceB: (B) => BSONDocument) {
+    // TODO - Check for invalid keys
+    send(UpdateMessage(db + "." + collection, query, update, upsert, multi), callback)
+  }
+
+  def remove[A >: Nothing <: Any](db: String)(collection: String)(obj: A, removeSingle: Boolean = false)
+                                 (callback: WriteRequestFuture)(implicit concern: WriteConcern = _writeConcern, evidence: (A) => BSONDocument) {
+    send(DeleteMessage(db + "." + collection, obj, removeSingle), callback)
+  }
+
   val handler: MongoConnectionHandler
 
   def connected_? = _connected.get
