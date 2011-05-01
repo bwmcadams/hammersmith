@@ -78,6 +78,15 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
 
       x must eventually(5, 5.seconds) (be_==(100))
     }
+    "Support Distinct" in {
+      conn("bookstore")("inventory").distinct("author")((values: Seq[Any]) => {
+        for (item <- values) {
+          log.info("Got a value: %s", item.asInstanceOf[String])
+        }
+      })
+
+      conn must not beNull
+    }
 
   }
 }

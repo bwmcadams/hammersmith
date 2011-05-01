@@ -64,11 +64,9 @@ trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] w
 
   def getAsOrElse[A <: Any: Manifest](key: String, default: => A): A = getAs[A](key) match {
     case Some(v) => {
-      log.info("Some(%s)", v)
       v
     }
     case None => {
-      log.info("Default: %s", default)
       default
     }
   }
