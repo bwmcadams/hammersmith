@@ -144,6 +144,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   //def eval(code: String, args: Any*)
   /**
    * WARNING: You *must* use an ordered list or commands won't work
+   * TODO - Would this perform faster partially applied?
    * TODO - Support Options here
    */
   def command[A <% BSONDocument](cmd: A)(f: SingleDocQueryRequestFuture) {
@@ -153,11 +154,48 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def command(cmd: String): SingleDocQueryRequestFuture => Unit =
     command(Document(cmd -> 1))_
 
-  def find[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: (Cursor) => Unit) = {
-    val qMsg = QueryMessage(name + "." + collection, numToSkip, batchSize, query, if (fields.isEmpty) None else Some(fields))
-    connection.send(qMsg, SimpleRequestFutures.query(callback))
+  /**
+  * Repeated deliberately enough times that i'll notice it later.
+  * Document all methods esp. find/findOne and special ns versions
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * for (i <- 1 to 5000) println("TODO - SCALADOC")
+  */
+  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
+  def find[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A = Document.empty, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
+    nsFind(name + "." + collection) (query, fields, numToSkip, batchSize)(callback)
   }
 
+  protected[mongodb] def nsFind[A <% BSONDocument, B <% BSONDocument](namespace: String)(query: A = Document.empty, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
+    val qMsg = QueryMessage(namespace, numToSkip, batchSize, query, fieldSpec(fields))
+    connection.send(qMsg, callback)
+  }
+
+  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
+  def findOne[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A = Document.empty, fields: B = Document.empty)(callback: SingleDocQueryRequestFuture) {
+    nsFindOne(name + "." + collection)(query, fields)(callback)
+  }
+
+  protected[mongodb] def nsFindOne[A <% BSONDocument, B <% BSONDocument](namespace: String)(query: A = Document.empty, fields: B = Document.empty)(callback: SingleDocQueryRequestFuture) {
+    val qMsg = QueryMessage(namespace, 0, -1, query, fieldSpec(fields))
+    connection.send(qMsg, callback)
+  }
+
+  // TODO - should we allow any and do boxing elsewhere?
+  // TODO - FindOne is Option[] returning, ensure!
+  protected[mongodb] def nsFindOneByID[A <: AnyRef](namespace: String)(id: A)(callback: SingleDocQueryRequestFuture) {
+    nsFindOne(namespace)(Document("_id" -> id))(callback)
+  }
   /**
    * invokes the 'dbStats' command
    */
@@ -227,7 +265,10 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
 
   override def toString = name
 
+  def fieldSpec[A <% BSONDocument](fields: A) = if (fields.isEmpty) None else Some(fields)
+
   private val md5 = MessageDigest.getInstance("MD5")
   protected var login: Option[String] = None
   protected var authHash: Option[String] = None
+
 }

@@ -17,11 +17,12 @@
 package com.mongodb.async
 package test
 
-import com.mongodb.async.{ Cursor, MongoConnection }
+import com.mongodb.async._
 import org.bson.collection.Document
 import org.specs2.mutable._
 import org.specs2.time.Time._
 import org.bson.util.Logging
+
 
 class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
   //  println(org.apache.commons.logging.Log)
