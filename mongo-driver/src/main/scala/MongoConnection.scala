@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{ConcurrentLinkedQueue , ConcurrentHashMap , Executors}
 import scala.collection.mutable.{ConcurrentMap , WeakHashMap}
 import com.mongodb.async.util.{ConcurrentQueue , CursorCleaningTimer}
+import org.bson.types.ObjectId
 
 /**
 * Base trait for all connections, be it direct, replica set, etc
@@ -154,12 +155,12 @@ abstract class MongoConnection extends Logging {
     }))
   }
 
-  def find[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(query: A = Document.empty, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
+  def find(db: String)(collection: String)(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
     val qMsg = QueryMessage(db + "." + collection, numToSkip, batchSize, query, fieldSpec(fields))
     send(qMsg, callback)
   }
 
-  def findOne[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(query: A = Document.empty, fields: B = Document.empty)(callback: SingleDocQueryRequestFuture) {
+  def findOne(db: String)(collection: String)(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty)(callback: SingleDocQueryRequestFuture) {
     val qMsg = QueryMessage(db + "." + collection, 0, -1, query, fieldSpec(fields))
     send(qMsg, callback)
   }
@@ -172,25 +173,67 @@ abstract class MongoConnection extends Logging {
 
   // TODO - Support disabling add ID?
   // TODO - Generate ID + Capture generated ID for callback
-  def insert[A >: Nothing <: Any](db: String)(collection: String)(docs: A*)
-                                 (callback: WriteRequestFuture)(implicit concern: WriteConcern = _writeConcern, evidence: (A) => BSONDocument) {
+  def insert(db: String)(collection: String)(docs: BSONDocument*)
+                                 (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     log.debug("Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
     // TODO - Check for invalid keys
     // TODO - ID Gen ... DBApiLayer:221
-    send(InsertMessage(db + "." + collection, docs.map(evidence): _*), callback)
+    send(InsertMessage(db + "." + collection, docs: _*), callback)
   }
 
-  def update[A >: Nothing <: Any, B >: Nothing <: Any](db: String)(collection: String)(query: A, update: B, upsert: Boolean = false, multi: Boolean = false)
-                                                      (callback: WriteRequestFuture)(implicit concern: WriteConcern = _writeConcern, evidenceA: (A) => BSONDocument, evidenceB: (B) => BSONDocument) {
+  def update(db: String)(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
+                                            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     // TODO - Check for invalid keys
     send(UpdateMessage(db + "." + collection, query, update, upsert, multi), callback)
   }
 
-  def remove[A >: Nothing <: Any](db: String)(collection: String)(obj: A, removeSingle: Boolean = false)
-                                 (callback: WriteRequestFuture)(implicit concern: WriteConcern = _writeConcern, evidence: (A) => BSONDocument) {
+  def save(db: String)(collection: String)(obj: BSONDocument)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    obj.get("_id") match {
+      case Some(id) => {
+//        id match {
+//          case oid: ObjectId => oid.notNew()
+//          case default => {}
+//        }
+        update(db)(collection)(Document("_id" -> id), obj, true, false)(callback)(concern)
+      }
+      case None => {
+//        obj += "_id" -> new ObjectId
+        insert(db)(collection)(obj)(callback)(concern)
+      }
+    }
+  }
+
+  def remove(db: String)(collection: String)(obj: BSONDocument, removeSingle: Boolean = false)
+                        (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     send(DeleteMessage(db + "." + collection, obj, removeSingle), callback)
   }
 
+  // TODO - FindAndModify / FindAndRemove
+
+  def createIndex[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(keys: A, options: B = Document.empty)(callback: WriteRequestFuture) {
+    implicit val idxSafe = WriteConcern.Safe
+    keys += "name" -> indexName(keys)
+    keys += "ns" -> (db + "." + collection)
+    insert(db)("system.indexes")(keys, options)(callback)
+  }
+
+  def createUniqueIndex[A <% BSONDocument](db: String)(collection: String)(keys: A)(callback: WriteRequestFuture) {
+    implicit val idxSafe = WriteConcern.Safe
+    createIndex(db)(collection)(keys, Document("unique" -> true))(callback)
+  }
+
+  def dropAllIndexes(db: String)(collection: String)(callback: SingleDocQueryRequestFuture) {
+    dropIndex(db)(collection)("*")(callback)
+  }
+
+  def dropIndex(db: String)(collection: String)(name: String)(callback: SingleDocQueryRequestFuture) {
+    // TODO index cache
+    runCommand(db, Document("deleteIndexes" ->  (db + "." + collection), "index" -> name))(callback)
+  }
+
+
+
+  // TODO "Ensure" mode
   val handler: MongoConnectionHandler
 
   def connected_? = _connected.get
