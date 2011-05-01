@@ -17,12 +17,94 @@
 package com.mongodb.async
 
 import org.bson.util.Logging
+import org.bson.collection.{Document , BSONDocument}
+import com.mongodb.async.futures.{WriteRequestFuture , CursorQueryRequestFuture , SingleDocQueryRequestFuture}
 
 object Collection extends Logging {
 
 }
 
 class Collection(val name: String)(implicit val db: DB) extends Logging {
+  /**
+   * WARNING: You *must* use an ordered list or commands won't work
+   * TODO - Would this perform faster partially applied?
+   * TODO - Support Options here
+   */
+  def command[A <% BSONDocument](cmd: A)(f: SingleDocQueryRequestFuture) {
+    db.command(cmd)(f)
+  }
+
+  def command(cmd: String): SingleDocQueryRequestFuture => Unit =
+    command(Document(cmd -> 1))_
+
+  /**
+  * Repeated deliberately enough times that i'll notice it later.
+  * Document all methods esp. find/findOne and special ns versions
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * TODO - SCALADOC
+  * for (i <- 1 to 5000) println("TODO - SCALADOC")
+  */
+  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
+  def find(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.find(name)(query, fields, numToSkip, batchSize)(callback)
+  }
+
+  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
+  def findOne(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.findOne(name)(query, fields)(callback)
+  }
+
+  def findOneByID[A <: AnyRef](id: A)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.findOneByID(name)(id)(callback)
+  }
+
+  // TODO - Support disabling add ID?
+  // TODO - Generate ID + Capture generated ID for callback
+  def insert(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.insert(name)(docs: _*)(callback)
+  }
+
+  def update(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
+            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.update(name)(query, update, upsert, multi)(callback)
+  }
+
+  def save(obj: BSONDocument)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.save(name)(obj)(callback)
+  }
+
+  def remove(obj: BSONDocument, removeSingle: Boolean = false)
+            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.remove(name)(obj, removeSingle)(callback)
+  }
+
+  // TODO - FindAndModify / FindAndRemove
+
+  def createIndex[A <% BSONDocument, B <% BSONDocument](keys: A, options: B = Document.empty)(callback: WriteRequestFuture) {
+    db.createIndex(name)(keys, options)(callback)
+  }
+
+  def createUniqueIndex[A <% BSONDocument](keys: A)(callback: WriteRequestFuture) {
+    db.createUniqueIndex(name)(keys)(callback)
+  }
+
+  def dropAllIndexes(callback: SingleDocQueryRequestFuture) {
+    db.dropAllIndexes(name)(callback)
+  }
+
+  def dropIndex(idxName: String)(callback: SingleDocQueryRequestFuture) {
+    db.dropIndex(name)(idxName)(callback)
+  }
 
   /**
    * Defaults to grabbing the DBs setting ( which defaults to the Connection's)  unless we set a specific write concern

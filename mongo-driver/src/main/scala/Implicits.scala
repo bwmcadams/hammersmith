@@ -35,6 +35,7 @@ trait Implicits {
 
 trait Imports {
   def fieldSpec[A <% BSONDocument](fields: A) = if (fields.isEmpty) None else Some(fields)
+  def indexName(keys: BSONDocument) = keys.keys.mkString("_")
 }
 
 

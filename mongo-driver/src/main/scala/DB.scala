@@ -21,9 +21,9 @@ import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
 import com.mongodb.async.futures._
-import com.mongodb.async.wire.QueryMessage
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
+import com.mongodb.async.wire.{InsertMessage , QueryMessage}
 
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
 
@@ -173,19 +173,56 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   * for (i <- 1 to 5000) println("TODO - SCALADOC")
   */
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
-  def find[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A = Document.empty, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
+  def find(collection: String)(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.find(name)(collection)(query, fields, numToSkip, batchSize)(callback)
   }
 
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
-  def findOne[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A = Document.empty, fields: B = Document.empty)(callback: SingleDocQueryRequestFuture) {
+  def findOne(collection: String)(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.findOne(name)(collection)(query, fields)(callback)
   }
 
-  def findOneByID[A <: AnyRef](collection: String)(id: A)(callback: SingleDocQueryRequestFuture) {
+  def findOneByID[A <: AnyRef](collection: String)(id: A)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.findOneByID(name)(collection)(id)(callback)
   }
 
+  // TODO - Support disabling add ID?
+  // TODO - Generate ID + Capture generated ID for callback
+  def insert(collection: String)(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.insert(name)(collection)(docs: _*)(callback)
+  }
+
+  def update(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
+            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.update(name)(collection)(query, update, upsert, multi)(callback)
+  }
+
+  def save(collection: String)(obj: BSONDocument)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.save(name)(collection)(obj)(callback)
+  }
+
+  def remove(collection: String)(obj: BSONDocument, removeSingle: Boolean = false)
+            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.remove(name)(collection)(obj, removeSingle)(callback)
+  }
+
+  // TODO - FindAndModify / FindAndRemove
+
+  def createIndex[A <% BSONDocument, B <% BSONDocument](collection: String)(keys: A, options: B = Document.empty)(callback: WriteRequestFuture) {
+    connection.createIndex(name)(collection)(keys, options)(callback)
+  }
+
+  def createUniqueIndex[A <% BSONDocument](collection: String)(keys: A)(callback: WriteRequestFuture) {
+    connection.createUniqueIndex(name)(collection)(keys)(callback)
+  }
+
+  def dropAllIndexes(collection: String)(callback: SingleDocQueryRequestFuture) {
+    connection.dropAllIndexes(name)(collection)(callback)
+  }
+
+  def dropIndex(collection: String)(idxName: String)(callback: SingleDocQueryRequestFuture) {
+    connection.dropIndex(name)(collection)(idxName)(callback)
+  }
 
 
   /**
