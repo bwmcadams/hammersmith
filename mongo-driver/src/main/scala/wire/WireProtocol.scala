@@ -26,9 +26,9 @@ package wire
 
 import org.bson.util.Logging
 import java.util.concurrent.atomic.AtomicInteger
-import org.bson.io.PoolOutputBuffer
 import org.bson._
 import java.io._
+import org.bson.io.{OutputBuffer , PoolOutputBuffer}
 
 /**
  * Request OpCodes for communicating with MongoDB Servers
@@ -182,15 +182,19 @@ abstract class MongoMessage extends Logging {
 
   //  def apply(channel: Channel) = write
 
-  def write(out: OutputStream) = {
+  def write(out: OutputStream)(implicit maxBSON: Int) = {
     // TODO - Reuse / pool Serializers for performance via reset()
-    val enc = new DefaultBSONSerializer
-
     val buf = new PoolOutputBuffer()
+    val enc = new DefaultBSONSerializer
     enc.set(buf)
-
     val sizePos = buf.getPosition
+    build(enc)
+    log.trace("Finishing writing core message, final length of '%s'", buf.size)
+    buf.writeInt(sizePos, buf.getPosition - sizePos)
+    buf.pipe(out)
+  }
 
+  protected def build(enc: BSONSerializer)(implicit maxBSON: Int) = {
     enc.writeInt(0) // Length, will set later; for now, placehold
 
     enc.writeInt(requestID)
@@ -199,9 +203,6 @@ abstract class MongoMessage extends Logging {
     log.trace("OpCode (%s) Int Type: %s", opCode, opCode.id)
 
     writeMessage(enc)
-    log.trace("Finishing writing core message, final length of '%s'", buf.size)
-    buf.writeInt(sizePos, buf.getPosition - sizePos)
-    buf.pipe(out)
   }
 
   /**
@@ -210,7 +211,7 @@ abstract class MongoMessage extends Logging {
    * write() puts in the header, writeMessage does a message
    * specific writeout
    */
-  protected def writeMessage(enc: BSONSerializer)
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int)
 }
 
 /**

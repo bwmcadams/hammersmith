@@ -37,7 +37,7 @@ trait GetMoreMessage extends MongoClientMessage {
   val numberToReturn: Int // number of docs to return in first OP_REPLY batch
   val cursorID: Long // CursorID from the OP_REPLY (DB Genned value)
 
-  protected def writeMessage(enc: BSONSerializer) {
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(numberToReturn)

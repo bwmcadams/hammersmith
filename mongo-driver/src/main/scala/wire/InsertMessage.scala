@@ -20,6 +20,7 @@ package wire
 import org.bson.BSONSerializer
 import org.bson.util.Logging
 import org.bson.collection.{Document , BSONDocument}
+import scala.collection.mutable.Queue
 
 /**
  * OP_INSERT Message
@@ -39,17 +40,32 @@ trait InsertMessage extends MongoClientWriteMessage {
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[BSONDocument] // One or more documents to insert into the collection
 
-  protected def writeMessage(enc: BSONSerializer) {
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
-    // TODO - Limit batch insert size which should be 4 * MaxBSON
-    for (doc <- documents) enc.putObject(doc)
+    /**
+     * The limit for batch insert is 4 x MaxBSON
+     */
+    log.debug("Docs Length: %s", documents.length)
+    val q = Queue(documents: _*)
+    for (doc <- q) {
+      val total = enc.size
+      val n = enc.putObject(doc)
+      log.debug("Total: %d, Last Doc Size: %d", total, n)
+      // If we went over the size, backtrack and start a new message
+      if (total >= (4 * maxBSON)) {
+        log.info("Exceeded MaxBSON, kicking in a new batch.")
+        enc.seek(-n)
+        /* TODO - This recursion may be bad and wonky... */
+        InsertMessage(namespace, (doc +: q): _*).build(enc)
+      }
+    }
 
   }
 }
 
 object InsertMessage extends Logging {
-  def apply(ns: String, docs: Seq[Document]) = new InsertMessage {
+  def apply(ns: String, docs: BSONDocument*) = new InsertMessage {
     val namespace = ns
     val documents = docs
   }

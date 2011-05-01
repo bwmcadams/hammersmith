@@ -79,7 +79,7 @@ trait QueryMessage extends MongoClientWriteMessage {
   val query: BSONDocument // BSON Document representing the query
   val returnFields: Option[BSONDocument] = None // Optional BSON Document for fields to return
 
-  protected def writeMessage(enc: BSONSerializer) {
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(flags)
     enc.writeCString(namespace)
     enc.writeInt(numberToSkip)

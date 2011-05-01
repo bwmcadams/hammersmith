@@ -118,6 +118,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
       callback(b.result())
     }))
   }
+
   /**
    * Creates a collection with a given name and options.
    * If the collection does not exist, a new collection is created.
@@ -135,7 +136,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * The callback will be invoked, when the collection is created, with an instance of the new collection.
    */
   def createCollection(name: String, options: BSONDocument)(callback: Collection => Unit) = {
-
+    // TODO - Implement me
   }
 
   /**
@@ -180,6 +181,12 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def findOne[A <% BSONDocument, B <% BSONDocument](collection: String)(query: A = Document.empty, fields: B = Document.empty)(callback: SingleDocQueryRequestFuture) {
     connection.findOne(name)(collection)(query, fields)(callback)
   }
+
+  def findOneByID[A <: AnyRef](collection: String)(id: A)(callback: SingleDocQueryRequestFuture) {
+    connection.findOneByID(name)(collection)(id)(callback)
+  }
+
+
 
   /**
    * invokes the 'dbStats' command

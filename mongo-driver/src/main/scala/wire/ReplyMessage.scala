@@ -44,7 +44,7 @@ trait ReplyMessage extends MongoServerMessage {
   val numReturned: Int // Number of documents in the reply.
   val documents: Seq[BSONDocument] // Sequence of documents
 
-  protected def writeMessage(enc: BSONSerializer) =
+  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) =
     throw new UnsupportedOperationException("This message is not capable of being written. "
       + "Replies come only from the server.")
 
