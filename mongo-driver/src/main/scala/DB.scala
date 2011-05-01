@@ -28,7 +28,7 @@ import com.mongodb.async.wire.{InsertMessage , QueryMessage}
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
 
   // TODO - Implement as well as supporting "getCollectionFromString" from the Java driver
-  //  def apply(collection: String) = Collection(this)
+  def apply(collection: String) = new Collection(collection)(this)
 
   // def addUser(username: String, password: String)(f: )
   // def removeUser

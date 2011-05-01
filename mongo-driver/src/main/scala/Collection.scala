@@ -17,8 +17,8 @@
 package com.mongodb.async
 
 import org.bson.util.Logging
-import org.bson.collection.{Document , BSONDocument}
-import com.mongodb.async.futures.{WriteRequestFuture , CursorQueryRequestFuture , SingleDocQueryRequestFuture}
+import com.mongodb.async.futures._
+import org.bson.collection._
 
 object Collection extends Logging {
 
@@ -104,6 +104,24 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
 
   def dropIndex(idxName: String)(callback: SingleDocQueryRequestFuture) {
     db.dropIndex(name)(idxName)(callback)
+  }
+
+  def dropCollection()(callback: SingleDocQueryRequestFuture) {
+    // TODO - Reset Index Cache
+    command(Document("drop" -> name))(callback)
+  }
+
+  // TODO - Impl of Count ?
+
+  // TODO - Rename
+
+  // TODO - Group
+
+  /**
+   *
+   */
+  def distinct(key: String, query: BSONDocument = Document.empty)(callback: Seq[Any] => Unit) {
+    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: BSONDocument) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
   }
 
   /**
