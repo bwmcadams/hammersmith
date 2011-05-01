@@ -154,6 +154,22 @@ abstract class MongoConnection extends Logging {
     }))
   }
 
+  def find[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(query: A = Document.empty, fields: B = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
+    val qMsg = QueryMessage(db + "." + collection, numToSkip, batchSize, query, fieldSpec(fields))
+    send(qMsg, callback)
+  }
+
+  def findOne[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(query: A = Document.empty, fields: B = Document.empty)(callback: SingleDocQueryRequestFuture) {
+    val qMsg = QueryMessage(db + "." + collection, 0, -1, query, fieldSpec(fields))
+    send(qMsg, callback)
+  }
+
+  // TODO - should we allow any and do boxing elsewhere?
+  // TODO - FindOne is Option[] returning, ensure!
+  def findOneByID[A <: AnyRef](db: String)(collection: String)(id: A)(callback: SingleDocQueryRequestFuture) =
+    findOne(db)(collection)(Document("_id" -> id))(callback)
+
+
   val handler: MongoConnectionHandler
 
   def connected_? = _connected.get

@@ -33,6 +33,8 @@ trait Implicits {
   implicit def asSimpleWriteOp(f: (Option[AnyRef], WriteResult) => Unit): WriteRequestFuture = SimpleRequestFutures.write(f)
 }
 
-trait Imports
+trait Imports {
+  def fieldSpec[A <% BSONDocument](fields: A) = if (fields.isEmpty) None else Some(fields)
+}
 
 
