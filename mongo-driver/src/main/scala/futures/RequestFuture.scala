@@ -40,7 +40,8 @@ trait CursorQueryRequestFuture extends RequestFuture {
 }
 
 trait GetMoreRequestFuture extends RequestFuture {
-  type T = (Long, Seq[Document])
+  type DocType <: BSONDocument
+  type T = (Long, Seq[DocType])
 }
 
 /**
@@ -78,7 +79,7 @@ object RequestFutures extends Logging {
   //    case o: ObjectId => insert(body)
   //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
   //  }
-  def getMore(f: Either[Throwable, (Long, Seq[Document])] => Unit) =
+  def getMore(f: Either[Throwable, (Long, Seq[BSONDocument])] => Unit) =
     new GetMoreRequestFuture {
       val body = f
     }
@@ -120,9 +121,9 @@ object SimpleRequestFutures extends Logging {
       }
     }
 
-  def getMore(f: (Long, Seq[Document]) => Unit) =
+  def getMore(f: (Long, Seq[BSONDocument]) => Unit) =
     new GetMoreRequestFuture {
-      val body = (result: Either[Throwable, (Long, Seq[Document])]) => result match {
+      val body = (result: Either[Throwable, (Long, Seq[BSONDocument])]) => result match {
         case Right((cid, docs)) => f(cid, docs)
         case Left(t) => log.error(t, "GetMore Failed."); throw t
       }
