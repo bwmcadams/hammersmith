@@ -51,7 +51,7 @@ object QueryMessage extends Logging {
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPQUERY
  */
-trait QueryMessage extends MongoClientWriteMessage {
+trait QueryMessage extends MongoClientMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpQuery
 

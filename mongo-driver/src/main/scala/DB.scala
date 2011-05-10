@@ -186,8 +186,6 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.findOneByID(name)(collection)(id)(callback)
   }
 
-  // TODO - Support disabling add ID?
-  // TODO - Generate ID + Capture generated ID for callback
   def insert(collection: String)(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.insert(name)(collection)(docs: _*)(callback)
   }
@@ -216,14 +214,22 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.createUniqueIndex(name)(collection)(keys)(callback)
   }
 
-  def dropAllIndexes(collection: String)(callback: SingleDocQueryRequestFuture) {
-    connection.dropAllIndexes(name)(collection)(callback)
+  def dropAllIndexes(collection: String)(callback: (Boolean) => Unit) {
+    connection.dropAllIndexes(name)(collection)(boolCmdResultCallback(callback))
   }
 
-  def dropIndex(collection: String)(idxName: String)(callback: SingleDocQueryRequestFuture) {
-    connection.dropIndex(name)(collection)(idxName)(callback)
+  def dropIndex(collection: String)(idxName: String)(callback: (Boolean) => Unit) {
+    connection.dropIndex(name)(collection)(idxName)(boolCmdResultCallback(callback))
   }
 
+  /**
+   * Drops the database completely, removing all data from disk.
+   * *** USE WITH CAUTION ***
+   * Not called drop() as that would conflict with an existing expected Scala method
+   * TODO - Ensure getLastError on this?
+   * TODO - Remove from any cached db listings
+   */
+  def dropDatabase()(callback: (Boolean) => Unit) = command("dropDatabase")(boolCmdResultCallback(callback))
 
   /**
    * invokes the 'dbStats' command
@@ -240,14 +246,6 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
 
   // TODO - We can't allow free form getLastError due to the async nature.. it must be locked to the call
 
-  /**
-   * Drops the database completely, removing all data from disk.
-   * *** USE WITH CAUTION ***
-   * Not called drop() as that would conflict with an existing expected Scala method
-   * TODO - Ensure getLastError on this?
-   * TODO - Remove from any cached db listings
-   */
-  def dropDatabase() = command("dropDatabase")
 
   /**
    * Gets another database on the same server (without having to go up to connection)

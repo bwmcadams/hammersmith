@@ -38,6 +38,7 @@ import java.util.concurrent.{ConcurrentLinkedQueue , ConcurrentHashMap , Executo
 import scala.collection.mutable.{ConcurrentMap , WeakHashMap}
 import com.mongodb.async.util.{ConcurrentQueue , CursorCleaningTimer}
 import org.bson.types.ObjectId
+import scala.annotation.tailrec
 
 /**
 * Base trait for all connections, be it direct, replica set, etc
@@ -121,18 +122,49 @@ abstract class MongoConnection extends Logging {
    * WARNING: You *must* use an ordered list or commands won't work
    */
   protected[mongodb] def runCommand[A <% BSONDocument](ns: String, cmd: A)(f: SingleDocQueryRequestFuture) {
-    log.trace("Attempting to run command '%s' on DB '%s.$cmd', against RequestFuture: '%s'", cmd, ns, f)
-    val qMsg = QueryMessage(ns + ".$cmd", 0, -1, cmd)
+    val qMsg = MongoConnection.createCommand(ns, cmd)
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture) = MongoConnection.send(msg, f)
+
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
+    MongoConnection.send(msg, f)
 
   /**
    * Remember, a DB is basically a future since it doesn't have to exist.
    */
   def apply(dbName: String): DB = database(dbName)
+
+  protected[mongodb] def checkObject(doc: BSONDocument, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)
+
+  protected[mongodb] def checkKeys(doc: BSONDocument) {
+    // TODO - Track key and level for clear error message?
+    // TODO - Tail Call optimize me?
+    // TODO - Optimize... trying to minimize number of loops but can we cut the instance checks?
+    for (k <- doc.keys) {
+      require(!(k contains "."), "Fields to be stored in MongoDB may not contain '.', which is a reserved character. Offending Key: " + k)
+      require(!(k startsWith "$"), "Fields to be stored in MongoDB may not start with '$', which is a reserved character. Offending Key: " + k)
+      if (doc.get(k).isInstanceOf[BSONDocument]) checkKeys(doc.as[BSONDocument](k))
+    }
+  }
+
+  /**
+   * Checks for an ID and generates one
+   */
+  protected[mongodb] def checkID(doc: BSONDocument) = doc.get("_id") match {
+    case Some(oid: ObjectId) => {
+      log.debug("Found an existing OID")
+      oid.notNew()
+    }
+    case Some(other) => {
+      log.debug("Found a non-OID ID")
+    }
+    case None => {
+      log.debug("no ObjectId. Generating one.")
+      doc.put("_id", new ObjectId())
+    }
+  }
 
   /**
    * Remember, a DB is basically a future since it doesn't have to exist.
@@ -170,34 +202,40 @@ abstract class MongoConnection extends Logging {
   def findOneByID[A <: AnyRef](db: String)(collection: String)(id: A)(callback: SingleDocQueryRequestFuture) =
     findOne(db)(collection)(Document("_id" -> id))(callback)
 
-
   // TODO - Support disabling add ID?
-  // TODO - Generate ID + Capture generated ID for callback
+  // TODO - Immutable mode / support immutable objects
   def insert(db: String)(collection: String)(docs: BSONDocument*)
                                  (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     log.debug("Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
-    // TODO - Check for invalid keys
-    // TODO - ID Gen ... DBApiLayer:221
+    docs.foreach(x => {
+      checkObject(x)
+      checkID(x)
+    })
     send(InsertMessage(db + "." + collection, docs: _*), callback)
   }
 
   def update(db: String)(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
                                             (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    // TODO - Check for invalid keys
+    /**
+    * If a field block doesn't start with a ($ - special type) we need to validate the keys
+    * Since you can't mix $set, etc with a regular "object" this filters safely.
+    */
+    if (update.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(update)
     send(UpdateMessage(db + "." + collection, query, update, upsert, multi), callback)
   }
 
   def save(db: String)(collection: String)(obj: BSONDocument)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    checkObject(obj)
     obj.get("_id") match {
       case Some(id) => {
-//        id match {
-//          case oid: ObjectId => oid.notNew()
-//          case default => {}
-//        }
+        id match {
+          case oid: ObjectId => oid.notNew()
+          case default => {}
+        }
         update(db)(collection)(Document("_id" -> id), obj, true, false)(callback)(concern)
       }
       case None => {
-//        obj += "_id" -> new ObjectId
+        obj += "_id" -> new ObjectId()
         insert(db)(collection)(obj)(callback)(concern)
       }
     }
@@ -222,10 +260,16 @@ abstract class MongoConnection extends Logging {
     createIndex(db)(collection)(keys, Document("unique" -> true))(callback)
   }
 
+  /**
+   * NOTE: If you want the "Returns Bool" version of these, use the version on Collection or DB
+   */
   def dropAllIndexes(db: String)(collection: String)(callback: SingleDocQueryRequestFuture) {
     dropIndex(db)(collection)("*")(callback)
   }
 
+  /**
+   * NOTE: If you want the "Returns Bool" version of these, use the version on Collection or DB
+   */
   def dropIndex(db: String)(collection: String)(name: String)(callback: SingleDocQueryRequestFuture) {
     // TODO index cache
     runCommand(db, Document("deleteIndexes" ->  (db + "." + collection), "index" -> name))(callback)
@@ -306,18 +350,56 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int) {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) {
+    val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
-      if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4))
+                                                  if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4))
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
-    dispatcher.put(msg.requestID, CompletableRequest(msg, f))
     log.trace("PreWrite with outStream '%s'", outStream)
+    /**
+    * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
+    * The GLE / Safe write stuff is setup later
+    */
+    if (!isWrite) dispatcher.put(msg.requestID, CompletableRequest(msg, f))
     msg.write(outStream)
     log.debug("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
+
+    /**
+     * Determine if we need to execute a GetLastError (E.G. w > 0),
+     * or execute a non-GLEed immediate callback against write requests.
+     */
+    // Quick callback when needed to be invoked immediately after write
+    val writeCB: () => Unit = if (isWrite) {
+      msg match {
+        case wMsg: MongoClientWriteMessage => if (concern.safe_?) {
+          val gle = createCommand(wMsg.namespace, Document("getlasterror" -> 1))
+          log.trace("Created a GetLastError Message: %s", gle)
+          /**
+          * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
+          */
+          dispatcher.put(gle.requestID, CompletableRequest(gle, f))
+          gle.write(outStream)
+          log.debug("Wrote a getLastError to the tail end of the output buffer.")
+          () => {}
+        } else () => { wMsg.ids.foreach(x => f((x, WriteResult(true)).asInstanceOf[f.T])) }
+        case unknown => {
+          val e = new IllegalArgumentException("Invalid type of message passed; WriteRequestFutures expect a MongoClientWriteMessage underneath them. Got " + unknown)
+          log.error(e, "Error in write.")
+          () => { f(e) }
+        }
+      }
+    } else () => {}
     channel.write(outStream.buffer())
+    /** If no write Concern and it's a write, kick the callback now.*/
+    writeCB()
   }
 
+
+  protected[mongodb] def createCommand[A <% BSONDocument](ns: String, cmd: A) = {
+    log.trace("Attempting to create command '%s' on DB '%s.$cmd'", cmd, ns)
+    QueryMessage(ns + ".$cmd", 0, -1, cmd)
+  }
 
   /**
    * Deferred - doesn't actually happen immediately

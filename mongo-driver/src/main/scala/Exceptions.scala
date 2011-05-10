@@ -17,4 +17,4 @@
 
 package com.mongodb.async
 
-case class MongoException(msg: String, inner: Option[Throwable], code: Int = -3) extends RuntimeException
+case class MongoException(msg: String, inner: Option[Throwable] = None, code: Int = -3) extends RuntimeException

@@ -68,8 +68,6 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.findOneByID(name)(id)(callback)
   }
 
-  // TODO - Support disabling add ID?
-  // TODO - Generate ID + Capture generated ID for callback
   def insert(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     db.insert(name)(docs: _*)(callback)
   }
@@ -98,17 +96,19 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.createUniqueIndex(name)(keys)(callback)
   }
 
-  def dropAllIndexes(callback: SingleDocQueryRequestFuture) {
+  def dropAllIndexes()(callback: (Boolean) => Unit) {
     db.dropAllIndexes(name)(callback)
   }
 
-  def dropIndex(idxName: String)(callback: SingleDocQueryRequestFuture) {
+  def dropIndex(idxName: String)(callback: (Boolean) => Unit) {
     db.dropIndex(name)(idxName)(callback)
   }
 
-  def dropCollection()(callback: SingleDocQueryRequestFuture) {
+  // TODO - dropIndex(keys)
+
+  def dropCollection()(callback: (Boolean) => Unit) {
     // TODO - Reset Index Cache
-    command(Document("drop" -> name))(callback)
+    command(Document("drop" -> name))(boolCmdResultCallback(callback))
   }
 
   // TODO - Impl of Count ?
@@ -116,6 +116,11 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   // TODO - Rename
 
   // TODO - Group
+
+
+  // TODO - MapReduce
+
+  // TODO - getIndexInfo
 
   /**
    *
