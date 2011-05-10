@@ -31,11 +31,42 @@ trait Implicits {
   implicit def asSimpleQueryOp[A <: Cursor](f: A => Unit): CursorQueryRequestFuture = SimpleRequestFutures.query(f)
   implicit def asSimpleFindOneOp[A <: BSONDocument](f: A => Unit): SingleDocQueryRequestFuture = SimpleRequestFutures.findOne(f)
   implicit def asSimpleWriteOp(f: (Option[AnyRef], WriteResult) => Unit): WriteRequestFuture = SimpleRequestFutures.write(f)
+
 }
 
 trait Imports {
   def fieldSpec[A <% BSONDocument](fields: A) = if (fields.isEmpty) None else Some(fields)
   def indexName(keys: BSONDocument) = keys.keys.mkString("_")
+
+  /**
+   * Converts a standard Single Doc Command Result into a Boolean or,
+   * tosses an exception if necessary.
+   * @throws MongoException
+   */
+  protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = true): Boolean = doc.getAs[Double]("ok") match {
+    case Some(1.0) => {
+      println("Some doc: " + doc)
+      true
+    }
+    case Some(_) | None => {
+      println("None or Non-1 doc: " + doc)
+      if (throwOnError) throw new MongoException(doc.getAsOrElse[String]("errmsg", "")) else false
+    }
+  }
+
+  protected[mongodb] def boolCmdResultCallback[A <: BSONDocument](callback: (Boolean) => Unit, throwOnError: Boolean = true) =
+    RequestFutures.command((result: Either[Throwable, A]) => result match {
+      case Right(doc) => {
+        println("Right-Doc: " + doc)
+        callback(boolCmdResult(doc, throwOnError))
+      }
+      case Left(t) => {
+        println("Throwable: %s", t)
+        // TODO - Extract error number, if any is included
+        if (throwOnError) throw new MongoException("Command Failed.", Some(t)) else callback(false)
+      }
+    })
+
 }
 
 

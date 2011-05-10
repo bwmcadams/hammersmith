@@ -81,11 +81,24 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
     "Support Distinct" in {
       conn("bookstore")("inventory").distinct("author")((values: Seq[Any]) => {
         for (item <- values) {
-          log.info("Got a value: %s", item.asInstanceOf[String])
+          log.trace("Got a value: %s", item.asInstanceOf[String])
         }
       })
 
       conn must not beNull
+    }
+
+    "Support inserts with no (default) write concern" in {
+      val mongo = conn("testHammersmith")("test_insert")
+      mongo.dropCollection()(success => {
+        log.info("Dropped collection... Success? " + success)
+      })
+      var id: AnyRef = null
+      mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))((oid: Option[AnyRef], res: WriteResult) => {
+        log.info("Result ID: %s Res: %s", oid, res)
+        id = oid.getOrElse(null)
+      })
+      id must not beNull
     }
 
   }

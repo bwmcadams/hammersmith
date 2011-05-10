@@ -51,6 +51,10 @@ trait UpdateMessage extends MongoClientWriteMessage {
   val query: BSONDocument // The query document to select from mongo
   val update: BSONDocument // The document specifying the update to perform
 
+
+  // TODO - Can we actually get some useful info here?
+  def ids: Seq[Option[AnyRef]] = List(None)
+
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)

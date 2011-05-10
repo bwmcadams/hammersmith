@@ -40,6 +40,8 @@ trait InsertMessage extends MongoClientWriteMessage {
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[BSONDocument] // One or more documents to insert into the collection
 
+  def ids: Seq[Option[AnyRef]] = documents.map(_.getAs[AnyRef]("_id"))
+
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
