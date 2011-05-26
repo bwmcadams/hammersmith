@@ -88,6 +88,10 @@ trait QueryMessage extends MongoClientMessage {
     // TDOO - Not sure what to write for None as this is optional
     enc.putObject(returnFields.getOrElse(Document.empty))
   }
+
+  override def toString = "{ QueryMessage ns: %s, numSkip: %d, numReturn: %d, query: %s, fields: %s }".format(
+    namespace, numberToSkip, numberToReturn, query, returnFields
+  )
 }
 
 object QueryFlag extends Enumeration {

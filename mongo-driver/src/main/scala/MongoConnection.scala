@@ -377,8 +377,9 @@ object MongoConnection extends Logging {
           log.trace("Created a GetLastError Message: %s", gle)
           /**
           * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
+          * Note we dispatch the GetLastError's ID but with the write message !
           */
-          dispatcher.put(gle.requestID, CompletableRequest(gle, f))
+          dispatcher.put(gle.requestID, CompletableRequest(msg, f))
           gle.write(outStream)
           log.debug("Wrote a getLastError to the tail end of the output buffer.")
           () => {}

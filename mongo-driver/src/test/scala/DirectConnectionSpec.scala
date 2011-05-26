@@ -24,7 +24,7 @@ import org.specs2.time.Time._
 import org.bson.util.Logging
 
 
-class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
+class DirectConnectionSpec extends Specification with Logging {
   //  println(org.apache.commons.logging.Log)
 
   "The MongoDB Direct Connection" should {
@@ -90,6 +90,19 @@ class DirectConnectionSpec extends SpecificationWithJUnit with Logging {
 
     "Support inserts with no (default) write concern" in {
       val mongo = conn("testHammersmith")("test_insert")
+      mongo.dropCollection()(success => {
+        log.info("Dropped collection... Success? " + success)
+      })
+      var id: AnyRef = null
+      mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))((oid: Option[AnyRef], res: WriteResult) => {
+        log.info("Result ID: %s Res: %s", oid, res)
+        id = oid.getOrElse(null)
+      })
+      id must not beNull
+    }
+    "Support inserts with implicit safe write concern" in {
+      val mongo = conn("testHammersmith")("test_insert")
+      implicit val safeWrite = WriteConcern.Safe
       mongo.dropCollection()(success => {
         log.info("Dropped collection... Success? " + success)
       })
