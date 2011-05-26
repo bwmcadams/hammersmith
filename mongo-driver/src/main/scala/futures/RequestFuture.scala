@@ -82,12 +82,14 @@ object RequestFutures extends Logging {
   def getMore(f: Either[Throwable, (Long, Seq[BSONDocument])] => Unit) =
     new GetMoreRequestFuture {
       val body = f
+      override def toString = "{GetMoreRequestFuture}"
     }
 
   def query[A <: Cursor](f: Either[Throwable, A] => Unit) =
     new CursorQueryRequestFuture {
       type T = A
       val body = f
+      override def toString = "{CursorQueryRequestFuture}"
     }
 
   def find[A <: Cursor](f: Either[Throwable, A] => Unit) = query(f)
@@ -96,6 +98,7 @@ object RequestFutures extends Logging {
     new SingleDocQueryRequestFuture {
       type T = A
       val body = f
+      override def toString = "{SingleDocQueryRequestFuture}"
     }
 
   def findOne[A <: BSONDocument](f: Either[Throwable, A] => Unit) = command(f)
@@ -103,6 +106,7 @@ object RequestFutures extends Logging {
   def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
     new WriteRequestFuture {
       val body = f
+      override def toString = "{WriteRequestFuture}"
     }
 }
 
@@ -119,6 +123,7 @@ object SimpleRequestFutures extends Logging {
         case Right(doc) => f(doc)
         case Left(t) => log.error(t, "Command Failed.")
       }
+      override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
 
   def getMore(f: (Long, Seq[BSONDocument]) => Unit) =
@@ -127,6 +132,7 @@ object SimpleRequestFutures extends Logging {
         case Right((cid, docs)) => f(cid, docs)
         case Left(t) => log.error(t, "GetMore Failed."); throw t
       }
+      override def toString = "{SimpleGetMoreRequestFuture}"
     }
 
   def find[A <: Cursor](f: A => Unit) = query(f)
@@ -138,6 +144,7 @@ object SimpleRequestFutures extends Logging {
         case Right(cursor) => f(cursor)
         case Left(t) => log.error(t, "Query Failed."); throw t
       }
+      override def toString = "{SimpleCursorQueryRequestFuture}"
     }
 
   def write(f: (Option[AnyRef], WriteResult) => Unit) =
@@ -146,6 +153,7 @@ object SimpleRequestFutures extends Logging {
         case Right((oid, wr)) => f(oid, wr)
         case Left(t) => log.error(t, "Command Failed.")
       }
+      override def toString = "{SimpleWriteRequestFuture}"
     }
 
 }
