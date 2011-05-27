@@ -88,6 +88,14 @@ class DirectConnectionSpec extends Specification with Logging {
       conn must not beNull
     }
 
+    "Support blind (no check/callback) inserts" in {
+      val mongo = conn("testHammersmith")("test_insert")
+      mongo.dropCollection()(success => {
+        log.info("Dropped collection... Success? " + success)
+      })
+      mongo.insert(Document("foo" -> "bar", "bar" -> "baz")){}
+      success
+    }
     "Support inserts with no (default) write concern" in {
       val mongo = conn("testHammersmith")("test_insert")
       mongo.dropCollection()(success => {
@@ -113,6 +121,10 @@ class DirectConnectionSpec extends Specification with Logging {
       })
       id must not beNull
     }
+/*    "Support findAndModify" in {
+      val mongo = conn("testHammersmith")("test_findModify")
+      mongo.insert(Document("x" -> 1), Document("x" -> 2), Document("x" -> 3))
 
+    }*/
   }
 }
