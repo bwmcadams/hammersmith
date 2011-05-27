@@ -31,6 +31,13 @@ trait Implicits {
   implicit def asSimpleQueryOp[A <: Cursor](f: A => Unit): CursorQueryRequestFuture = SimpleRequestFutures.query(f)
   implicit def asSimpleFindOneOp[A <: BSONDocument](f: A => Unit): SingleDocQueryRequestFuture = SimpleRequestFutures.findOne(f)
   implicit def asSimpleWriteOp(f: (Option[AnyRef], WriteResult) => Unit): WriteRequestFuture = SimpleRequestFutures.write(f)
+  implicit def noopSimpleWrite(f: Unit): WriteRequestFuture = new WriteRequestFuture {
+    val body = (result: Either[Throwable, (Option[AnyRef], WriteResult)]) => result match {
+      case Right((oid, wr)) => {}
+      case Left(t) => {}
+    }
+    override def toString = "{NoopWriteRequestFuture}"
+  }
 
 }
 
