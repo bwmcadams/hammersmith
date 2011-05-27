@@ -80,7 +80,6 @@ object Cursor extends Logging {
    */
   def iterate(cursor: Cursor)(op: (IterState) => IterCmd) {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
-    @tailrec
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
         log.info("Closing Cursor.")
@@ -90,11 +89,10 @@ object Cursor extends Logging {
         log.trace("Next!")
         next(tOp)
       }
-      case NextBatch(tOp) =>
-        cursor.nextBatch(() => {
+      case NextBatch(tOp) => cursor.nextBatch(() => {
           log.info("Next Batch Loaded.")
           next(tOp)
-        })
+      })
     }
     next(op)
   }
