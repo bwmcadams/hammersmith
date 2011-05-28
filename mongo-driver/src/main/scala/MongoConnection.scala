@@ -213,6 +213,71 @@ abstract class MongoConnection extends Logging {
     send(InsertMessage(db + "." + collection, docs: _*), callback)
   }
 
+  /**
+   * Calls findAndModify in remove only mode with
+   * fields={}, sort={}, remove=true, getNew=false, upsert=false
+   * @param query
+   * @return the removed document
+   */
+  def findAndRemove(db: String)(collection: String)(query: BSONDocument = Document.empty) = findAndModify(db)(collection)(query=query)_
+
+  /**
+   * Finds the first document in the query and updates it.
+   * @param query query to match
+   * @param fields fields to be returned
+   * @param sort sort to apply before picking first document
+   * @param remove if true, document found will be removed
+   * @param update update to apply
+   * @param getNew if true, the updated document is returned, otherwise the old document is returned (or it would be lost forever) [ignored in remove]
+   * @param upsert do upsert (insert if document not present)
+   * @return the document
+   */
+  def findAndModify(db: String)(collection: String)(query: BSONDocument = Document.empty,
+                                                    sort: BSONDocument = Document.empty,
+                                                    remove: Boolean = false,
+                                                    update: Option[Document] = None,
+                                                    getNew: Boolean = false,
+                                                    fields: BSONDocument = Document.empty,
+                                                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) {
+    val cmd = OrderedDocument("findandmodify" -> collection,
+                              "query" -> query,
+                              "fields" -> fields,
+                              "sort" -> sort)
+
+    assume(remove && (update.isEmpty || update.get.isEmpty) && !getNew, "Cannot mix update statements or getNew param with 'REMOVE' mode.")
+
+    if (remove) {
+      log.debug("FindAndModify 'remove' mode.")
+      cmd += "remove" -> true
+    } else {
+      log.debug("FindAndModify 'modify' mode.  GetNew? %s Upsert? %s", getNew, upsert)
+      update.foreach(_up => {
+        log.trace("Update spec set. %s", _up)
+        // If first key does not start with a $, then the object must be inserted as is and should be checked.
+        if (_up.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(_up)
+        cmd += "update" -> _up
+        // TODO - Make sure an error is thrown here that forces its way out.
+      })
+      cmd += "new" -> getNew
+      cmd += "upsert" -> upsert
+    }
+
+    log.debug("Running findAndModify: %s", cmd)
+    runCommand(db, cmd)(SimpleRequestFutures.command((reply: Document) => {
+      log.trace("Got a result from 'findAndModify' command: %s", reply)
+      val doc = reply.getAs[BSONDocument]("value")
+      if (reply.getAsOrElse[Boolean]("ok", false) && !doc.isEmpty) {
+        callback(doc.get.asInstanceOf[callback.T])
+      } else {
+        log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
+        callback(
+          new Exception("Received a bad reply from findAndModify. MAY NOT be an error (just didn't find a match?). (Reply: '%s')".format(reply))
+        )
+      }
+    }))
+
+  }
+
   def update(db: String)(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
                                             (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     /**
