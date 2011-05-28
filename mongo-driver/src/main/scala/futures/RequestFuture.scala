@@ -70,6 +70,9 @@ case object NoOpRequestFuture extends RequestFuture with Logging {
     case Right(()) => {}
     case Left(t) => log.error(t, "NoOp Command Failed.")
   }
+
+  override def toString = "{NoopWriteRequestFuture}"
+
 }
 
 object RequestFutures extends Logging {

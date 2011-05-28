@@ -20,7 +20,6 @@ package com.mongodb.async
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
 
-import org.bson.util.Logging
 import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
@@ -29,16 +28,13 @@ import com.mongodb.async.wire._
 import scala.collection.JavaConversions._
 import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
-import org.bson._
-import com.twitter.conversions.time._
-import com.twitter.util.{ JavaTimer }
 
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{ConcurrentLinkedQueue , ConcurrentHashMap , Executors}
+import java.util.concurrent.{ConcurrentHashMap , Executors}
 import scala.collection.mutable.{ConcurrentMap , WeakHashMap}
 import com.mongodb.async.util.{ConcurrentQueue , CursorCleaningTimer}
 import org.bson.types.ObjectId
-import scala.annotation.tailrec
+import org.bson.util.Logging
 
 /**
 * Base trait for all connections, be it direct, replica set, etc
@@ -73,7 +69,10 @@ abstract class MongoConnection extends Logging {
   protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-    def getPipeline = Channels.pipeline(new BSONFrameDecoder(), handler)
+    def getPipeline = {
+      val p = Channels.pipeline(new BSONFrameDecoder(), handler) 
+      p
+    }
   })
 
   bootstrap.setOption("remoteAddress", addr)
@@ -105,7 +104,7 @@ abstract class MongoConnection extends Logging {
       log.debug("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
       runCommand("admin", Document("isMaster" -> 1))(SimpleRequestFutures.command((doc: Document) => {
-        log.info("Got a result from command: %s", doc)
+        log.debug("Got a result from command: %s", doc)
         isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
         maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
         gotIsMaster.set(true)
@@ -290,7 +289,16 @@ abstract class MongoConnection extends Logging {
   protected[mongodb] def shutdown() {
     log.debug("Shutting Down & Cleaning up connection handler.")
     MongoConnection.cleaningTimer.stop(this)
+    channel.close()
+    _connected.set(false)
   }
+
+
+  def close() {
+    log.info("Closing down connection.")
+    shutdown()
+  }
+
   /**
    *
    * Set the write concern for this database.
@@ -350,7 +358,8 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
+    require(channel.isConnected, "Channel is closed.")
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
@@ -373,7 +382,7 @@ object MongoConnection extends Logging {
     val writeCB: () => Unit = if (isWrite) {
       msg match {
         case wMsg: MongoClientWriteMessage => if (concern.safe_?) {
-          val gle = createCommand(wMsg.namespace, Document("getlasterror" -> 1))
+          val gle = createCommand(wMsg.namespace.split("\\.")(0), Document("getlasterror" -> 1))
           log.trace("Created a GetLastError Message: %s", gle)
           /**
           * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
@@ -392,6 +401,8 @@ object MongoConnection extends Logging {
       }
     } else () => {}
     channel.write(outStream.buffer())
+    outStream.close()
+    
     /** If no write Concern and it's a write, kick the callback now.*/
     writeCB()
   }
@@ -419,15 +430,19 @@ object MongoConnection extends Logging {
     if (deadCursors.isEmpty) {
       log.debug("No Dead Cursors.")
     } else {
-      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => {
+      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => if (!entry._2.isEmpty) {
         // TODO - ensure no concurrency issues / blockages here.
-        log.debug("Pre DeQueue: %s", entry._2.length)
+        log.trace("Pre DeQueue: %s", entry._2.length)
         val msg = KillCursorsMessage(entry._2.dequeueAll())
-        log.debug("Post DeQueue: %s", entry._2.length)
-        log.trace("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
+        log.trace("Post DeQueue: %s", entry._2.length)
+        log.debug("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
         MongoConnection.send(msg, NoOpRequestFuture)(entry._1, 1024 * 1024 * 4) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
+      } else {
+        log.debug("Removing Channel '%s' from cursor cleanup queue as it has no dead cursors.", entry._1) // should help with auto shutdown of cleaner thread + process
+        deadCursors.remove(entry._1)
       })
     }
   }
+
 }
 

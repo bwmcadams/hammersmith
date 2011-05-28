@@ -25,6 +25,7 @@ object Collection extends Logging {
 }
 
 class Collection(val name: String)(implicit val db: DB) extends Logging {
+
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    * TODO - Would this perform faster partially applied?
@@ -163,5 +164,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * @see http://www.thebuzzmedia.com/mongodb-single-server-data-durability-guide/
    */
   def writeConcern = _writeConcern.getOrElse(db.writeConcern)
+
+  def ns = "%s.%s".format(db.name, name)
 
 }

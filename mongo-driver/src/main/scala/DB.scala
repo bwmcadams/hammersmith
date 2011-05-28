@@ -57,7 +57,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
                 case Right(_doc) =>
                   _doc.getAsOrElse[Int]("ok", 0) match {
                     case 1 => {
-                      log.info("Authenticate succeeded.")
+                      log.debug("Authenticate succeeded.")
                       login = Some(username)
                       authHash = Some(hash)
                     }

@@ -52,7 +52,7 @@ object Cursor extends Logging {
         Cursor.NextBatch(next)
       }
       case Cursor.EOF => {
-        log.info("EOF... Cursor done.")
+        log.trace("EOF... Cursor done.")
         Cursor.Done
       }
     }
@@ -82,7 +82,7 @@ object Cursor extends Logging {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
-        log.info("Closing Cursor.")
+        log.debug("Closing Cursor.")
         cursor.close()
       }
       case Next(tOp) => {
@@ -90,7 +90,7 @@ object Cursor extends Logging {
         next(tOp)
       }
       case NextBatch(tOp) => cursor.nextBatch(() => {
-          log.info("Next Batch Loaded.")
+          log.debug("Next Batch Loaded.")
           next(tOp)
       })
     }
@@ -208,7 +208,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
   }
 
   def close() {
-    log.info("Closing out cursor: %s", this)
+    log.debug("Closing out cursor: %s", this)
     /**
      * Basically if the cursorEmpty is true we can just NOOP here
      * as MongoDB automatically cleans up fully iterated cursors.
