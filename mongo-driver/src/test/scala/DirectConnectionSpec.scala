@@ -19,7 +19,7 @@ package test
 
 import com.mongodb.async._
 import futures.RequestFutures
-import org.bson.collection.Document
+import org.bson.collection._
 import org.specs2.time.Time._
 import org.bson.util.Logging
 import org.bson.types._
@@ -116,7 +116,13 @@ class DirectConnectionSpec extends Specification with Logging { def is =
       log.info("Dropped collection... Success? " + success)
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz")){}
-    success
+    // TODO - Implement 'count'
+    var doc: BSONDocument = null
+    mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
+      doc = _doc 
+    })
+    doc must not (beNull.eventually)
+    doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
   }
 
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
@@ -128,7 +134,13 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))((oid: Option[AnyRef], res: WriteResult) => {
       id = oid.getOrElse(null)
     })
-    success
+    // TODO - Implement 'count'
+    var doc: BSONDocument = null
+    mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
+      doc = _doc 
+    })
+    doc must not (beNull.eventually)
+    doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
   }
 
   def insertWithSafeImplicitWriteConcern(conn: MongoConnection) = {
@@ -141,11 +153,9 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     var ok: Option[Boolean] = None
 
     val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) => { 
-      log.info("HANDLER INVOKED. '%s'", result)
       result match {
         case Right((oid, wr)) => {
           ok = Some(true)
-          log.info("Result ID: %s Res: %s", oid, wr)
           id = oid        }
         case Left(t) => {
           ok = Some(false)
@@ -155,11 +165,16 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))(handler)
     ok must eventually { beSome(true) }
-    //id must eventually(beSome[ObjectId].asInstanceOf[org.specs2.matcher.Matcher[AnyRef]])
-    log.info("Post insert... %s", id)
     id must not (beNull.eventually)
-    
+    // TODO - Implement 'count'
+    var doc: BSONDocument = null
+    mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
+      doc = _doc 
+    })
+    doc must not (beNull.eventually)
+    doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
   }
+
 /*    "Support findAndModify" in {
       val mongo = conn("testHammersmith")("test_findModify")
       mongo.insert(Document("x" -> 1), Document("x" -> 2), Document("x" -> 3))
