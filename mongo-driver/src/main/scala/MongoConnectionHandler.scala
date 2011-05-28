@@ -132,6 +132,38 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               getMoreResult((reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T])
             }
           }
+          // TODO - Handle any errors in a "non completable"
+          // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
+          case CompletableWriteRequest(msg: InsertMessage, writeResult: WriteRequestFuture) => {
+            log.info("Write Request Future.")
+            require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a WriteRequestFuture.")
+            // Check error state
+            // Attempt to grab the document
+            reply.documents.headOption match {
+              case Some(doc) => {
+                log.info("Document found: %s", doc)
+                doc.getAs[String]("errmsg") match {
+                  case Some(error) => writeResult(new Exception(error))
+                  case None => {
+                    val w = WriteResult(ok = boolCmdResult(doc, false), 
+                                        error = doc.getAs[String]("err"), 
+                                        code = doc.getAs[Int]("code"),
+                                        n = doc.getAsOrElse[Int]("n", 0),
+                                        upsertID = doc.getAs[AnyRef]("upserted"),
+                                        updatedExisting = doc.getAs[Boolean]("updatedExisting"))
+                    log.info("W: %s", w)
+                    writeResult((None, w).asInstanceOf[writeResult.T])
+                  }
+                }
+              }
+              case None => {
+                log.warn("No Document Found.")
+                "Unknown Error."
+                writeResult(new Exception("Unknown error; no document returned.."))
+              }
+            }
+          }
+          
           case unknown => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
         })
       }
@@ -143,7 +175,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
     // TODO - pass this up to the user layer?
-    log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler")
+    log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler: %s", e.getCause)
     // TODO - Close connection?
   }
 

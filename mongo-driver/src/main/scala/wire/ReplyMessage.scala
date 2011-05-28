@@ -52,10 +52,13 @@ trait ReplyMessage extends MongoServerMessage {
 
 object ReplyMessage extends Logging {
 
-  // TODO - Make it possible to dynamically set a decoder.
-  val decoder = new DefaultBSONDeserializer
   def apply(_hdr: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._
+    // TODO - Make it possible to dynamically set a decoder.
+    /**
+    * TODO - It turned out to NOT be safe to share this directly and we'll need a pool.
+     */
+    val decoder = new DefaultBSONDeserializer
     log.debug("Finishing decoding Reply Message with Header of '%s'", _hdr)
     val b = new Array[Byte](20) // relevant non-document stream bytes from the reply content.
     readFully(in, b)

@@ -57,7 +57,9 @@ trait Imports {
     }
     case Some(_) | None => {
       println("None or Non-1 doc: " + doc)
-      if (throwOnError) throw new MongoException(doc.getAsOrElse[String]("errmsg", "")) else false
+      if (throwOnError) throw new MongoException("Bad Boolean Command Result: %s  / %s".format(
+                                                  doc, doc.getAsOrElse[String]("errmsg", ""))
+                                                 ) else false
     }
   }
 

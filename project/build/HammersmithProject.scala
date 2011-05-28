@@ -24,7 +24,7 @@ class HammersmithProject(info: ProjectInfo)
 
     // Use the BSON code
 //    val jBSON = "org.mongodb" % "bson" % "2.5.2"
-    val casbah = "com.mongodb.casbah" %% "casbah-bson-utils" % "2.2.0-SNAPSHOT"
+    val casbah = "com.mongodb.casbah" %% "casbah-util" % "2.2.0-SNAPSHOT"
     // Connection Pooling
     val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
@@ -33,10 +33,11 @@ class HammersmithProject(info: ProjectInfo)
     val netty = "org.jboss.netty" % "netty" % "3.2.4.Final"
 
     // Twitter-util
-    val twitterUtilCore = "com.twitter" % "util-core" % "1.8.9"
+    val twitterUtilCore = "com.twitter" % "util-core" % "1.8.13"
 
     // Testing Deps
-    val specs2 = "org.specs2" %% "specs2" % "1.2"
+    val specs2 = "org.specs2" %% "specs2" % "1.4-SNAPSHOT"  
+    val scalaz = "org.specs2" %% "specs2-scalaz-core" % "6.0.RC2"  
 
     def specs2Framework = new TestFramework("org.specs2.runner.SpecsFramework")
     override def testFrameworks = super.testFrameworks ++ Seq(specs2Framework)
