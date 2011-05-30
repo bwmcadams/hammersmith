@@ -65,33 +65,27 @@ trait BSONSerializer extends BSONEncoder with Logging {
     // TODO - De null me. Null BAD! Everytime you use null, someone drowns a basket full of adorable puppies
     if (handleSpecialObjects(name.getOrElse(null), o)) _buf.getPosition - start
 
+    // TODO - MASSIVELY Reduce repetiveness. Original impl. was clean but buggy; factored out larger to debug -bwm 5/30/11
     val rewriteID = o match {
-      case list: BSONList => {
-        if (name.isDefined) _put(ARRAY, name.get)
-        log.trace("List Object.  Name: %s", name.getOrElse("'null'"))
-        false
-      }
-      case obj: SerializableBSONDocument => {
-        log.trace("Document Object.  Name: %s", name.getOrElse("'null'"))
-        if (name.isDefined) {
-          _put(OBJECT, name.get)
-          if (obj.asMap.contains("_id")) {
-            log.trace("Contains '_id', rewriting.")
-            _putObjectField("_id", obj.asMap("_id").asInstanceOf[AnyRef])
-            true
-          }
+      case obj: SerializableBSONDocument => name.isDefined
+      case default => false
+    }
+
+    o match {
+      case obj: SerializableBSONDocument => 
+        if (rewriteID && obj.asMap.contains("_id")) {
+          log.debug("Contains '_id', rewriting.")
+          _putObjectField("_id", obj.asMap("_id").asInstanceOf[AnyRef])
         }
-        false
-      }
+        // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
     }
 
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for document length
 
     // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
-
-    for ((k, v) <- o if k != "_id" && !rewriteID) {
-      log.trace("Key: %s, Value: %s", k, v)
+    for ((k, v) <- o if (k != "_id" && !rewriteID)) {
+      log.info("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
 
@@ -99,7 +93,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // Backtrack and set the length
     val sz = _buf.getPosition - sizePos
-    log.debug("Size of Document: %d", sz)
+    log.info("Size of Document: %d, %d", sizePos, sz)
     _buf.writeInt(sizePos, sz)
     // total bytes written
     _buf.getPosition - start
@@ -109,7 +103,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
    * Sort of unecessarily overriden from the Java side but I want to use PartialFunction for future features.
    */
   override def _putObjectField(name: String, value: AnyRef) {
-    log.debug("\t Put Field '%s' - '%s'", name, value)
+    log.info("\t Put Field '%s' - '%s'", name, value)
 
     value match {
       case "$where" => {
@@ -151,7 +145,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
       putString(_: String, str)
     }
     case oid: ObjectId => {
-      log.trace("ObjectId value.")
+      log.info("ObjectId value: %s", oid)
       putObjectId(_: String, oid)
     }
     case bsonObj: BSONObject => {
