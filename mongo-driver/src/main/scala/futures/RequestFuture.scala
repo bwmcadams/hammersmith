@@ -61,6 +61,21 @@ trait WriteRequestFuture extends RequestFuture {
   type T <: (Option[AnyRef] /* ID Type */ , WriteResult)
 }
 
+/**
+ * Will pass any *generated* _ids, in a Seq 
+ * along with any relevant getLastError information
+ * For an update, don't expect to get ObjectId
+ *
+ * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
+ * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error 
+ * on your batch ---- not the first, or all of them.
+ *
+ * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
+ */
+trait BatchWriteRequestFuture extends RequestFuture {
+  type T <: (Option[Seq[AnyRef]] /* ID Type */ , WriteResult)
+}
+
 /*
  * For Noops that don't return anything such as OP_KILL_CURSORS
  */
@@ -111,6 +126,12 @@ object RequestFutures extends Logging {
       val body = f
       override def toString = "{WriteRequestFuture}"
     }
+
+  def batchWrite(f: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)] => Unit) =
+    new BatchWriteRequestFuture {
+      val body = f
+      override def toString = "{WriteRequestFuture}"
+    }
 }
 
 /**
@@ -154,6 +175,15 @@ object SimpleRequestFutures extends Logging {
     new WriteRequestFuture {
       val body = (result: Either[Throwable, (Option[AnyRef], WriteResult)]) => result match {
         case Right((oid, wr)) => f(oid, wr)
+        case Left(t) => log.error(t, "Command Failed.")
+      }
+      override def toString = "{SimpleWriteRequestFuture}"
+    }
+
+  def batchWrite(f: (Option[Seq[AnyRef]], WriteResult) => Unit) =
+    new BatchWriteRequestFuture {
+      val body = (result: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)]) => result match {
+        case Right((oids, wr)) => f(oids, wr)
         case Left(t) => log.error(t, "Command Failed.")
       }
       override def toString = "{SimpleWriteRequestFuture}"

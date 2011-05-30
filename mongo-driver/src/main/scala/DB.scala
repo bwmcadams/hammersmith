@@ -186,8 +186,20 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.findOneByID(name)(collection)(id)(callback)
   }
 
-  def insert(collection: String)(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.insert(name)(collection)(docs: _*)(callback)
+  def insert(collection: String)(doc: BSONDocument, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.insert(name)(collection)(doc, validate)(callback)
+  }
+
+  /**
+   * Insert multiple documents at once.
+   * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
+   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error 
+   * on your batch ---- not the first, or all of them.
+   *
+   * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
+   */
+  def batchInsert(collection: String)(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.batchInsert(name)(collection)(docs: _*)(callback)
   }
 
   def update(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)

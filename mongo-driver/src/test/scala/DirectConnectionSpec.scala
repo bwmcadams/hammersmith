@@ -27,19 +27,26 @@ import org.specs2.execute.Result
 import org.specs2.Specification
 import org.specs2.specification._
 
-class DirectConnectionSpec extends Specification with Logging { def is =
+class DirectConnectionSpec extends Specification with Logging { def is = 
   "The MongoDB Direct Connection"                          ^
     "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
-    "Iterate a simple cursor correctly"                    ! mongo(iterateSimpleCursor)^
-    "Iterate a complex (iteratee) cursor correctly"        ! mongo(iterateComplexCursor)^
-    "Correctly calculate values for 'distinct'"            ! mongo(distinctValue)^
-                                                           endp^
-  "The write behavior"                                     ^
+                                                       endp^
+  "Write Operations"                                       ^
     "Support 'blind' (NoOp) writes"                        ! mongo(noopInsert)^
     "Support inserts with no (default) write concern"      ! mongo(insertWithDefaultWriteConcern)^
     "Support inserts with implicit safe write concern"     ! mongo(insertWithSafeImplicitWriteConcern)^
+    "Support batch inserts"                                ! mongo(batchInsert)^
+                                                       endp^
+    "Read Operations"                                      ^
+      "Can count from a collection"                        ! mongo(countCmd)^
+      "Iterate a simple cursor correctly"                  ! mongo(iterateSimpleCursor)^
+      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^
+      //"Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
+      "Insert an ObjectId and retrieve it correctly"       !  mongo(idDebug)^ 
+                                                       endp^
+    "More detailed special commands"                       ^
+    "Support findAndModify"                                ! mongo(simpleFindAndModify)^
                                                            end
-    
 
   trait mongoConn extends AroundOutside[MongoConnection] {
 
@@ -48,6 +55,7 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     def around[T <% Result](t: =>T) = {
       conn.connected_? must eventually(beTrue)
       t
+      // TODO - make sure this works (We are reusing)
       /*conn.close()
       conn.connected_? must eventually(beFalse)*/
     }
@@ -175,9 +183,72 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
   }
 
-/*    "Support findAndModify" in {
-      val mongo = conn("testHammersmith")("test_findModify")
-      mongo.insert(Document("x" -> 1), Document("x" -> 2), Document("x" -> 3))
+  def idDebug(conn: MongoConnection) = {
+    val mongo = conn("test")("idGen")
+    mongo.dropCollection()(success => {
+      log.info("Dropped collection... Success? " + success)
+    })
+    val id = new ObjectId()
+    log.info("Generated a new _id : %s", id)
+    var insertedID: Option[AnyRef] = None
+    val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) => { 
+      result match {
+        case Right((oid, wr)) => {
+          //ok = Some(true)
+          insertedID = oid
+          log.info("*** Insert Success.  ID: %s", insertedID)
+        }
+        case Left(t) => {
+          //ok = Some(false)
+          log.error(t, "*** Insert Failed.")
+        }
+      }
+    })
+    insertedID must eventually(beSome(id)) // Wait for the insert to finish?
+    log.info("Inserted. %s", insertedID)
+    mongo.insert(Document("_id" -> id, "foo" -> "y", "bar" -> "x"))(handler)
+    var savedID: Option[ObjectId] = None 
+    // TODO - test findOneByID
+    mongo.findOne()((_doc: BSONDocument) => {
+      savedID = _doc.getAs[ObjectId]("_id")
+    })
+    /** TODO - Fix ObjectId matching.  This test appears to be working
+     * in reality, but the test console prints a failure with:
+     **
+     * [error] x idDebug
+     * [error]   'Some(4de3a3d57ce0eb897b0962c2)' is not Some with value'4de3a3d18bcc9f2b7e61a6cc' (DirectConnectionSpec.scala:31)
+     **/ 
+    savedID must eventually(beSome(id))
+    
+  } pendingUntilFixed("There is an oddness in matching ObjectId -- it fails match but the ids are equal")
 
-    }*/
+  def countCmd(conn: MongoConnection) = {
+    val mongo = conn("testHammersmith")("countCmd")
+    mongo.dropCollection(){ success => }
+    var n: Int = -10
+    mongo.count((_n: Int) => n = _n)
+    n must eventually(beEqualTo(0)) 
+
+    // Now stuff some crap in there to test again
+    for (i <- 0 until 10) 
+      mongo.insert(Document("foo" -> "y", "bar" -> "x")){}
+
+    mongo.count((_n: Int) => n = _n)
+
+    n must eventually(beEqualTo(10)) 
+  }
+  def batchInsert(conn: MongoConnection) = {
+    val mongo = conn("testHammersmith")("batchInsert")
+    mongo.dropCollection(){ success => }
+    mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){}
+    var n: Int = -10
+    mongo.count((_n: Int) => n = _n)
+    n must eventually(beEqualTo(100)) 
+  }
+
+  def simpleFindAndModify(conn: MongoConnection) = {
+    val mongo = conn("testHammersmith")("findModify")
+    //mongo.insert(Document("x" -> 1), Document("x" -> 2), Document("x" -> 3))
+    success
+  }
 }

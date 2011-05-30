@@ -160,8 +160,8 @@ abstract class MongoConnection extends Logging {
       log.debug("Found a non-OID ID")
     }
     case None => {
-      log.debug("no ObjectId. Generating one.")
       doc.put("_id", new ObjectId())
+      log.trace("no ObjectId. Generated: %s", doc.get("_id"))
     }
   }
 
@@ -201,11 +201,27 @@ abstract class MongoConnection extends Logging {
   def findOneByID[A <: AnyRef](db: String)(collection: String)(id: A)(callback: SingleDocQueryRequestFuture) =
     findOne(db)(collection)(Document("_id" -> id))(callback)
 
-  // TODO - Support disabling add ID?
   // TODO - Immutable mode / support immutable objects
-  def insert(db: String)(collection: String)(docs: BSONDocument*)
-                                 (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    log.debug("Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
+  def insert(db: String)(collection: String)(doc: BSONDocument, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    log.debug("Inserting: %s to %s.%s with WriteConcern: %s", doc, db, collection, concern)
+    if (validate) {
+      checkObject(doc)
+      checkID(doc)
+    } else log.info("Validation of objects disabled; no ID Gen.")
+    send(InsertMessage(db + "." + collection, doc), callback)
+  }
+
+  /**
+   * Insert multiple documents at once.
+   * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
+   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error 
+   * on your batch ---- not the first, or all of them.
+   *
+   * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
+   * TODO - Support turning off ID Validation
+   */
+  def batchInsert(db: String)(collection: String)(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    log.debug("Batch Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
     docs.foreach(x => {
       checkObject(x)
       checkID(x)
@@ -279,7 +295,7 @@ abstract class MongoConnection extends Logging {
   }
 
   def update(db: String)(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
-                                            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     /**
     * If a field block doesn't start with a ($ - special type) we need to validate the keys
     * Since you can't mix $set, etc with a regular "object" this filters safely.

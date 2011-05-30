@@ -50,6 +50,7 @@ trait InsertMessage extends MongoClientWriteMessage {
      */
     log.debug("Docs Length: %s", documents.length)
     val q = Queue(documents: _*)
+    // TODO - test recursion
     for (doc <- q) {
       val total = enc.size
       val n = enc.putObject(doc)
