@@ -341,9 +341,12 @@ abstract class MongoConnection extends Logging {
 
   def createIndex[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(keys: A, options: B = Document.empty)(callback: WriteRequestFuture) {
     implicit val idxSafe = WriteConcern.Safe
-    keys += "name" -> indexName(keys)
-    keys += "ns" -> (db + "." + collection)
-    insert(db)("system.indexes")(keys, options)(callback)
+    val b = Document.newBuilder 
+    b += "name" -> indexName(keys)
+    b += "ns" -> (db + "." + collection)
+    b += "key" -> keys
+    b ++= options
+    insert(db)("system.indexes")(b.result, validate=false)(callback)
   }
 
   def createUniqueIndex[A <% BSONDocument](db: String)(collection: String)(keys: A)(callback: WriteRequestFuture) {
