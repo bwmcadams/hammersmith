@@ -124,7 +124,11 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     command(Document("drop" -> name))(boolCmdResultCallback(callback))
   }
 
-  // TODO - Impl of Count ?
+  /**
+   * Counts the number of documents in a given namespace
+   * -1 indicates an error, for now
+   */
+  def count(callback: Int => Unit) = db.count(name)(callback)
 
   // TODO - Rename
 
