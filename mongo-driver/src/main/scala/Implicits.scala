@@ -27,10 +27,12 @@ trait Implicits {
   implicit def asQueryOp[A <: Cursor](f: Either[Throwable, A] => Unit) = RequestFutures.query(f)
   implicit def asFindOneOp[A <: BSONDocument](f: Either[Throwable, A] => Unit) = RequestFutures.findOne(f)
   implicit def asWriteOp(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) = RequestFutures.write(f)
+  implicit def asBatchWriteOp(f: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)] => Unit) = RequestFutures.batchWrite(f)
   implicit def asSimpleGetMoreOp(f: (Long, Seq[BSONDocument]) => Unit): GetMoreRequestFuture = SimpleRequestFutures.getMore(f)
   implicit def asSimpleQueryOp[A <: Cursor](f: A => Unit): CursorQueryRequestFuture = SimpleRequestFutures.query(f)
   implicit def asSimpleFindOneOp[A <: BSONDocument](f: A => Unit): SingleDocQueryRequestFuture = SimpleRequestFutures.findOne(f)
   implicit def asSimpleWriteOp(f: (Option[AnyRef], WriteResult) => Unit): WriteRequestFuture = SimpleRequestFutures.write(f)
+  implicit def asSimpleBatchWriteOp(f: (Option[Seq[AnyRef]], WriteResult) => Unit): BatchWriteRequestFuture = SimpleRequestFutures.batchWrite(f)
   implicit def noopSimpleWrite(f: Unit): WriteRequestFuture = new WriteRequestFuture {
     val body = (result: Either[Throwable, (Option[AnyRef], WriteResult)]) => result match {
       case Right((oid, wr)) => {}
