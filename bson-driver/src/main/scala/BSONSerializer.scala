@@ -85,7 +85,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
     for ((k, v) <- o if (k != "_id" && !rewriteID)) {
-      log.info("Key: %s, Value: %s", k, v)
+      log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
 
@@ -93,7 +93,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // Backtrack and set the length
     val sz = _buf.getPosition - sizePos
-    log.info("Size of Document: %d, %d", sizePos, sz)
+    log.debug("Size of Document: %d, %d", sizePos, sz)
     _buf.writeInt(sizePos, sz)
     // total bytes written
     _buf.getPosition - start
@@ -103,7 +103,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
    * Sort of unecessarily overriden from the Java side but I want to use PartialFunction for future features.
    */
   override def _putObjectField(name: String, value: AnyRef) {
-    log.info("\t Put Field '%s' - '%s'", name, value)
+    log.trace("\t Put Field '%s' - '%s'", name, value)
 
     value match {
       case "$where" => {
@@ -145,7 +145,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
       putString(_: String, str)
     }
     case oid: ObjectId => {
-      log.info("ObjectId value: %s", oid)
+      log.trace("ObjectId value: %s", oid)
       putObjectId(_: String, oid)
     }
     case bsonObj: BSONObject => {
