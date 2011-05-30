@@ -294,7 +294,7 @@ abstract class MongoConnection extends Logging {
     runCommand(db, cmd)(SimpleRequestFutures.command((reply: Document) => {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
       val doc = reply.getAs[BSONDocument]("value")
-      if (reply.getAsOrElse[Boolean]("ok", false) && !doc.isEmpty) {
+      if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
         log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
