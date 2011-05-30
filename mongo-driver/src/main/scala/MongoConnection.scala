@@ -271,7 +271,8 @@ abstract class MongoConnection extends Logging {
                               "fields" -> fields,
                               "sort" -> sort)
 
-    assume(remove && (update.isEmpty || update.get.isEmpty) && !getNew, "Cannot mix update statements or getNew param with 'REMOVE' mode.")
+    if (remove && (update.isEmpty || update.get.isEmpty) && !getNew)
+      throw new IllegalArgumentException("Cannot mix update statements or getNew param with 'REMOVE' mode.")
 
     if (remove) {
       log.debug("FindAndModify 'remove' mode.")

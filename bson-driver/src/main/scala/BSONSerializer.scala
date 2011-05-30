@@ -66,26 +66,27 @@ trait BSONSerializer extends BSONEncoder with Logging {
     if (handleSpecialObjects(name.getOrElse(null), o)) _buf.getPosition - start
 
     // TODO - MASSIVELY Reduce repetiveness. Original impl. was clean but buggy; factored out larger to debug -bwm 5/30/11
-    val rewriteID = o match {
-      case obj: SerializableBSONDocument => name.isDefined
-      case default => false
-    }
+    val _type = if (o.isInstanceOf[BSONList]) ARRAY else OBJECT
 
-    o match {
+    name.foreach(_put(_type, _))
+
+    val rewriteID = _type == OBJECT && name.isEmpty
+
+    /*o match {
       case obj: SerializableBSONDocument => 
         if (rewriteID && obj.asMap.contains("_id")) {
           log.debug("Contains '_id', rewriting.")
           _putObjectField("_id", obj.asMap("_id").asInstanceOf[AnyRef])
         }
         // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
-    }
+    }*/
 
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for document length
 
     // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
-    for ((k, v) <- o if (k != "_id" && !rewriteID)) {
-      log.trace("Key: %s, Value: %s", k, v)
+    for ((k, v) <- o) {
+      log.info("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
 
@@ -93,7 +94,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // Backtrack and set the length
     val sz = _buf.getPosition - sizePos
-    log.debug("Size of Document: %d, %d", sizePos, sz)
+    log.info("Size of Document: %d, %d", sizePos, sz)
     _buf.writeInt(sizePos, sz)
     // total bytes written
     _buf.getPosition - start

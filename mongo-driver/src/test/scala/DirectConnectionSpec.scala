@@ -28,7 +28,7 @@ import org.specs2.Specification
 import org.specs2.specification._
 
 class DirectConnectionSpec extends Specification with Logging { def is = 
-  "The MongoDB Direct Connection"                          ^
+  /*"The MongoDB Direct Connection"                        ^
     "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
                                                        endp^
   "Write Operations"                                       ^
@@ -40,12 +40,13 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     "Read Operations"                                      ^
       "Can count from a collection"                        ! mongo(countCmd)^
       "Iterate a simple cursor correctly"                  ! mongo(iterateSimpleCursor)^
-      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^
+      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^*/
       //"Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
       "Insert an ObjectId and retrieve it correctly"       !  mongo(idDebug)^ 
                                                        endp^
+    /*
     "More detailed special commands"                       ^
-    "Support findAndModify"                                ! mongo(simpleFindAndModify)^
+    "Support findAndModify"                                ! mongo(simpleFindAndModify)^*/
                                                            end
 
   trait mongoConn extends AroundOutside[MongoConnection] {
@@ -212,15 +213,9 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     mongo.findOne()((_doc: BSONDocument) => {
       savedID = _doc.getAs[ObjectId]("_id")
     })
-    /** TODO - Fix ObjectId matching.  This test appears to be working
-     * in reality, but the test console prints a failure with:
-     **
-     * [error] x idDebug
-     * [error]   'Some(4de3a3d57ce0eb897b0962c2)' is not Some with value'4de3a3d18bcc9f2b7e61a6cc' (DirectConnectionSpec.scala:31)
-     **/ 
     savedID must eventually(beSome(id))
     
-  } pendingUntilFixed("There is an oddness in matching ObjectId -- it fails match but the ids are equal")
+  } 
 
   def countCmd(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("countCmd")
@@ -237,6 +232,7 @@ class DirectConnectionSpec extends Specification with Logging { def is =
 
     n must eventually(beEqualTo(10)) 
   }
+
   def batchInsert(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("batchInsert")
     mongo.dropCollection(){ success => }
@@ -248,7 +244,15 @@ class DirectConnectionSpec extends Specification with Logging { def is =
 
   def simpleFindAndModify(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("findModify")
-    //mongo.insert(Document("x" -> 1), Document("x" -> 2), Document("x" -> 3))
-    success
+    mongo.dropCollection(){ success => }
+    mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){}
+    var n: Int = -10
+    mongo.count((_n: Int) => n = _n)
+    n must eventually(beEqualTo(100)) 
+    var x: Int = -1
+    conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
+      x = doc.as[Int]("x")
+    }
+    x must eventually(beEqualTo(100))
   }
 }
