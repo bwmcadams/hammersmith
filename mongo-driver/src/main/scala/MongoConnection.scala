@@ -229,6 +229,17 @@ abstract class MongoConnection extends Logging {
     send(InsertMessage(db + "." + collection, docs: _*), callback)
   }
 
+
+  /**
+   * Counts the number of documents in a given namespace
+   * -1 indicates an error, for now
+   */
+  def count(db: String)(collection: String)(callback: Int => Unit) = 
+    runCommand(db, Document("count" -> collection))(SimpleRequestFutures.command((doc: Document) => {
+      log.trace("Got a result from 'count' command: %s", doc)
+      callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
+    }))
+
   /**
    * Calls findAndModify in remove only mode with
    * fields={}, sort={}, remove=true, getNew=false, upsert=false

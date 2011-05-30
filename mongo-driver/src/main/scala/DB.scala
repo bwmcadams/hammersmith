@@ -256,6 +256,9 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     callback(colls.contains(name))
   })
 
+  def count(collection: String)(callback: Int => Unit) = 
+    connection.count(name)(collection)(callback)
+
   // TODO - We can't allow free form getLastError due to the async nature.. it must be locked to the call
 
 
