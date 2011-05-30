@@ -86,7 +86,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
     for ((k, v) <- o) {
-      log.info("Key: %s, Value: %s", k, v)
+      log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
 
@@ -94,7 +94,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
 
     // Backtrack and set the length
     val sz = _buf.getPosition - sizePos
-    log.info("Size of Document: %d, %d", sizePos, sz)
+    log.debug("Size of Document: %d, %d", sizePos, sz)
     _buf.writeInt(sizePos, sz)
     // total bytes written
     _buf.getPosition - start

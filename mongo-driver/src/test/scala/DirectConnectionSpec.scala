@@ -28,7 +28,7 @@ import org.specs2.Specification
 import org.specs2.specification._
 
 class DirectConnectionSpec extends Specification with Logging { def is = 
-  /*"The MongoDB Direct Connection"                        ^
+  "The MongoDB Direct Connection"                        ^
     "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
                                                        endp^
   "Write Operations"                                       ^
@@ -40,13 +40,12 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     "Read Operations"                                      ^
       "Can count from a collection"                        ! mongo(countCmd)^
       "Iterate a simple cursor correctly"                  ! mongo(iterateSimpleCursor)^
-      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^*/
-      //"Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
+      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^
+      "Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
       "Insert an ObjectId and retrieve it correctly"       !  mongo(idDebug)^ 
                                                        endp^
-    /*
     "More detailed special commands"                       ^
-    "Support findAndModify"                                ! mongo(simpleFindAndModify)^*/
+    "Support findAndModify"                                ! mongo(simpleFindAndModify)^
                                                            end
 
   trait mongoConn extends AroundOutside[MongoConnection] {
@@ -214,7 +213,6 @@ class DirectConnectionSpec extends Specification with Logging { def is =
       savedID = _doc.getAs[ObjectId]("_id")
     })
     savedID must eventually(beSome(id))
-    
   } 
 
   def countCmd(conn: MongoConnection) = {
