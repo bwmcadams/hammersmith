@@ -251,6 +251,14 @@ class DirectConnectionSpec extends Specification with Logging { def is =
     conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
       x = doc.as[Int]("x")
     }
-    x must eventually(beEqualTo(100))
+    x must eventually(beEqualTo(0))
+    conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
+      x = doc.as[Int]("x")
+    }
+    x must eventually(beEqualTo(1))
+    conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
+      x = doc.as[Int]("x")
+    }
+    x must eventually(beEqualTo(2))
   }
 }

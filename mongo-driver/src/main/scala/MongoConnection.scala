@@ -246,7 +246,7 @@ abstract class MongoConnection extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove(db: String)(collection: String)(query: BSONDocument = Document.empty) = findAndModify(db)(collection)(query=query)_
+  def findAndRemove(db: String)(collection: String)(query: BSONDocument = Document.empty) = findAndModify(db)(collection)(query=query, remove=true)_
 
   /**
    * Finds the first document in the query and updates it.
@@ -271,8 +271,8 @@ abstract class MongoConnection extends Logging {
                               "fields" -> fields,
                               "sort" -> sort)
 
-    if (remove && (update.isEmpty || update.get.isEmpty) && !getNew)
-      throw new IllegalArgumentException("Cannot mix update statements or getNew param with 'REMOVE' mode.")
+    //if (remove && (update.isEmpty || update.get.isEmpty) && !getNew)
+      //throw new IllegalArgumentException("Cannot mix update statements or getNew param with 'REMOVE' mode.")
 
     if (remove) {
       log.debug("FindAndModify 'remove' mode.")
