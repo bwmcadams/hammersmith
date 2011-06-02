@@ -140,6 +140,35 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   // TODO - getIndexInfo
 
   /**
+   * Calls findAndModify in remove only mode with
+   * fields={}, sort={}, remove=true, getNew=false, upsert=false
+   * @param query
+   * @return the removed document
+   */
+  def findAndRemove(query: BSONDocument = Document.empty) = db.findAndRemove(name)(query)
+
+  /**
+   * Finds the first document in the query and updates it.
+   * @param query query to match
+   * @param fields fields to be returned
+   * @param sort sort to apply before picking first document
+   * @param remove if true, document found will be removed
+   * @param update update to apply
+   * @param getNew if true, the updated document is returned, otherwise the old document is returned (or it would be lost forever) [ignored in remove]
+   * @param upsert do upsert (insert if document not present)
+   * @return the document
+   */
+  def findAndModify(query: BSONDocument = Document.empty,
+                    sort: BSONDocument = Document.empty,
+                    remove: Boolean = false,
+                    update: Option[Document] = None,
+                    getNew: Boolean = false,
+                    fields: BSONDocument = Document.empty,
+                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = 
+    db.findAndModify(name)(query, sort, remove, update, getNew, fields, upsert)(callback)
+
+
+  /**
    *
    */
   def distinct(key: String, query: BSONDocument = Document.empty)(callback: Seq[Any] => Unit) {

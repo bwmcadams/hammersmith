@@ -263,6 +263,35 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
 
 
   /**
+   * Calls findAndModify in remove only mode with
+   * fields={}, sort={}, remove=true, getNew=false, upsert=false
+   * @param query
+   * @return the removed document
+   */
+  def findAndRemove(collection: String)(query: BSONDocument = Document.empty) = connection.findAndRemove(name)(collection)(query)
+
+  /**
+   * Finds the first document in the query and updates it.
+   * @param query query to match
+   * @param fields fields to be returned
+   * @param sort sort to apply before picking first document
+   * @param remove if true, document found will be removed
+   * @param update update to apply
+   * @param getNew if true, the updated document is returned, otherwise the old document is returned (or it would be lost forever) [ignored in remove]
+   * @param upsert do upsert (insert if document not present)
+   * @return the document
+   */
+  def findAndModify(collection: String)(query: BSONDocument = Document.empty,
+                                        sort: BSONDocument = Document.empty,
+                                        remove: Boolean = false,
+                                        update: Option[Document] = None,
+                                        getNew: Boolean = false,
+                                        fields: BSONDocument = Document.empty,
+                                        upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = 
+    connection.findAndModify(name)(collection)(query, sort, remove, update, getNew, fields, upsert)(callback)
+
+
+  /**
    * Gets another database on the same server (without having to go up to connection)
    * @param name Name of the database
    * No serverside op needed so doesn't have to callback
