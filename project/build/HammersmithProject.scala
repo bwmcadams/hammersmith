@@ -42,9 +42,6 @@ class HammersmithProject(info: ProjectInfo)
     def specs2Framework = new TestFramework("org.specs2.runner.SpecsFramework")
     override def testFrameworks = super.testFrameworks ++ Seq(specs2Framework)
 
-    val slf4j = "org.slf4j" % "slf4j-api" % "1.6.0"
-    // JCL bindings for testing only
-    val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.0" % "test"
     
   }
 
@@ -54,7 +51,13 @@ class HammersmithProject(info: ProjectInfo)
  // val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.5.2" % "test->default"
   }
 
-  class MongoDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info)
+  class MongoDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info) {
+
+    //val slf4jJCL = "org.slf4j" % "slf4j-simple" % "1.6.1" % "test"
+  }
+
+  val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
+  val logback = "ch.qos.logback" % "logback-classic" % "0.9.28"
 
   val sbtSnapshots = "snapshots" at "http://scala-tools.org/repo-snapshots"
   val sbtReleases  = "releases" at "http://scala-tools.org/repo-releases"

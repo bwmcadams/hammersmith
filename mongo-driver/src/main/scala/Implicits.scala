@@ -54,11 +54,9 @@ trait Imports {
    */
   protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = true): Boolean = doc.getAs[Double]("ok") match {
     case Some(1.0) => {
-      println("Some doc: " + doc)
       true
     }
     case Some(_) | None => {
-      println("None or Non-1 doc: " + doc)
       if (throwOnError) throw new MongoException("Bad Boolean Command Result: %s  / %s".format(
                                                   doc, doc.getAsOrElse[String]("errmsg", ""))
                                                  ) else false
@@ -68,11 +66,9 @@ trait Imports {
   protected[mongodb] def boolCmdResultCallback[A <: BSONDocument](callback: (Boolean) => Unit, throwOnError: Boolean = true) =
     RequestFutures.command((result: Either[Throwable, A]) => result match {
       case Right(doc) => {
-        println("Right-Doc: " + doc)
         callback(boolCmdResult(doc, throwOnError))
       }
       case Left(t) => {
-        println("Throwable: %s", t)
         // TODO - Extract error number, if any is included
         if (throwOnError) throw new MongoException("Command Failed.", Some(t)) else callback(false)
       }
