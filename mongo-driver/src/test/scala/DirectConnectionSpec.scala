@@ -208,9 +208,11 @@ class DirectConnectionSpec extends Specification
         }
       }
     })
-    insertedID must eventually(beSome(id)) // Wait for the insert to finish?
     log.info("Inserted. %s", insertedID)
     mongo.insert(Document("_id" -> id, "foo" -> "y", "bar" -> "x"))(handler)
+
+    insertedID must eventually(beSome(id)) // Wait for the insert to finish?
+
     var savedID: Option[ObjectId] = None 
     // TODO - test findOneByID
     mongo.findOne()((_doc: BSONDocument) => {
