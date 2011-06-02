@@ -50,10 +50,28 @@ class DirectConnectionSpec extends Specification
     "Support findAndModify"                                ! mongo(simpleFindAndModify)^
     "Support findAndRemove"                                ! mongo(findAndRemoveTest)^
                                                            end
-
+/*
   trait mongoConn extends AroundOutside[MongoConnection] {
 
     var conn = MongoConnection()
+
+    def around[T <% Result](t: =>T) = {
+      conn.connected_? must eventually(beTrue)
+      t
+      // TODO - make sure this works (We are reusing)
+      [>conn.close()
+      conn.connected_? must eventually(beFalse)<]
+    }
+
+    def outside: MongoConnection = { conn = MongoConnection()
+                                     conn }
+  }
+
+  object mongo extends mongoConn*/
+
+  object mongo extends AroundOutside[MongoConnection] {
+
+    val conn = MongoConnection()
 
     def around[T <% Result](t: =>T) = {
       conn.connected_? must eventually(beTrue)
@@ -63,11 +81,8 @@ class DirectConnectionSpec extends Specification
       conn.connected_? must eventually(beFalse)*/
     }
 
-    def outside: MongoConnection = { conn = MongoConnection()
-                                     conn }
+    def outside: MongoConnection = conn
   }
-
-  object mongo extends mongoConn
 
   def connectIsMaster(conn: MongoConnection) = {
     conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.trace("DB: %s", _)) })
@@ -128,12 +143,11 @@ class DirectConnectionSpec extends Specification
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz")){}
     // TODO - Implement 'count'
-    var doc: BSONDocument = null
+    var doc: BSONDocument = Document.empty
     mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
       doc = _doc 
     })
-    doc must not (beNull.eventually)
-    doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
+    doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
   }
 
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
@@ -146,12 +160,11 @@ class DirectConnectionSpec extends Specification
       id = oid.getOrElse(null)
     })
     // TODO - Implement 'count'
-    var doc: BSONDocument = null
+    var doc: BSONDocument = Document.empty
     mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
       doc = _doc 
     })
-    doc must not (beNull.eventually)
-    doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
+    doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
   }
 
   def insertWithSafeImplicitWriteConcern(conn: MongoConnection) = {
