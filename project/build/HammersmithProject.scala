@@ -28,7 +28,7 @@ class HammersmithProject(info: ProjectInfo)
     // Connection Pooling
     val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
-    val scalaj_collection = "org.scalaj" % "scalaj-collection_2.8.0" % "1.0"
+    val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.1"
     // Netty
     val netty = "org.jboss.netty" % "netty" % "3.2.4.Final"
 

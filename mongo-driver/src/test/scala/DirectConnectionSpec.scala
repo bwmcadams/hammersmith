@@ -46,6 +46,7 @@ class DirectConnectionSpec extends Specification with Logging { def is =
                                                        endp^
     "More detailed special commands"                       ^
     "Support findAndModify"                                ! mongo(simpleFindAndModify)^
+    "Support findAndRemove"                                ! mongo(findAndRemoveTest)^
                                                            end
 
   trait mongoConn extends AroundOutside[MongoConnection] {
@@ -243,20 +244,39 @@ class DirectConnectionSpec extends Specification with Logging { def is =
   def simpleFindAndModify(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("findModify")
     mongo.dropCollection(){ success => }
+    mongo.insert(Document("name" -> "Next promo", "inprogress" -> false, "priority" -> 0, "tasks" -> Seq("select product", "add inventory", "do placement"))){}
+    mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 1, "tasks" -> Seq("run sales report", "email report"))){}
+    mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 2, "tasks" -> Seq("run marketing report", "email report"))){}
+                            
+    var found: BSONDocument = Document.empty
+    val startDate = new java.util.Date
+    mongo.findAndModify(query=Document("inprogress" -> false, "name" -> "Biz report"), 
+                        sort=Document("priority" -> -1), 
+                        update=Some(Document("$set" -> Document("inprogress" -> true, "started" -> startDate))),
+                        getNew=true){ doc: BSONDocument => 
+      log.info("FAM Doc: %s", doc) 
+      found = doc
+    }
+    found must eventually(havePairs("inprogress" -> true, "name" -> "Biz report", "started" -> startDate))
+  }
+
+  def findAndRemoveTest(conn: MongoConnection) = {
+    val mongo = conn("testHammersmith")("findRemove")
+    mongo.dropCollection(){ success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){}
     var n: Int = -10
     mongo.count((_n: Int) => n = _n)
     n must eventually(beEqualTo(100)) 
     var x: Int = -1
-    conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
+    mongo.findAndRemove(){ doc: BSONDocument => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(0))
-    conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
+    mongo.findAndRemove(){ doc: BSONDocument => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(1))
-    conn.findAndRemove("testHammersmith")("findModify")(){ doc: BSONDocument => 
+    mongo.findAndRemove(){ doc: BSONDocument => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(2))
