@@ -29,7 +29,6 @@ import org.specs2.specification._
 import org.specs2.matcher._
 
 class DirectConnectionSpec extends Specification 
-                              with ThrownExpectations 
                               with Logging { def is = 
   "The MongoDB Direct Connection"                        ^
     "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
