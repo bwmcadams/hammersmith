@@ -36,8 +36,8 @@ class HammersmithProject(info: ProjectInfo)
     val twitterUtilCore = "com.twitter" % "util-core" % "1.8.13"
 
     // Testing Deps
-    val specs2 = "org.specs2" %% "specs2" % "1.4-SNAPSHOT"  
-    val scalaz = "org.specs2" %% "specs2-scalaz-core" % "6.0.RC2"  
+    val specs2 = "org.specs2" %% "specs2" % "1.4"  
+    //val scalaz = "org.specs2" %% "specs2-scalaz-core" % "6.0.RC2"  
 
     def specs2Framework = new TestFramework("org.specs2.runner.SpecsFramework")
     override def testFrameworks = super.testFrameworks ++ Seq(specs2Framework)
@@ -48,7 +48,7 @@ class HammersmithProject(info: ProjectInfo)
 
   class BSONDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info) {
     // For testing BSON wire formats etc from a 'known good' state
- // val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.5.2" % "test->default"
+    val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.6.2" % "test->default"
   }
 
   class MongoDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info) {
