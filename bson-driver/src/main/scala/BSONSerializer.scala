@@ -43,6 +43,14 @@ trait BSONSerializer extends BSONEncoder with Logging {
     buf.toByteArray
   }
 
+  /** Encoding of a pre-encoded byte array with some very basic validation */
+  def encodeObject(o: Array[Byte]): Int = {
+    val start = _buf.getPosition
+    _buf.write(o)
+    // total bytes written
+    _buf.getPosition - start
+  }
+  
   /**
    * Encodes a Map[String, Any] into a BSONObject (or it's wire equivalent)
    * @param o the Object to encode
@@ -51,23 +59,6 @@ trait BSONSerializer extends BSONEncoder with Logging {
   def putObject(o: Map[String, Any]): Int = putObject(None, o)
   def putObject(name: String, o: Map[String, Any]): Int = putObject(Some(name), o)
 
-  /** Encoding of a pre-encoded byte array with some very basic validation */
-  def putObject(o: Array[Byte]): Int = {
-    val start = _buf.getPosition
-    val sizePos = _buf.getPosition
-    _buf.writeInt(0) // placeholder for document length
-    
-    // TODO - Validate type is OBJECT
-    _buf.write(o)
-    _buf.write(EOO)
-
-    // Backtrack and set the length
-    val sz = _buf.getPosition - sizePos
-    log.debug("Size of Document: %d, %d", sizePos, sz)
-    _buf.writeInt(sizePos, sz)
-    // total bytes written
-    _buf.getPosition - start
-  }
 
   /**
    * Encodes a Map[String, Any] into a BSONObject (or it's wire equivalent)
@@ -133,7 +124,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
         _putValueString(value.toString)
       }
       case other => {
-        log.debug("Applying Encoding Hooks")
+        log.trace("Applying Encoding Hooks")
         // Apply encoding hooks and then write whatever comes out
         _putHandle(BSON.applyEncodingHooks(value))(name)
       }
@@ -312,6 +303,10 @@ trait BSONSerializer extends BSONEncoder with Logging {
     val pos = _buf.getPosition + bytes
     log.debug("Seeking to %d", pos)
   }
+
+
+  def active = _buf == null
 }
 
 class DefaultBSONSerializer extends BSONSerializer
+

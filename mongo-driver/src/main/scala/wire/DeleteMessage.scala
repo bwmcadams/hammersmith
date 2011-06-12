@@ -53,7 +53,7 @@ abstract class DeleteMessage[T : SerializableBSONObject] extends MongoClientWrit
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)
-    enc.putObject(implicitly[SerializableBSONObject[T]].encode(query))
+    enc.encodeObject(implicitly[SerializableBSONObject[T]].encode(query))
   }
 }
 

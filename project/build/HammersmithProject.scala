@@ -33,7 +33,7 @@ class HammersmithProject(info: ProjectInfo)
     val netty = "org.jboss.netty" % "netty" % "3.2.4.Final"
 
     // Twitter-util
-    val twitterUtilCore = "com.twitter" % "util-core" % "1.8.13"
+    val twitterUtilCore = "com.twitter" % "util-core" % "1.8.15"
 
     // Testing Deps
     val specs2 = "org.specs2" %% "specs2" % "1.4"  
@@ -48,16 +48,16 @@ class HammersmithProject(info: ProjectInfo)
 
   class BSONDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info) {
     // For testing BSON wire formats etc from a 'known good' state
-    val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.6.2" % "test->default"
+    val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.6.3" % "test->default"
   }
 
   class MongoDriverProject(info: ProjectInfo) extends HammersmithBaseProject(info) {
+    val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1" % "test"
 
-    //val slf4jJCL = "org.slf4j" % "slf4j-simple" % "1.6.1" % "test"
   }
 
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
-  val logback = "ch.qos.logback" % "logback-classic" % "0.9.28"
+  //val logback = "ch.qos.logback" % "logback-classic" % "0.9.28"
 
   val sbtSnapshots = "snapshots" at "http://scala-tools.org/repo-snapshots"
   val sbtReleases  = "releases" at "http://scala-tools.org/repo-releases"

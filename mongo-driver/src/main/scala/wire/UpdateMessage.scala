@@ -52,9 +52,6 @@ abstract class UpdateMessage[Upd : SerializableBSONObject] extends MongoClientWr
   val query: BSONDocument // The query document to select from mongo
 
   val update: Upd // The document specifying the update to perform
-  val uM: SerializableBSONObject[Upd]
-
-
 
 
   // TODO - Can we actually get some useful info here?
@@ -66,7 +63,7 @@ abstract class UpdateMessage[Upd : SerializableBSONObject] extends MongoClientWr
     enc.writeInt(flags)
     // TODO - Check against Max BSON Size
     enc.putObject(query)
-    enc.putObject(implicitly[SerializableBSONObject[Upd]].encode(update))
+    enc.encodeObject(implicitly[SerializableBSONObject[Upd]].encode(update))
   }
 }
 
