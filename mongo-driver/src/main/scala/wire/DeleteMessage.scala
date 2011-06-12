@@ -18,7 +18,7 @@
 package com.mongodb.async
 package wire
 
-import org.bson.BSONSerializer
+import org.bson._
 import org.bson.collection._
 import org.bson.util.Logging
 
@@ -32,7 +32,7 @@ import org.bson.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
-trait DeleteMessage extends MongoClientWriteMessage {
+abstract class DeleteMessage[T : SerializableBSONObject] extends MongoClientWriteMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use
@@ -45,7 +45,7 @@ trait DeleteMessage extends MongoClientWriteMessage {
 
   val removeSingle: Boolean // Remove only first matching document
 
-  val query: BSONDocument // Query object for what to delete
+  val query: T // Query object for what to delete
 
   def ids: Seq[Option[AnyRef]] = List(None)
 
@@ -53,12 +53,12 @@ trait DeleteMessage extends MongoClientWriteMessage {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)
-    enc.putObject(query)
+    enc.putObject(implicitly[SerializableBSONObject[T]].encode(query))
   }
 }
 
 object DeleteMessage extends Logging {
-  def apply(ns: String, q: BSONDocument, onlyRemoveOne: Boolean = false) = new DeleteMessage {
+  def apply[T : SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) = new DeleteMessage {
     val namespace = ns
     val query = q
     val removeSingle = onlyRemoveOne

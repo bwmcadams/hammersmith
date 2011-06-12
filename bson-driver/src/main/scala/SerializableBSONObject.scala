@@ -19,45 +19,31 @@ package org.bson
 
 import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
 
-// TODO - Enforcement of Serializable types?
 /**
- * You should always subclass SerializableBSONDocument or SerializableBSONList
- * depending on how you want your object to be treated.
+ * Type class base for anything you want to be serialized or deserialized 
  */
-sealed trait SerializableBSONObject extends Iterable[(String, Any)] {
+trait SerializableBSONObject[T] {
 
-  val serializer: BSONSerializer
+  def encode(doc: T, out: OutputBuffer)
+
+  def encode(doc: T): Array[Byte] 
 
   /**
-   * The keys in your object
-   * Must be available, even with list
-   * (They are encoded as dictionaries to BSON)
+   * These methods are used to validate documents in certain cases.
+   * They will be invoked by the system at the appropriate times and you must 
+   * implement them in a manner appropriate for your object to ensure proper mongo saving.
    */
-  def keySet: scala.collection.Set[String]
+  def checkObject(doc: T, isQuery: Boolean = false): Unit
 
-  def encode(out: OutputBuffer) =
-    serializer.encode(this, out)
+  def checkKeys(doc: T): Unit
 
-  def encode(): Array[Byte] = serializer.encode(this)
-
-}
-
-trait SerializableBSONDocument extends SerializableBSONObject {
   /**
-   * A map representation of your object,
-   * required to serialize things.
-   * TODO - Should we offer some way of protecting this?
+   * Checks for an ID and generates one.
+   * Not all implementers will need this, but it gets invoked nonetheless
+   * as a signal to BSONDocument, etc implementations to verify an id is there 
+   * and generate one if needed.
    */
-  def asMap: scala.collection.Map[String, Any]
+  def checkID(doc: T): Unit
 
-}
-
-/**
- * For custom objects rather than maps
- */
-trait SerializableBSONCustomDocument extends SerializableBSONDocument {
-  override val keySet = asMap.keySet.asInstanceOf[Set[String]]
-
-  override def iterator = asMap.iterator
 }
 

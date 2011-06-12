@@ -40,7 +40,7 @@ trait CursorQueryRequestFuture extends RequestFuture {
 }
 
 trait GetMoreRequestFuture extends RequestFuture {
-  type DocType <: BSONDocument
+  type DocType
   type T = (Long, Seq[DocType])
 }
 
@@ -50,7 +50,7 @@ trait GetMoreRequestFuture extends RequestFuture {
  * Items which return a single document, and not a cursor
  */
 trait SingleDocQueryRequestFuture extends QueryRequestFuture {
-  type T <: BSONDocument
+  type T 
 }
 
 /**
@@ -97,7 +97,7 @@ object RequestFutures extends Logging {
   //    case o: ObjectId => insert(body)
   //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
   //  }
-  def getMore(f: Either[Throwable, (Long, Seq[BSONDocument])] => Unit) =
+  def getMore[T](f: Either[Throwable, (Long, Seq[T])] => Unit) =
     new GetMoreRequestFuture {
       val body = f
       override def toString = "{GetMoreRequestFuture}"
@@ -112,14 +112,14 @@ object RequestFutures extends Logging {
 
   def find[A <: Cursor](f: Either[Throwable, A] => Unit) = query(f)
 
-  def command[A <: BSONDocument](f: Either[Throwable, A] => Unit) =
+  def command[A](f: Either[Throwable, A] => Unit) =
     new SingleDocQueryRequestFuture {
       type T = A
       val body = f
       override def toString = "{SingleDocQueryRequestFuture}"
     }
 
-  def findOne[A <: BSONDocument](f: Either[Throwable, A] => Unit) = command(f)
+  def findOne[A](f: Either[Throwable, A] => Unit) = command(f)
 
   def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
     new WriteRequestFuture {
@@ -138,9 +138,9 @@ object RequestFutures extends Logging {
  * "Simpler" request futures which swallow any errors.
  */
 object SimpleRequestFutures extends Logging {
-  def findOne[A <: BSONDocument](f: A => Unit) = command(f)
+  def findOne[A](f: A => Unit) = command(f)
 
-  def command[A <: BSONDocument](f: A => Unit) =
+  def command[A](f: A => Unit) =
     new SingleDocQueryRequestFuture {
       type T = A
       val body = (result: Either[Throwable, A]) => result match {
@@ -150,9 +150,9 @@ object SimpleRequestFutures extends Logging {
       override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
 
-  def getMore(f: (Long, Seq[BSONDocument]) => Unit) =
+  def getMore[A](f: (Long, Seq[A]) => Unit) =
     new GetMoreRequestFuture {
-      val body = (result: Either[Throwable, (Long, Seq[BSONDocument])]) => result match {
+      val body = (result: Either[Throwable, (Long, Seq[A])]) => result match {
         case Right((cid, docs)) => f(cid, docs)
         case Left(t) => log.error(t, "GetMore Failed."); throw t
       }

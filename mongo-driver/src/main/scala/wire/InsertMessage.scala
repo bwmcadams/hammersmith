@@ -17,7 +17,7 @@
 package com.mongodb.async
 package wire
 
-import org.bson.BSONSerializer
+import org.bson._
 import org.bson.util.Logging
 import org.bson.collection.{Document , BSONDocument}
 import scala.collection.mutable.Queue
@@ -32,15 +32,16 @@ import scala.collection.mutable.Queue
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPINSERT
  */
-trait InsertMessage extends MongoClientWriteMessage {
+abstract class InsertMessage[T : SerializableBSONObject] extends MongoClientWriteMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpInsert
 
   val ZERO: Int = 0 // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
-  val documents: Seq[BSONDocument] // One or more documents to insert into the collection
+  val documents: Seq[T] // One or more documents to insert into the collection
+  val m = implicitly[SerializableBSONObject[T]]
 
-  def ids: Seq[Option[AnyRef]] = documents.map(_.getAs[AnyRef]("_id"))
+  //def ids: Seq[Option[AnyRef]] = documents.map(_.getAs[AnyRef]("_id"))
 
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
@@ -53,7 +54,7 @@ trait InsertMessage extends MongoClientWriteMessage {
     // TODO - test recursion
     for (doc <- q) {
       val total = enc.size
-      val n = enc.putObject(doc)
+      val n = enc.putObject(implicitly[SerializableBSONObject[T]].encode(doc))
       log.debug("Total: %d, Last Doc Size: %d", total, n)
       // If we went over the size, backtrack and start a new message
       if (total >= (4 * maxBSON)) {
@@ -68,7 +69,7 @@ trait InsertMessage extends MongoClientWriteMessage {
 }
 
 object InsertMessage extends Logging {
-  def apply(ns: String, docs: BSONDocument*) = new InsertMessage {
+  def apply[T : SerializableBSONObject](ns: String, docs: T*) = new InsertMessage {
     val namespace = ns
     val documents = docs
   }

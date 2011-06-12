@@ -20,6 +20,7 @@ package com.mongodb.async
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
 
+import org.bson._
 import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
@@ -120,7 +121,7 @@ abstract class MongoConnection extends Logging {
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand[A <% BSONDocument](ns: String, cmd: A)(f: SingleDocQueryRequestFuture) {
+  protected[mongodb] def runCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd)(f: SingleDocQueryRequestFuture) {
     val qMsg = MongoConnection.createCommand(ns, cmd)
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
@@ -135,35 +136,7 @@ abstract class MongoConnection extends Logging {
    */
   def apply(dbName: String): DB = database(dbName)
 
-  protected[mongodb] def checkObject(doc: BSONDocument, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)
 
-  protected[mongodb] def checkKeys(doc: BSONDocument) {
-    // TODO - Track key and level for clear error message?
-    // TODO - Tail Call optimize me?
-    // TODO - Optimize... trying to minimize number of loops but can we cut the instance checks?
-    for (k <- doc.keys) {
-      require(!(k contains "."), "Fields to be stored in MongoDB may not contain '.', which is a reserved character. Offending Key: " + k)
-      require(!(k startsWith "$"), "Fields to be stored in MongoDB may not start with '$', which is a reserved character. Offending Key: " + k)
-      if (doc.get(k).isInstanceOf[BSONDocument]) checkKeys(doc.as[BSONDocument](k))
-    }
-  }
-
-  /**
-   * Checks for an ID and generates one
-   */
-  protected[mongodb] def checkID(doc: BSONDocument) = doc.get("_id") match {
-    case Some(oid: ObjectId) => {
-      log.debug("Found an existing OID")
-      oid.notNew()
-    }
-    case Some(other) => {
-      log.debug("Found a non-OID ID")
-    }
-    case None => {
-      doc.put("_id", new ObjectId())
-      log.trace("no ObjectId. Generated: %s", doc.get("_id"))
-    }
-  }
 
   /**
    * Remember, a DB is basically a future since it doesn't have to exist.
@@ -186,12 +159,12 @@ abstract class MongoConnection extends Logging {
     }))
   }
 
-  def find(db: String)(collection: String)(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture) {
+  def find[Qry <: BSONDocument, Flds <: BSONDocument](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     val qMsg = QueryMessage(db + "." + collection, numToSkip, batchSize, query, fieldSpec(fields))
     send(qMsg, callback)
   }
 
-  def findOne(db: String)(collection: String)(query: BSONDocument = Document.empty, fields: BSONDocument = Document.empty)(callback: SingleDocQueryRequestFuture) {
+  def findOne[Qry <: BSONDocument, Flds <: BSONDocument](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     val qMsg = QueryMessage(db + "." + collection, 0, -1, query, fieldSpec(fields))
     send(qMsg, callback)
   }
@@ -202,11 +175,11 @@ abstract class MongoConnection extends Logging {
     findOne(db)(collection)(Document("_id" -> id))(callback)
 
   // TODO - Immutable mode / support immutable objects
-  def insert(db: String)(collection: String)(doc: BSONDocument, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def insert[T](db: String)(collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.debug("Inserting: %s to %s.%s with WriteConcern: %s", doc, db, collection, concern)
     if (validate) {
-      checkObject(doc)
-      checkID(doc)
+      m.checkObject(doc)
+      m.checkID(doc)
     } else log.info("Validation of objects disabled; no ID Gen.")
     send(InsertMessage(db + "." + collection, doc), callback)
   }
@@ -220,11 +193,11 @@ abstract class MongoConnection extends Logging {
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
    * TODO - Support turning off ID Validation
    */
-  def batchInsert(db: String)(collection: String)(docs: BSONDocument*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def batchInsert[T](db: String)(collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.debug("Batch Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
     docs.foreach(x => {
-      checkObject(x)
-      checkID(x)
+      m.checkObject(x)
+      m.checkID(x)
     })
     send(InsertMessage(db + "." + collection, docs: _*), callback)
   }
@@ -246,7 +219,7 @@ abstract class MongoConnection extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove(db: String)(collection: String)(query: BSONDocument = Document.empty) = findAndModify(db)(collection)(query=query, remove=true)_
+  def findAndRemove[Qry :  SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))_
 
   /**
    * Finds the first document in the query and updates it.
@@ -259,13 +232,14 @@ abstract class MongoConnection extends Logging {
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-  def findAndModify(db: String)(collection: String)(query: BSONDocument = Document.empty,
-                                                    sort: BSONDocument = Document.empty,
-                                                    remove: Boolean = false,
-                                                    update: Option[Document] = None,
-                                                    getNew: Boolean = false,
-                                                    fields: BSONDocument = Document.empty,
-                                                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) {
+   def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject](db: String)(collection: String)(
+                    query: Qry = Document.empty,
+                    sort: Srt = Document.empty,
+                    remove: Boolean = false,
+                    update: Option[Upd] = None,
+                    getNew: Boolean = false,
+                    fields: Flds = Document.empty,
+                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = {
     val cmd = OrderedDocument("findandmodify" -> collection,
                               "query" -> query,
                               "fields" -> fields,
@@ -282,7 +256,8 @@ abstract class MongoConnection extends Logging {
       update.foreach(_up => {
         log.trace("Update spec set. %s", _up)
         // If first key does not start with a $, then the object must be inserted as is and should be checked.
-        if (_up.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(_up)
+        // TODO - FIX AND UNCOMMENT ME
+        //if (_up.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(_up)
         cmd += "update" -> _up
         // TODO - Make sure an error is thrown here that forces its way out.
       })
@@ -306,19 +281,20 @@ abstract class MongoConnection extends Logging {
 
   }
 
-  def update(db: String)(collection: String)(query: BSONDocument, update: BSONDocument, upsert: Boolean = false, multi: Boolean = false)
-            (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def update[Upd](db: String)(collection: String)(query: BSONDocument, update: Upd, upsert: Boolean = false, multi: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, uM: SerializableBSONObject[Upd]) {
     /**
     * If a field block doesn't start with a ($ - special type) we need to validate the keys
     * Since you can't mix $set, etc with a regular "object" this filters safely.
+    TODO - Fix and uncomment!!!!
     */
-    if (update.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(update)
+    // if (update.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(update)
     send(UpdateMessage(db + "." + collection, query, update, upsert, multi), callback)
   }
 
-  def save(db: String)(collection: String)(obj: BSONDocument)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    checkObject(obj)
-    obj.get("_id") match {
+  def save[T](db: String)(collection: String)(obj: T)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+    m.checkObject(obj)
+    throw new UnsupportedOperationException("Save doesn't currently function with the new system.")
+    /*obj.get("_id") match {
       case Some(id) => {
         id match {
           case oid: ObjectId => oid.notNew()
@@ -330,17 +306,16 @@ abstract class MongoConnection extends Logging {
         obj += "_id" -> new ObjectId()
         insert(db)(collection)(obj)(callback)(concern)
       }
-    }
+    }*/
   }
 
-  def remove(db: String)(collection: String)(obj: BSONDocument, removeSingle: Boolean = false)
-                        (callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def remove[T](db: String)(collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     send(DeleteMessage(db + "." + collection, obj, removeSingle), callback)
   }
 
   // TODO - FindAndModify / FindAndRemove
 
-  def createIndex[A <% BSONDocument, B <% BSONDocument](db: String)(collection: String)(keys: A, options: B = Document.empty)(callback: WriteRequestFuture) {
+  def createIndex[Kys <% BSONDocument, Opts <% BSONDocument](db: String)(collection: String)(keys: Kys, options: Opts = Document.empty)(callback: WriteRequestFuture) {
     implicit val idxSafe = WriteConcern.Safe
     val b = Document.newBuilder 
     b += "name" -> indexName(keys)
@@ -350,7 +325,7 @@ abstract class MongoConnection extends Logging {
     insert(db)("system.indexes")(b.result, validate=false)(callback)
   }
 
-  def createUniqueIndex[A <% BSONDocument](db: String)(collection: String)(keys: A)(callback: WriteRequestFuture) {
+  def createUniqueIndex[Idx <% BSONDocument](db: String)(collection: String)(keys: Idx)(callback: WriteRequestFuture) {
     implicit val idxSafe = WriteConcern.Safe
     createIndex(db)(collection)(keys, Document("unique" -> true))(callback)
   }
@@ -504,7 +479,7 @@ object MongoConnection extends Logging {
   }
 
 
-  protected[mongodb] def createCommand[A <% BSONDocument](ns: String, cmd: A) = {
+  protected[mongodb] def createCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd) = {
     log.trace("Attempting to create command '%s' on DB '%s.$cmd'", cmd, ns)
     QueryMessage(ns + ".$cmd", 0, -1, cmd)
   }

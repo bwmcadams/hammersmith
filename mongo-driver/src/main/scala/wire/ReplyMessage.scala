@@ -28,9 +28,11 @@ import org.bson.collection._
  *
  * OP_REPLY is sent by the database in response to an OP_QUERY or
  * OP_GET_MORE message.
+ * 
+ * TODO - Come back to this.  We need to figure out how to lay down the 'implicit' deserializer on decode.
  *
  */
-trait ReplyMessage extends MongoServerMessage {
+abstract class ReplyMessage extends MongoServerMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpReply
   val header: MessageHeader
