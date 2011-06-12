@@ -18,31 +18,34 @@
 package org.bson
 package collection
 
-import org.bson.util.Logging
+import org.bson.util._
 import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
 import com.twitter.util.{Future , SimplePool}
 
 object `package` {
+    /**
+     * TODO - Replace ThreadLocal with actor pipelines?
+     */
+    val defaultSerializerPool = new ThreadLocal(new SimplePool(for (i <- 0 until 10) yield new DefaultBSONSerializer)) // todo - intelligent pooling
+
+    val defaultDeserializerPool = new ThreadLocal(new SimplePool(for (i <- 0 until 10) yield new DefaultBSONDeserializer)) // todo - intelligent pooling
 
   trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with Logging {
 
-    val defaultSerializerPool = new SimplePool(for (i <- 0 until 10) yield new DefaultBSONSerializer) // todo - intelligent pooling
-
-    val defaultDeserializerPool = new SimplePool(for (i <- 0 until 10) yield new DefaultBSONDeserializer) // todo - intelligent pooling
 
     def encode(doc: T, out: OutputBuffer) = {
-      val serializer = defaultSerializerPool.reserve()()
+      val serializer = defaultSerializerPool().reserve()()
       serializer.encode(doc, out)
-      serializer.done()
-      defaultSerializerPool.release(serializer)
+      serializer.done
+      defaultSerializerPool().release(serializer)
     }
 
     def encode(doc: T): Array[Byte] = {
-      val serializer = defaultSerializerPool.reserve()()
+      val serializer = defaultSerializerPool().reserve()()
       val bytes = serializer.encode(doc)
-      serializer.done()
-      defaultSerializerPool.release(serializer)
+      serializer.done
+      defaultSerializerPool().release(serializer)
       bytes
     }
 
