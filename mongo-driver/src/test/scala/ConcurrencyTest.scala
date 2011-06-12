@@ -28,6 +28,7 @@ import org.specs2.execute.Result
 import org.specs2.Specification
 import org.specs2.specification._
 import org.specs2.matcher._
+import com.twitter.util.Time
 
 class ConcurrencyTestingSpec extends Specification 
                                 with Logging { def is = 
@@ -61,11 +62,13 @@ class ConcurrencyTestingSpec extends Specification
     spawn { mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){} }
     spawn { mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){} }
     var x: Int = 0
+    var start = Time.now
     while (x < 10 && n != 600) {
       mongo.count((_n: Int) => n = _n)
       x += 1
       Thread.sleep(1.seconds.inMillis)
     }
+    log.info("Insert tie-out took %s milliseconds", start.untilNow.inMillis)
     n must eventually(beEqualTo(600)) 
   }
 }
