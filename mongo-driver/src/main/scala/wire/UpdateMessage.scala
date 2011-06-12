@@ -18,7 +18,7 @@
 package com.mongodb.async
 package wire
 
-import org.bson.BSONSerializer
+import org.bson._
 import org.bson.collection._
 import org.bson.util.Logging
 
@@ -32,7 +32,8 @@ import org.bson.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-trait UpdateMessage extends MongoClientWriteMessage {
+abstract class UpdateMessage[Upd : SerializableBSONObject] extends MongoClientWriteMessage {
+
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
 
@@ -49,7 +50,11 @@ trait UpdateMessage extends MongoClientWriteMessage {
   val multiUpdate: Boolean
 
   val query: BSONDocument // The query document to select from mongo
-  val update: BSONDocument // The document specifying the update to perform
+
+  val update: Upd // The document specifying the update to perform
+  val uM: SerializableBSONObject[Upd]
+
+
 
 
   // TODO - Can we actually get some useful info here?
@@ -61,12 +66,12 @@ trait UpdateMessage extends MongoClientWriteMessage {
     enc.writeInt(flags)
     // TODO - Check against Max BSON Size
     enc.putObject(query)
-    enc.putObject(update)
+    enc.putObject(implicitly[SerializableBSONObject[Upd]].encode(update))
   }
 }
 
 object UpdateMessage extends Logging {
-  def apply(ns: String, q: BSONDocument, updateSpec: BSONDocument, _upsert: Boolean = false, multi: Boolean = false) = new UpdateMessage {
+  def apply[Upd : SerializableBSONObject](ns: String, q: BSONDocument, updateSpec: Upd, _upsert: Boolean = false, multi: Boolean = false) = new UpdateMessage {
     val namespace = ns
     val query = q
     val update = updateSpec

@@ -23,7 +23,7 @@ import scala.annotation.tailrec
 import org.bson.util.Logging
 import scala.collection.mutable._
 
-trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] with Logging {
+trait BSONDocument extends MapProxy[String, Any] with Logging {
   /**
    * as
    *
@@ -98,6 +98,12 @@ trait BSONDocument extends SerializableBSONDocument with MapProxy[String, Any] w
     }
   }
 
+  /**
+   * A map representation of your object,
+   * required to serialize things.
+   * TODO - Should we offer some way of protecting this?
+   */
+  def asMap: scala.collection.Map[String, Any]
 }
 
 /**
@@ -127,7 +133,6 @@ class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, 
  */
 class Document extends BSONDocument {
   protected val _map = new HashMap[String, Any]
-  val serializer = new DefaultBSONSerializer
   def asMap = _map
   def self = _map
 }
@@ -141,7 +146,6 @@ object Document extends BSONDocumentFactory[Document] {
  */
 class OrderedDocument extends BSONDocument {
   protected val _map = new LinkedHashMap[String, Any]
-  val serializer = new DefaultBSONSerializer
   def asMap = _map
   def self = _map
 }
@@ -156,7 +160,6 @@ object OrderedDocument extends BSONDocumentFactory[OrderedDocument] {
  */
 class BSONList extends BSONDocument {
   protected val _map = new HashMap[String, Any]
-  val serializer = new DefaultBSONSerializer
   def asMap = _map
   def self = _map
   def put(k: Int, v: Any): Option[Any] = put(k.toString, v)

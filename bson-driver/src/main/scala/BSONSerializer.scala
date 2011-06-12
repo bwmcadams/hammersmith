@@ -27,38 +27,58 @@ import scala.util.matching.Regex
 import scalaj.collection.Imports._
 import java.util.{ UUID, Date => JDKDate }
 import org.bson.collection.BSONList
+import scala.collection.Map
 
 trait BSONSerializer extends BSONEncoder with Logging {
 
-  def encode(obj: SerializableBSONObject, out: OutputBuffer) {
+  def encode(obj: Map[String, Any], out: OutputBuffer) {
     set(out)
     putObject(obj)
     done()
   }
 
-  def encode(obj: SerializableBSONObject): Array[Byte] = {
+  def encode(obj: Map[String, Any]): Array[Byte] = {
     val buf = new BasicOutputBuffer
     encode(obj, buf)
     buf.toByteArray
   }
 
   /**
-   * Encodes a SerializableBSONObject into a BSONObject (or it's wire equivalent)
+   * Encodes a Map[String, Any] into a BSONObject (or it's wire equivalent)
    * @param o the Object to encode
    * @return The number of characters which were encoded
    */
-  def putObject(o: SerializableBSONObject): Int = putObject(None, o)
-  def putObject(name: String, o: SerializableBSONObject): Int = putObject(Some(name), o)
+  def putObject(o: Map[String, Any]): Int = putObject(None, o)
+  def putObject(name: String, o: Map[String, Any]): Int = putObject(Some(name), o)
+
+  /** Encoding of a pre-encoded byte array with some very basic validation */
+  def putObject(o: Array[Byte]): Int = {
+    val start = _buf.getPosition
+    val sizePos = _buf.getPosition
+    _buf.writeInt(0) // placeholder for document length
+    
+    // TODO - Validate type is OBJECT
+    _buf.write(o)
+    _buf.write(EOO)
+
+    // Backtrack and set the length
+    val sz = _buf.getPosition - sizePos
+    log.debug("Size of Document: %d, %d", sizePos, sz)
+    _buf.writeInt(sizePos, sz)
+    // total bytes written
+    _buf.getPosition - start
+  }
+
   /**
-   * Encodes a SerializableBSONObject into a BSONObject (or it's wire equivalent)
+   * Encodes a Map[String, Any] into a BSONObject (or it's wire equivalent)
    * Primarily for embedded objects, puts them by name.
    * @param name Field name to place it in.  If None, nulls on the wire.
    * @param o the Object to encode
    * @return The number of characters which were encoded
    */
-  def putObject(name: Option[String], o: SerializableBSONObject): Int = {
+  def putObject(name: Option[String], o: Map[String, Any]): Int = {
     require(o != null, "Cannot serialize null objects.")
-    log.debug("PutObject {name: '%s', value: '%s', # keys: %d", name.getOrElse("null"), o, o.keySet.size)
+    log.debug("PutObject {name: '%s', value: '%s'", name.getOrElse("null"), o)
 
     val start = _buf.getPosition
 
@@ -153,7 +173,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
       log.trace("BSONObject (the Java kind) value.")
       putObject(_: String, bsonObj)
     }
-    case serBson: SerializableBSONObject => {
+    case serBson: Map[String, Any] => {
       log.trace("Serializable BSON Object value.")
       putObject(_: String, serBson)
     }
@@ -282,8 +302,8 @@ trait BSONSerializer extends BSONEncoder with Logging {
   protected def putIterable(name: String, i: Iterable[_]): Unit = putArray(name, i.toArray)
 
   // TODO - Implement me! (Really on Mongo side of the wall)   (DBrefs and the like...)
-  def putSpecial(name: String, o: SerializableBSONObject): Boolean = false
-  def handleSpecialObjects(name: String, o: SerializableBSONObject): Boolean = false
+  def putSpecial(name: String, o: Map[String, Any]): Boolean = false
+  def handleSpecialObjects(name: String, o: Map[String, Any]): Boolean = false
 
   /** Size of the Buffer */
   def size = _buf.size()
