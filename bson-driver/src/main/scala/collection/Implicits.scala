@@ -19,18 +19,32 @@ package org.bson
 package collection
 
 import org.bson.util.Logging
-import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
+import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
+import com.twitter.util.{Future , SimplePool}
 
-object `package` { 
+object `package` {
 
   trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with Logging {
-    val serializer: BSONSerializer
-    val deserializer: BSONDeserializer
 
-    def encode(doc: T, out: OutputBuffer) = serializer.encode(doc, out)
+    val defaultSerializerPool = new SimplePool(for (i <- 0 until 10) yield new DefaultBSONSerializer) // todo - intelligent pooling
 
-    def encode(doc: T): Array[Byte] = serializer.encode(doc)
+    val defaultDeserializerPool = new SimplePool(for (i <- 0 until 10) yield new DefaultBSONDeserializer) // todo - intelligent pooling
+
+    def encode(doc: T, out: OutputBuffer) = {
+      val serializer = defaultSerializerPool.reserve()()
+      serializer.encode(doc, out)
+      serializer.done()
+      defaultSerializerPool.release(serializer)
+    }
+
+    def encode(doc: T): Array[Byte] = {
+      val serializer = defaultSerializerPool.reserve()()
+      val bytes = serializer.encode(doc)
+      serializer.done()
+      defaultSerializerPool.release(serializer)
+      bytes
+    }
 
     def checkObject(doc: T, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)
 
@@ -55,31 +69,28 @@ object `package` {
       case Some(oid: ObjectId) => {
         log.debug("Found an existing OID")
         oid.notNew()
+        //oid
       }
       case Some(other) => {
         log.debug("Found a non-OID ID")
+        //other
       }
       case None => {
-        doc.put("_id", new ObjectId())
+        val oid = new ObjectId()
+        doc.put("_id", oid)
         log.trace("no ObjectId. Generated: %s", doc.get("_id"))
+        //oid
       }
     }
+    
+    def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")
   }
 
-  implicit object SerializableDocument extends SerializableBSONDocumentLike[Document] {
-    val serializer = new DefaultBSONSerializer
-    val deserializer = new DefaultBSONDeserializer
-  }
+  implicit object SerializableDocument extends SerializableBSONDocumentLike[Document]
 
-  implicit object SerializableOrderedDocument extends SerializableBSONDocumentLike[OrderedDocument] {
-    val serializer = new DefaultBSONSerializer
-    val deserializer = new DefaultBSONDeserializer
-  }
+  implicit object SerializableOrderedDocument extends SerializableBSONDocumentLike[OrderedDocument]
 
-  implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList] {
-    val serializer = new DefaultBSONSerializer
-    val deserializer = new DefaultBSONDeserializer
-  }
+  implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
 
 
 }

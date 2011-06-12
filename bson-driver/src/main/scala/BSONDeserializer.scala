@@ -230,6 +230,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
    */
   protected var _in: Input = null
   protected var _callback: Callback = null
+
 }
 
 /**
@@ -240,7 +241,7 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
   class DefaultBSONCallback extends Callback {
 
-    log.debug("Beginning a new DefaultBSONCallback; assembling a Builder.")
+    log.trace("Beginning a new DefaultBSONCallback; assembling a Builder.")
 
     protected var root: BSONDocument = Document.empty
 

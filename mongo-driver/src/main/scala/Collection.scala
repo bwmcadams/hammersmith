@@ -143,7 +143,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject](query: Qry = Document.empty) = db.findAndRemove(name)(query)
+  def findAndRemove[Qry : SerializableBSONObject](query: Qry = Document.empty) = db.findAndRemove(name)(query)_
 
   /**
    * Finds the first document in the query and updates it.
@@ -160,7 +160,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
                     query: Qry = Document.empty,
                     sort: Srt = Document.empty,
                     remove: Boolean = false,
-                    update: Option[Upd] = None,
+                    update: Option[Upd] = Option[Document](null),
                     getNew: Boolean = false,
                     fields: Flds = Document.empty,
                     upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = 

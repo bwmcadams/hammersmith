@@ -41,7 +41,7 @@ abstract class InsertMessage[T : SerializableBSONObject] extends MongoClientWrit
   val documents: Seq[T] // One or more documents to insert into the collection
   val m = implicitly[SerializableBSONObject[T]]
 
-  //def ids: Seq[Option[AnyRef]] = documents.map(_.getAs[AnyRef]("_id"))
+  def ids: Seq[Option[AnyRef]] = documents.map(m._id(_))
 
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
@@ -54,7 +54,7 @@ abstract class InsertMessage[T : SerializableBSONObject] extends MongoClientWrit
     // TODO - test recursion
     for (doc <- q) {
       val total = enc.size
-      val n = enc.putObject(implicitly[SerializableBSONObject[T]].encode(doc))
+      val n = enc.encodeObject(implicitly[SerializableBSONObject[T]].encode(doc))
       log.debug("Total: %d, Last Doc Size: %d", total, n)
       // If we went over the size, backtrack and start a new message
       if (total >= (4 * maxBSON)) {

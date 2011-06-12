@@ -97,8 +97,9 @@ object RequestFutures extends Logging {
   //    case o: ObjectId => insert(body)
   //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
   //  }
-  def getMore[T](f: Either[Throwable, (Long, Seq[T])] => Unit) =
+  def getMore[A](f: Either[Throwable, (Long, Seq[A])] => Unit) =
     new GetMoreRequestFuture {
+      type DocType = A
       val body = f
       override def toString = "{GetMoreRequestFuture}"
     }
@@ -152,6 +153,7 @@ object SimpleRequestFutures extends Logging {
 
   def getMore[A](f: (Long, Seq[A]) => Unit) =
     new GetMoreRequestFuture {
+      type DocType = A
       val body = (result: Either[Throwable, (Long, Seq[A])]) => result match {
         case Right((cid, docs)) => f(cid, docs)
         case Left(t) => log.error(t, "GetMore Failed."); throw t

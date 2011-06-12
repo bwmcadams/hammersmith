@@ -42,8 +42,10 @@ trait SerializableBSONObject[T] {
    * Not all implementers will need this, but it gets invoked nonetheless
    * as a signal to BSONDocument, etc implementations to verify an id is there 
    * and generate one if needed.
+   *
    */
   def checkID(doc: T): Unit
 
-}
+  def _id(doc: T): Option[AnyRef]
 
+}
