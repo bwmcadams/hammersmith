@@ -44,7 +44,7 @@ abstract class ReplyMessage extends MongoServerMessage {
   val cursorID: Long // cursorID, for client to do getMores
   val startingFrom: Int // Where in the cursor this reply starts at
   val numReturned: Int // Number of documents in the reply.
-  val documents: Seq[BSONDocument] // Sequence of documents
+  val documents: Seq[Array[Byte]] // Sequence of documents
 
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) =
     throw new UnsupportedOperationException("This message is not capable of being written. "
@@ -81,8 +81,17 @@ object ReplyMessage extends Logging {
        * decoding of these docs.  It makes *zero* sense to me to wait for a whole
        * block of documents to decode from BSON before I can begin iteration.
        */
-      val documents = for (i <- 0 until numReturned) yield decoder.decodeAndFetch(in).asInstanceOf[BSONDocument]
-
+      import org.bson.io.Bits
+      def _dec() = {
+        val len = Bits.readInt(in) 
+        log.info("Decoding object, length: %d", len)
+        val b = Array.ofDim[Byte](len)
+        Bits.readFully(in, b)
+        log.info("Decoded an object: %s", b)
+        b
+      }
+        
+      val documents = for (i <- 0 until numReturned) yield _dec()
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
         "Wanted: %d Got: %d".format(numReturned, documents.length))
       log.trace("Parsed Out Documents: %s", documents)

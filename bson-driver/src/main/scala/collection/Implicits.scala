@@ -22,10 +22,12 @@ import org.bson.util._
 import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
 import com.twitter.util.{Future , SimplePool}
+import java.io.InputStream
 
 object `package` {
     /**
      * TODO - Replace ThreadLocal with actor pipelines?
+     * TODO - Execute around pattern
      */
     val defaultSerializerPool = new ThreadLocal(new SimplePool(for (i <- 0 until 10) yield new DefaultBSONSerializer)) // todo - intelligent pooling
 
@@ -47,6 +49,13 @@ object `package` {
       serializer.done
       defaultSerializerPool().release(serializer)
       bytes
+    }
+
+    def decode(in: InputStream): T = {
+      val deserializer = defaultDeserializerPool().reserve()()
+      val doc = deserializer.decodeAndFetch(in).asInstanceOf[T]
+      defaultDeserializerPool().reserve()()
+      doc
     }
 
     def checkObject(doc: T, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)

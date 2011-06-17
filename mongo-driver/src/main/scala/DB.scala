@@ -106,7 +106,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def collectionNames(callback: Seq[String] => Unit) {
     val qMsg = QueryMessage("%s.system.namespaces".format(name), 0, 0, Document.empty)
     log.debug("[%s] Querying for Collection Names with: %s", name, qMsg)
-    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor) => {
+    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor[Document]) => {
       log.debug("Got a result from listing collections: %s", cursor)
       val b = Seq.newBuilder[String]
 

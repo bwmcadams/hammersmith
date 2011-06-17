@@ -18,11 +18,12 @@
 package com.mongodb.async
 package futures
 
-import org.bson.collection._
 import org.bson.util.Logging
+import org.bson.SerializableBSONObject
 
 sealed trait RequestFuture {
   type T
+
   val body: Either[Throwable, T] => Unit
 
   def apply(error: Throwable) = body(Left(error))
@@ -32,16 +33,19 @@ sealed trait RequestFuture {
   protected[futures] var completed = false
 }
 
-sealed trait QueryRequestFuture extends RequestFuture
-
-trait CursorQueryRequestFuture extends RequestFuture {
-  type T <: Cursor
-
+sealed trait QueryRequestFuture extends RequestFuture {
+  type DocType
+  val decoder: SerializableBSONObject[DocType]
 }
 
-trait GetMoreRequestFuture extends RequestFuture {
-  type DocType
+trait CursorQueryRequestFuture extends QueryRequestFuture {
+  type T <: Cursor[DocType]
+  val decoder: SerializableBSONObject[DocType]
+}
+
+trait GetMoreRequestFuture extends QueryRequestFuture {
   type T = (Long, Seq[DocType])
+  val decoder: SerializableBSONObject[DocType]
 }
 
 /**
@@ -50,7 +54,7 @@ trait GetMoreRequestFuture extends RequestFuture {
  * Items which return a single document, and not a cursor
  */
 trait SingleDocQueryRequestFuture extends QueryRequestFuture {
-  type T 
+  type T = DocType
 }
 
 /**
@@ -91,12 +95,6 @@ case object NoOpRequestFuture extends RequestFuture with Logging {
 }
 
 object RequestFutures extends Logging {
-  //  def request[T : Manifest](body: (Option[T], WriteResult) => Unit): RequestFuture[T] = manifest[T] match
-  //    case c: Cursor => query(body)
-  //    case d: Document => command(body)
-  //    case o: ObjectId => insert(body)
-  //    case default => throw new IllegalArgumentException("Cannot create a request handler for '%s'", default)
-  //  }
   def getMore[A](f: Either[Throwable, (Long, Seq[A])] => Unit) =
     new GetMoreRequestFuture {
       type DocType = A
@@ -104,14 +102,14 @@ object RequestFutures extends Logging {
       override def toString = "{GetMoreRequestFuture}"
     }
 
-  def query[A <: Cursor](f: Either[Throwable, A] => Unit) =
+  def query[A <: Cursor[T], T : SerializableBSONObject](f: Either[Throwable, A] => Unit) =
     new CursorQueryRequestFuture {
       type T = A
       val body = f
       override def toString = "{CursorQueryRequestFuture}"
     }
 
-  def find[A <: Cursor](f: Either[Throwable, A] => Unit) = query(f)
+  def find[A <: Cursor[T], T : SerializableBSONObject](f: Either[Throwable, A] => Unit) = query(f)
 
   def command[A](f: Either[Throwable, A] => Unit) =
     new SingleDocQueryRequestFuture {
@@ -161,9 +159,9 @@ object SimpleRequestFutures extends Logging {
       override def toString = "{SimpleGetMoreRequestFuture}"
     }
 
-  def find[A <: Cursor](f: A => Unit) = query(f)
+  def find[A <: Cursor[T], T : SerializableBSONObject](f: A => Unit) = query(f)
 
-  def query[A <: Cursor](f: A => Unit) =
+  def query[A <: Cursor[T], T : SerializableBSONObject](f: A => Unit) =
     new CursorQueryRequestFuture {
       type T = A
       val body = (result: Either[Throwable, A]) => result match {
