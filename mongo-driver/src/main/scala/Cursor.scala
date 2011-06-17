@@ -29,7 +29,7 @@ import com.twitter.util.CountDownLatch
 
 object Cursor extends Logging {
   trait IterState
-  case class Entry(doc: BSONDocument) extends IterState
+  case class Entry[T : SerializableBSONObject](doc: T) extends IterState
   case object Empty extends IterState
   case object EOF extends IterState
   trait IterCmd
@@ -37,13 +37,18 @@ object Cursor extends Logging {
   case class Next(op: (IterState) => IterCmd) extends IterCmd
   case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
 
+  def apply[T](namespace: String, reply: ReplyMessage)
+              (implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
+    log.info("Instantiate new Cursor[%s], on namespace: '%s'", decoder, namespace)
+    new Cursor[T](namespace, reply)(ctx, decoder)
+  }
   /**
    * Internal helper, more or less a "default" iterator for internal usage
    * Not exposed publicly but useful as an example.
    */
-  protected[mongodb] def basicIter(cursor: Cursor)(f: BSONDocument => Unit) = {
+  protected[mongodb] def basicIter[T : SerializableBSONObject](cursor: Cursor[T])(f: T => Unit) = {
     def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-      case Cursor.Entry(doc) => {
+      case Cursor.Entry(doc: T) => {
         f(doc)
         Cursor.Next(next)
       }
@@ -78,7 +83,7 @@ object Cursor extends Logging {
    *      The standard response to this should be Cursor.Done which tells the control loop to stop and shut down the Cursor.
    *      I suppose if you want to be special you could respond with something else but it probably won't work right.
    */
-  def iterate(cursor: Cursor)(op: (IterState) => IterCmd) {
+  def iterate[T : SerializableBSONObject](cursor: Cursor[T])(op: (IterState) => IterCmd) {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
@@ -105,9 +110,7 @@ object Cursor extends Logging {
  * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
  * TODO - Generic version with type passing
  */
-class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext) extends Logging {
-
-  type DocType = BSONDocument
+class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T]) extends Logging {
 
   val cursorID: Long = reply.cursorID
 
@@ -152,7 +155,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
       log.debug("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
       MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[BSONDocument])]) => {
+        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) => {
           reply match {
             case Right((id, batch)) => {
               log.debug("Got a result from 'getMore' command (id: %d).", id)
@@ -202,7 +205,7 @@ class Cursor(val namespace: String, protected val reply: ReplyMessage)(implicit 
    * AKA - If you want to stick your finger in this electrical socket, you'll have
    * to build your own fork first.
    */
-  protected[mongodb] def foreach(f: BSONDocument => Unit) = {
+  protected[mongodb] def foreach(f: T => Unit) = {
     log.debug("Foreach: %s | empty? %s", f, isEmpty)
     Cursor.basicIter(this)(f)
   }

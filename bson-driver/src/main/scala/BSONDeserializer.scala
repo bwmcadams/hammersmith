@@ -77,6 +77,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     log.trace("Decoded, got %s.", obj)
     get
   }
+
   def decode(in: InputStream, callback: Callback): Int = try {
     _decode(new Input(in), callback)
   } catch {

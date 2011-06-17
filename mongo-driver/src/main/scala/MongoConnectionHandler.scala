@@ -18,6 +18,7 @@
 package com.mongodb.async
 
 import org.bson.util.Logging
+import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import com.mongodb.async.wire._
@@ -25,8 +26,6 @@ import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
-import scala.collection.mutable.SynchronizedQueue
-
 /**
  * Base trait for all connections, be it direct, replica set, etc
  *
@@ -41,6 +40,22 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   protected val bootstrap: ClientBootstrap
   protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
 
+  protected def queryFail(reply: ReplyMessage, result: RequestFuture) = { 
+    log.trace("Query Failure")
+    // Attempt to grab the $err document
+    val err = reply.documents.headOption match {
+      case Some(b) => {
+        val errDoc = SerializableDocument.decode(b)  // TODO - Extractors!
+        log.trace("Error Document found: %s", errDoc)
+        result(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
+      }
+      case None => {
+        log.warn("No Error Document Found.")
+        "Unknown Error."
+        result(new Exception("Unknown error."))
+      }
+    }
+  }
 
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
@@ -60,87 +75,54 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
          * this is definitely warnable, for now.
          */
         if (req.isEmpty) log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.", reply.header.responseTo)
-        req.foreach(_ match {
-          case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
-            log.trace("Single Document Request Future.")
-            // This may actually be better as a disableable assert but for now i want it hard.
-            require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
-            // Check error state
-            if (reply.cursorNotFound) {
-              log.trace("Cursor Not Found.")
-              singleResult(new Exception("Cursor Not Found."))
-            } else if (reply.queryFailure) {
-              log.trace("Query Failure")
-              // Attempt to grab the $err document
-              val err = reply.documents.headOption match {
-                case Some(errDoc) => {
-                  log.trace("Error Document found: %s", errDoc)
-                  singleResult(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
-                }
-                case None => {
-                  log.warn("No Error Document Found.")
-                  "Unknown Error."
-                  singleResult(new Exception("Unknown error."))
+          req.foreach(_ match {
+            case _r: CompletableReadRequest => _r match {
+              case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
+                log.trace("Single Document Request Future.")
+                // This may actually be better as a disableable assert but for now i want it hard.
+                require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
+                // Check error state
+                if (reply.cursorNotFound) {
+                  log.trace("Cursor Not Found.")
+                  singleResult(new Exception("Cursor Not Found."))
+                } else if (reply.queryFailure) {
+                  queryFail(reply, singleResult)
+                } else {
+                  singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T])  // TODO - Fix me!
                 }
               }
-            } else {
-              singleResult(reply.documents.head.asInstanceOf[singleResult.T])
-            }
-          }
-          case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
-            log.trace("Cursor Request Future.")
-            if (reply.cursorNotFound) {
-              log.trace("Cursor Not Found.")
-              cursorResult(new Exception("Cursor Not Found."))
-            } else if (reply.queryFailure) {
-              log.trace("Query Failure")
-              // Attempt to grab the $err document
-              val err = reply.documents.headOption match {
-                case Some(errDoc) => {
-                  log.trace("Error Document found: %s", errDoc)
-                  cursorResult(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
-                }
-                case None => {
-                  log.warn("No Error Document Found.")
-                  "Unknown Error."
-                  cursorResult(new Exception("Unknown error."))
+              case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
+                log.trace("Cursor Request Future.")
+                if (reply.cursorNotFound) {
+                  log.trace("Cursor Not Found.")
+                  cursorResult(new Exception("Cursor Not Found."))
+                } else if (reply.queryFailure) {
+                  queryFail(reply, cursorResult)
+                } else {
+                  cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
                 }
               }
-            } else {
-              cursorResult(new Cursor(msg.namespace, reply)(ctx).asInstanceOf[cursorResult.T])
-            }
-          }
-          case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
-            log.trace("Get More Request Future.")
-            if (reply.cursorNotFound) {
-              log.warn("Cursor Not Found.")
-              getMoreResult(new Exception("Cursor Not Found"))
-            } else if (reply.queryFailure) {
-              log.warn("Query Failure")
-              // Attempt to grab the $err document
-              val err = reply.documents.headOption match {
-                case Some(errDoc) => {
-                  log.debug("Error Document found: %s", errDoc)
-                  getMoreResult(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
-                }
-                case None => {
-                  log.warn("No Error Document Found.")
-                  getMoreResult(new Exception("Unknown Error."))
+              case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
+                log.trace("Get More Request Future.")
+                if (reply.cursorNotFound) {
+                  log.warn("Cursor Not Found.")
+                  getMoreResult(new Exception("Cursor Not Found"))
+                } else if (reply.queryFailure) {
+                  queryFail(reply, getMoreResult)
+                } else {
+                  getMoreResult((reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T]) // TODO - Fix Me!
                 }
               }
-            } else {
-              getMoreResult((reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T])
             }
-          }
-          // TODO - Handle any errors in a "non completable"
-          // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
+          // TODO - Handle any errors in a "non completable" // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
           case CompletableWriteRequest(msg: InsertMessage[_], writeResult: WriteRequestFuture) => {
             log.info("Write Request Future.")
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a WriteRequestFuture.")
             // Check error state
             // Attempt to grab the document
             reply.documents.headOption match {
-              case Some(doc) => {
+              case Some(b) => {
+                val doc = SerializableDocument.decode(b)  // TODO - Extractors!
                 log.info("Document found: %s", doc)
                 doc.getAs[String]("errmsg") match {
                   case Some(error) => writeResult(new Exception(error))

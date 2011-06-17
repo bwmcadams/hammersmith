@@ -18,6 +18,7 @@
 package org.bson
 
 import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
+import java.io.{InputStream, ByteArrayInputStream}
 
 /**
  * Type class base for anything you want to be serialized or deserialized 
@@ -27,6 +28,12 @@ trait SerializableBSONObject[T] {
   def encode(doc: T, out: OutputBuffer)
 
   def encode(doc: T): Array[Byte] 
+
+  def decode(in: InputStream): T
+
+  def decode(bytes: Seq[Array[Byte]]): Seq[T] = for (b <- bytes) yield decode(b)
+    
+  def decode(b: Array[Byte]): T = decode(new ByteArrayInputStream(b))
 
   /**
    * These methods are used to validate documents in certain cases.
@@ -49,3 +56,4 @@ trait SerializableBSONObject[T] {
   def _id(doc: T): Option[AnyRef]
 
 }
+

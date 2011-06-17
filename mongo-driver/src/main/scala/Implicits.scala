@@ -19,17 +19,18 @@ package com.mongodb.async
 
 import org.bson.collection._
 import com.mongodb.async.futures._
+import org.bson.SerializableBSONObject
 
 object `package` extends Implicits with Imports
 
 trait Implicits {
   implicit def asGetMoreOp[A](f: Either[Throwable, (Long, Seq[A])] => Unit) = RequestFutures.getMore(f)
-  implicit def asQueryOp[A <: Cursor](f: Either[Throwable, A] => Unit) = RequestFutures.query(f)
+  implicit def asQueryOp[A <: Cursor[T], T : SerializableBSONObject](f: Either[Throwable, A] => Unit) = RequestFutures.query(f)
   implicit def asFindOneOp[A](f: Either[Throwable, A] => Unit) = RequestFutures.findOne(f)
   implicit def asWriteOp(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) = RequestFutures.write(f)
   implicit def asBatchWriteOp(f: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)] => Unit) = RequestFutures.batchWrite(f)
   implicit def asSimpleGetMoreOp[A](f: (Long, Seq[A]) => Unit): GetMoreRequestFuture = SimpleRequestFutures.getMore(f)
-  implicit def asSimpleQueryOp[A <: Cursor](f: A => Unit): CursorQueryRequestFuture = SimpleRequestFutures.query(f)
+  implicit def asSimpleQueryOp[A <: Cursor[T], T : SerializableBSONObject](f: A => Unit): CursorQueryRequestFuture = SimpleRequestFutures.query(f)
   implicit def asSimpleFindOneOp[A](f: A => Unit): SingleDocQueryRequestFuture = SimpleRequestFutures.findOne(f)
   implicit def asSimpleWriteOp(f: (Option[AnyRef], WriteResult) => Unit): WriteRequestFuture = SimpleRequestFutures.write(f)
   implicit def asSimpleBatchWriteOp(f: (Option[Seq[AnyRef]], WriteResult) => Unit): BatchWriteRequestFuture = SimpleRequestFutures.batchWrite(f)

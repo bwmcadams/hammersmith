@@ -18,7 +18,7 @@ package com.mongodb.async
 package test
 
 import com.mongodb.async._
-import futures.RequestFutures
+import com.mongodb.futures.RequestFutures
 import org.bson.collection._
 import org.specs2.time.Time._
 import org.bson.util.Logging
@@ -31,24 +31,24 @@ import org.specs2.matcher._
 class DirectConnectionSpec extends Specification 
                               with Logging { def is = 
   "The MongoDB Direct Connection"                        ^
-    "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
-                                                       endp^
-  "Write Operations"                                       ^
-    "Support 'blind' (NoOp) writes"                        ! mongo(noopInsert)^
-   "Support inserts with no (default) write concern"      ! mongo(insertWithDefaultWriteConcern)^
-    "Support inserts with implicit safe write concern"     ! mongo(insertWithSafeImplicitWriteConcern)^
-    "Support batch inserts"                                ! mongo(batchInsert)^
-                                                       endp^
-    "Read Operations"                                      ^
-      "Can count from a collection"                        ! mongo(countCmd)^
+    //"Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
+                                                       //endp^
+  //"Write Operations"                                       ^
+    //"Support 'blind' (NoOp) writes"                        ! mongo(noopInsert)^
+   //"Support inserts with no (default) write concern"       ! mongo(insertWithDefaultWriteConcern)^
+    //"Support inserts with implicit safe write concern"     ! mongo(insertWithSafeImplicitWriteConcern)^
+    //"Support batch inserts"                                ! mongo(batchInsert)^
+                                                       //endp^
+    //"Read Operations"                                      ^
+      //"Can count from a collection"                        ! mongo(countCmd)^
       "Iterate a simple cursor correctly"                  ! mongo(iterateSimpleCursor)^
       "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^
-      "Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
-      "Insert an ObjectId and retrieve it correctly"       !  mongo(idDebug)^ 
-                                                       endp^
-    "More detailed special commands"                       ^
-    "Support findAndModify"                                ! mongo(simpleFindAndModify)^
-    "Support findAndRemove"                                ! mongo(findAndRemoveTest)^
+      //"Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
+      //"Insert an ObjectId and retrieve it correctly"       ! mongo(idDebug)^ 
+      /*                                                 endp^*/
+    //"More detailed special commands"                       ^
+    //"Support findAndModify"                                ! mongo(simpleFindAndModify)^
+    /*"Support findAndRemove"                                ! mongo(findAndRemoveTest)^*/
                                                            end
 /*
   trait mongoConn extends AroundOutside[MongoConnection] {
@@ -96,7 +96,7 @@ class DirectConnectionSpec extends Specification
   // todo - this relies heavily on whats on my local workstation; needs to be generic
   def iterateSimpleCursor(conn: MongoConnection) = {
     var x = 0
-    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
+    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[BSONDocument]) => {
       for (doc <- cursor) {
         x += 1
       }
@@ -107,7 +107,7 @@ class DirectConnectionSpec extends Specification
 
   def iterateComplexCursor(conn: MongoConnection) = {
     var x = 0
-    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor) => {
+    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[BSONDocument]) => {
       def next(op: Cursor.IterState): Cursor.IterCmd = op match {
         case Cursor.Entry(doc) => {
           x += 1
@@ -126,7 +126,7 @@ class DirectConnectionSpec extends Specification
     x must eventually(5, 5.seconds) (be_==(100))
   }
 
-  def distinctValue(conn: MongoConnection) = {
+  /*def distinctValue(conn: MongoConnection) = {
     conn("bookstore")("inventory").distinct("author")((values: Seq[Any]) => {
       for (item <- values) {
         log.trace("Got a value: %s", item.asInstanceOf[String])
@@ -135,7 +135,7 @@ class DirectConnectionSpec extends Specification
 
     success
   }
-
+*/
   def noopInsert(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("test_insert")
     mongo.dropCollection()(success => {
@@ -199,7 +199,7 @@ class DirectConnectionSpec extends Specification
     doc must eventually (havePairs("foo" -> "bar", "bar" -> "baz"))
   }
 
-  def idDebug(conn: MongoConnection) = {
+/*  def idDebug(conn: MongoConnection) = {
     val mongo = conn("test")("idGen")
     mongo.dropCollection()(success => {
       log.info("Dropped collection... Success? " + success)
@@ -231,7 +231,7 @@ class DirectConnectionSpec extends Specification
       savedID = _doc.getAs[ObjectId]("_id")
     })
     savedID must eventually(beSome(id))
-  } 
+  }*/
 
   def countCmd(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("countCmd")
@@ -248,6 +248,7 @@ class DirectConnectionSpec extends Specification
 
     n must eventually(beEqualTo(10)) 
   }
+  
 
   def batchInsert(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("batchInsert")
@@ -257,7 +258,7 @@ class DirectConnectionSpec extends Specification
     mongo.count((_n: Int) => n = _n)
     n must eventually(beEqualTo(100)) 
   }
-
+/*
   def simpleFindAndModify(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("findModify")
     mongo.dropCollection(){ success => }
@@ -285,7 +286,7 @@ class DirectConnectionSpec extends Specification
     mongo.count((_n: Int) => n = _n)
     n must eventually(beEqualTo(100)) 
     var x: Int = -1
-    /*mongo.findAndRemove(){ doc: BSONDocument => 
+    [>mongo.findAndRemove(){ doc: BSONDocument => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(0))
@@ -296,7 +297,7 @@ class DirectConnectionSpec extends Specification
     mongo.findAndRemove(){ doc: BSONDocument => 
       x = doc.as[Int]("x")
     }
-    x must eventually(beEqualTo(2))*/
+    x must eventually(beEqualTo(2))<]
     success
-  }
+  }*/
 }
