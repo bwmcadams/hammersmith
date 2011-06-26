@@ -49,7 +49,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
 
     if (first) _in._max = len
 
-    log.trace("Decoding, length: %d", len)
+    log.info("Decoding, length: %d", len)
 
     _callback.objectStart()
     while (decodeElement()) {
@@ -81,13 +81,18 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   def decode(in: InputStream, callback: Callback): Int = try {
     _decode(new Input(in), callback)
   } catch {
-    case ioe: IOException => throw new BSONException("Failed to decode input data.", ioe)
+    case ioe: IOException => {
+      log.error(ioe, "OMG! PONIES!")  
+      throw new BSONException("Failed to decode input data.", ioe)
+    }
+    case t: Throwable => log.error(t, "Unexpected exception in decode"); throw t
   }
 
   def decode(b: Array[Byte], callback: Callback): Int = try {
     _decode(new Input(new ByteArrayInputStream(b)), callback)
   } catch {
     case ioe: IOException => throw new BSONException("Failed to decode input data.", ioe)
+    case t: Throwable => log.error(t, "Unexpected exception in decode"); throw t
   }
 
   protected def _decode(in: Input, callback: Callback) = {

@@ -40,12 +40,12 @@ sealed trait QueryRequestFuture extends RequestFuture {
 
 trait CursorQueryRequestFuture extends QueryRequestFuture {
   type T <: Cursor[DocType]
-  val decoder: SerializableBSONObject[DocType]
+  //val decoder: SerializableBSONObject[DocType]
 }
 
 trait GetMoreRequestFuture extends QueryRequestFuture {
   type T = (Long, Seq[DocType])
-  val decoder: SerializableBSONObject[DocType]
+  //val decoder: SerializableBSONObject[DocType]
 }
 
 /**
@@ -95,30 +95,34 @@ case object NoOpRequestFuture extends RequestFuture with Logging {
 }
 
 object RequestFutures extends Logging {
-  def getMore[A](f: Either[Throwable, (Long, Seq[A])] => Unit) =
+  def getMore[A : SerializableBSONObject](f: Either[Throwable, (Long, Seq[A])] => Unit) =
     new GetMoreRequestFuture {
       type DocType = A
       val body = f
+      val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{GetMoreRequestFuture}"
     }
 
-  def query[A <: Cursor[T], T : SerializableBSONObject](f: Either[Throwable, A] => Unit) =
+  def query[A : SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) =
     new CursorQueryRequestFuture {
-      type T = A
+      type DocType = A
+      type T = Cursor[A]
       val body = f
+      val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{CursorQueryRequestFuture}"
     }
 
-  def find[A <: Cursor[T], T : SerializableBSONObject](f: Either[Throwable, A] => Unit) = query(f)
+  def find[A : SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) = query(f)
 
-  def command[A](f: Either[Throwable, A] => Unit) =
+  def command[A : SerializableBSONObject](f: Either[Throwable, A] => Unit) =
     new SingleDocQueryRequestFuture {
-      type T = A
+      type DocType = A
       val body = f
+      val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SingleDocQueryRequestFuture}"
     }
 
-  def findOne[A](f: Either[Throwable, A] => Unit) = command(f)
+  def findOne[A : SerializableBSONObject](f: Either[Throwable, A] => Unit) = command(f)
 
   def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
     new WriteRequestFuture {
@@ -137,37 +141,41 @@ object RequestFutures extends Logging {
  * "Simpler" request futures which swallow any errors.
  */
 object SimpleRequestFutures extends Logging {
-  def findOne[A](f: A => Unit) = command(f)
+  def findOne[A : SerializableBSONObject](f: A => Unit) = command(f)
 
-  def command[A](f: A => Unit) =
+  def command[A : SerializableBSONObject](f: A => Unit) =
     new SingleDocQueryRequestFuture {
-      type T = A
+      type DocType = A
       val body = (result: Either[Throwable, A]) => result match {
         case Right(doc) => f(doc)
         case Left(t) => log.error(t, "Command Failed.")
       }
+      val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
 
-  def getMore[A](f: (Long, Seq[A]) => Unit) =
+  def getMore[A : SerializableBSONObject](f: (Long, Seq[A]) => Unit) =
     new GetMoreRequestFuture {
       type DocType = A
       val body = (result: Either[Throwable, (Long, Seq[A])]) => result match {
         case Right((cid, docs)) => f(cid, docs)
         case Left(t) => log.error(t, "GetMore Failed."); throw t
       }
+      val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SimpleGetMoreRequestFuture}"
     }
 
-  def find[A <: Cursor[T], T : SerializableBSONObject](f: A => Unit) = query(f)
+  def find[T : SerializableBSONObject](f: Cursor[T] => Unit) = query(f)
 
-  def query[A <: Cursor[T], T : SerializableBSONObject](f: A => Unit) =
+  def query[A : SerializableBSONObject](f: Cursor[A] => Unit) =
     new CursorQueryRequestFuture {
-      type T = A
-      val body = (result: Either[Throwable, A]) => result match {
+      type DocType = A
+      type T = Cursor[A]
+      val body = (result: Either[Throwable, Cursor[A]]) => result match {
         case Right(cursor) => f(cursor)
         case Left(t) => log.error(t, "Query Failed."); throw t
       }
+      val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SimpleCursorQueryRequestFuture}"
     }
 

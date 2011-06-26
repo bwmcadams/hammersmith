@@ -42,10 +42,11 @@ object CompletableRequest {
 
 trait CompletableReadRequest extends CompletableRequest {
   type T
-  val decoder: SerializableBSONObject[T]
+  override val future: QueryRequestFuture
+  val decoder = future.decoder
 }
 
-case class CompletableSingleDocRequest(override val request: QueryMessage, override val future: SingleDocQueryRequestFuture) extends CompletableReadRequest
+case class CompletableSingleDocRequest(override val request: QueryMessage, override val future: SingleDocQueryRequestFuture) extends CompletableReadRequest 
 case class CompletableCursorRequest(override val request: QueryMessage, override val future: CursorQueryRequestFuture) extends CompletableReadRequest
 case class CompletableGetMoreRequest(override val request: GetMoreMessage, override val future: GetMoreRequestFuture) extends CompletableReadRequest
 case class CompletableWriteRequest(override val request: MongoClientWriteMessage, override val future: WriteRequestFuture) extends CompletableRequest

@@ -93,8 +93,8 @@ class ConcurrentQueue[T](val underlying: ConcurrentLinkedQueue[T] = new Concurre
     val front = underlying.peek
     if (front == null)
       throw new NullPointerException
-    else front
-  }
+      else front
+    }
 
   /** Returns all elements currently available
    *

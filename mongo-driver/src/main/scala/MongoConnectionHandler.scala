@@ -63,13 +63,14 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     log.debug("Incoming Message received on (%s) Length: %s", buf, buf.readableBytes())
     MongoMessage.unapply(new ChannelBufferInputStream(buf)) match {
       case reply: ReplyMessage => {
-        log.trace("Reply Message Received: %s", reply)
+        log.info("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
         /**
          * Note - it is entirely OK to stuff a single result into
          * a Cursor, but not multiple results into a single.  Should be obvious.
          */
         val req = MongoConnection.dispatcher.get(reply.header.responseTo)
+        log.info("[%s] Req Obj: %s", reply.header.responseTo, req)
         /**
          * Even when no response is wanted a 'Default' callback should be regged so
          * this is definitely warnable, for now.
@@ -88,6 +89,9 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                 } else if (reply.queryFailure) {
                   queryFail(reply, singleResult)
                 } else {
+                  val doc = reply.documents.head
+                  import org.bson.io.Bits._
+                  log.info("HEAD: %s", readInt(doc))
                   singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T])  // TODO - Fix me!
                 }
               }
@@ -123,7 +127,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
             reply.documents.headOption match {
               case Some(b) => {
                 val doc = SerializableDocument.decode(b)  // TODO - Extractors!
-                log.info("Document found: %s", doc)
+                log.debug("Document found: %s", doc)
                 doc.getAs[String]("errmsg") match {
                   case Some(error) => writeResult(new Exception(error))
                   case None => {
@@ -133,7 +137,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                                         n = doc.getAsOrElse[Int]("n", 0),
                                         upsertID = doc.getAs[AnyRef]("upserted"),
                                         updatedExisting = doc.getAs[Boolean]("updatedExisting"))
-                    log.info("W: %s", w)
+                    log.debug("W: %s", w)
                     writeResult((None, w).asInstanceOf[writeResult.T])
                   }
                 }

@@ -18,7 +18,7 @@ package com.mongodb.async
 package test
 
 import com.mongodb.async._
-import com.mongodb.futures.RequestFutures
+import com.mongodb.async.futures.RequestFutures
 import org.bson.collection._
 import org.specs2.time.Time._
 import org.bson.util.Logging
@@ -31,7 +31,7 @@ import org.specs2.matcher._
 class DirectConnectionSpec extends Specification 
                               with Logging { def is = 
   "The MongoDB Direct Connection"                        ^
-    //"Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
+    "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster)^
                                                        //endp^
   //"Write Operations"                                       ^
     //"Support 'blind' (NoOp) writes"                        ! mongo(noopInsert)^
@@ -41,8 +41,8 @@ class DirectConnectionSpec extends Specification
                                                        //endp^
     //"Read Operations"                                      ^
       //"Can count from a collection"                        ! mongo(countCmd)^
-      "Iterate a simple cursor correctly"                  ! mongo(iterateSimpleCursor)^
-      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^
+     "Iterate a simple cursor correctly"                  ! mongo(iterateSimpleCursor)^
+      "Iterate a complex (iteratee) cursor correctly"      ! mongo(iterateComplexCursor)^ 
       //"Correctly calculate values for 'distinct'"          ! mongo(distinctValue)^
       //"Insert an ObjectId and retrieve it correctly"       ! mongo(idDebug)^ 
       /*                                                 endp^*/
@@ -96,8 +96,10 @@ class DirectConnectionSpec extends Specification
   // todo - this relies heavily on whats on my local workstation; needs to be generic
   def iterateSimpleCursor(conn: MongoConnection) = {
     var x = 0
-    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[BSONDocument]) => {
+    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
+      log.info("Cursor: %s", cursor)
       for (doc <- cursor) {
+        log.info("doc - %s", doc)
         x += 1
       }
     })
@@ -107,7 +109,7 @@ class DirectConnectionSpec extends Specification
 
   def iterateComplexCursor(conn: MongoConnection) = {
     var x = 0
-    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[BSONDocument]) => {
+    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
       def next(op: Cursor.IterState): Cursor.IterCmd = op match {
         case Cursor.Entry(doc) => {
           x += 1
@@ -143,8 +145,8 @@ class DirectConnectionSpec extends Specification
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz")){}
     // TODO - Implement 'count'
-    var doc: BSONDocument = Document.empty
-    mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
+    var doc = Document.empty
+    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) => {
       doc = _doc 
     })
     doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
@@ -160,8 +162,8 @@ class DirectConnectionSpec extends Specification
       id = oid.getOrElse(null)
     })
     // TODO - Implement 'count'
-    var doc: BSONDocument = Document.empty
-    mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
+    var doc: Document = Document.empty
+    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) => {
       doc = _doc 
     })
     doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
@@ -191,8 +193,8 @@ class DirectConnectionSpec extends Specification
     ok must eventually { beSome(true) }
     id must not (beNull.eventually)
     // TODO - Implement 'count'
-    var doc: BSONDocument = null
-    mongo.findOne(Document("foo" -> "bar"))((_doc: BSONDocument) => {
+    var doc: Document = null
+    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) => {
       doc = _doc 
     })
     doc must not (beNull.eventually)
@@ -227,7 +229,7 @@ class DirectConnectionSpec extends Specification
 
     var savedID: Option[ObjectId] = None 
     // TODO - test findOneByID
-    mongo.findOne()((_doc: BSONDocument) => {
+    mongo.findOne()((_doc: Document) => {
       savedID = _doc.getAs[ObjectId]("_id")
     })
     savedID must eventually(beSome(id))
@@ -266,12 +268,12 @@ class DirectConnectionSpec extends Specification
     mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 1, "tasks" -> Seq("run sales report", "email report"))){}
     mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 2, "tasks" -> Seq("run marketing report", "email report"))){}
                             
-    var found: BSONDocument = Document.empty
+    var found: Document = Document.empty
     val startDate = new java.util.Date
     mongo.findAndModify(query=Document("inprogress" -> false, "name" -> "Biz report"), 
                         sort=Document("priority" -> -1), 
                         update=Some(Document("$set" -> Document("inprogress" -> true, "started" -> startDate))),
-                        getNew=true){ doc: BSONDocument => 
+                        getNew=true){ doc: Document => 
       log.info("FAM Doc: %s", doc) 
       found = doc
     }
@@ -286,15 +288,15 @@ class DirectConnectionSpec extends Specification
     mongo.count((_n: Int) => n = _n)
     n must eventually(beEqualTo(100)) 
     var x: Int = -1
-    [>mongo.findAndRemove(){ doc: BSONDocument => 
+    [>mongo.findAndRemove(){ doc: Document => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(0))
-    mongo.findAndRemove(){ doc: BSONDocument => 
+    mongo.findAndRemove(){ doc: Document => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(1))
-    mongo.findAndRemove(){ doc: BSONDocument => 
+    mongo.findAndRemove(){ doc: Document => 
       x = doc.as[Int]("x")
     }
     x must eventually(beEqualTo(2))<]
