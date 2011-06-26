@@ -39,8 +39,12 @@ object Cursor extends Logging {
 
   def apply[T](namespace: String, reply: ReplyMessage)
               (implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
-    log.info("Instantiate new Cursor[%s], on namespace: '%s'", decoder, namespace)
-    new Cursor[T](namespace, reply)(ctx, decoder)
+    log.info("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
+    try {
+      new Cursor[T](namespace, reply)(ctx, decoder)
+    } catch {
+      case e => log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
+    }
   }
   /**
    * Internal helper, more or less a "default" iterator for internal usage
@@ -87,15 +91,15 @@ object Cursor extends Logging {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
-        log.debug("Closing Cursor.")
+        log.info("Closing Cursor.")
         cursor.close()
       }
       case Next(tOp) => {
-        log.trace("Next!")
+        log.info("Next!")
         next(tOp)
       }
       case NextBatch(tOp) => cursor.nextBatch(() => {
-          log.debug("Next Batch Loaded.")
+          log.info("Next Batch Loaded.")
           next(tOp)
       })
     }
@@ -112,6 +116,7 @@ object Cursor extends Logging {
  */
 class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T]) extends Logging {
 
+  log.info("IM A MEDIUM SIZED TEAPOT AND IM NOT FAT I'M BIG BONED.")
   val cursorID: Long = reply.cursorID
 
   protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
@@ -133,9 +138,30 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    */
   protected var startIndex = reply.startingFrom
 
-  protected val docs = ConcurrentQueue(reply.documents: _*)
+  log.info("Decode %s docs.", reply.documents.length)
+  try {
+    val _d = Seq.newBuilder[T] 
+    for (doc <- reply.documents) {
+      log.info("Decoding: %s", doc)
+      try {
+        val x = decoder.decode(doc)
+        log.info("Decoded: %s", x)
+        _d += x
+      } catch {
+        case e => log.info("ERROR!!!!!!!!! %s", e)
+      }
+    }
+    val _decoded = _d.result
+    // reply.documents.map(decoder.decode)
+    log.info("Decoded %s docs: %s", _decoded.length, _decoded)
+  } catch {
+    case e => log.error(e, "Document decode failure: %s", e)
+  }
 
-  log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d", cursorID, startIndex)
+  // TODO - Move to lazy decoding model
+  protected val docs = ConcurrentQueue(reply.documents.map(decoder.decode): _*) // ConcurrentQueue(_decoded: _*)
+
+  log.info("Initializing a new cursor with cursorID: %d, startIndex: %d, docs: %s", cursorID, startIndex, docs)
 
   /**
    * Batch size; defaults to 0 which lets mongo control the size
@@ -153,12 +179,12 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
     if (gettingMore.isZero) {
       gettingMore = new CountDownLatch(1)
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
-      log.debug("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
+      log.info("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
       MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
         RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) => {
           reply match {
             case Right((id, batch)) => {
-              log.debug("Got a result from 'getMore' command (id: %d).", id)
+              log.info("Got a result from 'getMore' command (id: %d).", id)
               cursorEmpty = validCursor(id)
               docs.enqueue(batch: _*)
             }
@@ -183,12 +209,12 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
       Cursor.EOF
   } catch { // just in case
     case nse: java.util.NoSuchElementException => {
-      log.debug("No Such Element Exception")
+      log.info("No Such Element Exception")
       if (hasMore) {
-        log.debug("Has More.")
+        log.info("Has More.")
         Cursor.Empty
       } else {
-        log.debug("Cursor Exhausted.")
+        log.info("Cursor Exhausted.")
         Cursor.EOF
       }
     }
@@ -206,12 +232,12 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    * to build your own fork first.
    */
   protected[mongodb] def foreach(f: T => Unit) = {
-    log.debug("Foreach: %s | empty? %s", f, isEmpty)
+    log.info("Foreach: %s | empty? %s", f, isEmpty)
     Cursor.basicIter(this)(f)
   }
 
   def close() {
-    log.debug("Closing out cursor: %s", this)
+    log.info("Closing out cursor: %s", this)
     /**
      * Basically if the cursorEmpty is true we can just NOOP here
      * as MongoDB automatically cleans up fully iterated cursors.
@@ -231,7 +257,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    * Attempts to catch and close any uncleaned up cursors.
    */
   override def finalize() {
-    log.debug("Finalizing Cursor (%s)", this)
+    log.info("Finalizing Cursor (%s)", this)
     close()
     super.finalize()
   }

@@ -171,7 +171,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    *
    */
   def distinct[Qry : SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] => Unit) {
-    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: BSONDocument) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
+    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
   }
 
   /**

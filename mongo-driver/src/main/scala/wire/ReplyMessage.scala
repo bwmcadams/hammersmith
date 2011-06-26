@@ -75,7 +75,7 @@ object ReplyMessage extends Logging {
       val startingFrom = readInt(bin)
       log.trace("[Reply] Starting From: %d", startingFrom)
       val numReturned = readInt(bin)
-      log.debug("[Reply] Number of Documents Returned: %d", numReturned)
+      log.debug("[Reply (%s)] Number of Documents Returned: %d", header.responseTo, numReturned)
       /*
        * And here comes the hairy part.  Ideally, we want to completely amortize the
        * decoding of these docs.  It makes *zero* sense to me to wait for a whole
@@ -83,22 +83,26 @@ object ReplyMessage extends Logging {
        */
       import org.bson.io.Bits
       def _dec() = {
-        val len = Bits.readInt(in) 
-        log.info("Decoding object, length: %d", len)
-        val b = Array.ofDim[Byte](len)
-        Bits.readFully(in, b)
-        log.info("Decoded an object: %s", b)
-        b
+        val l = Array.ofDim[Byte](4)
+        in.read(l)
+        val len = Bits.readInt(l) 
+        log.debug("Decoding object, length: %d", len)
+        val b = Array.ofDim[Byte](len - 4)
+        in.read(b)
+        val n = Array.concat(l, b)
+        log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(n))
+        n
       }
         
-      val documents = for (i <- 0 until numReturned) yield _dec()
+      val documents = for (i <- 0 until numReturned) yield _dec
+
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
         "Wanted: %d Got: %d".format(numReturned, documents.length))
-      log.trace("Parsed Out Documents: %s", documents)
+      log.info("Parsed Out '%d' Documents", documents.length)
 
       override def toString = "ReplyMessage { " +
-        "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, docs: %s } ".
-        format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents)
+        "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs: %d } ".
+        format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents.length)
     }
   }
 
