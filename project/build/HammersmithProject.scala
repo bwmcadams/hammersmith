@@ -7,7 +7,18 @@ class HammersmithProject(info: ProjectInfo)
   with IdeaProject
   with posterous.Publish {
 
+  override def parallelExecution = true 
+
   override def managedStyle = ManagedStyle.Maven
+
+  val publishTo = "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/%s/".format( 
+    if (projectVersion.value.toString.endsWith("-SNAPSHOT"))
+      "snapshots"
+    else
+      "releases"
+  )
+
+  Credentials(Path.userHome / ".ivy2" / ".scalatools_credentials", log)
 
   lazy val bson = project("bson-driver", "bson-driver", new BSONDriverProject(_))
   lazy val mongo = project("mongo-driver", "mongo-driver", new MongoDriverProject(_), bson)
