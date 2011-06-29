@@ -267,7 +267,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject](collection: String)(query: Qry = Document.empty) = connection.findAndRemove(name)(collection)(query)
+  def findAndRemove[Qry : SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.

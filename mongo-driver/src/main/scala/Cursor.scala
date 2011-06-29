@@ -91,15 +91,15 @@ object Cursor extends Logging {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
-        log.info("Closing Cursor.")
+        log.trace("Closing Cursor.")
         cursor.close()
       }
       case Next(tOp) => {
-        log.info("Next!")
+        log.trace("Next!")
         next(tOp)
       }
       case NextBatch(tOp) => cursor.nextBatch(() => {
-          log.info("Next Batch Loaded.")
+          log.debug("Next Batch Loaded.")
           next(tOp)
       })
     }
@@ -116,7 +116,6 @@ object Cursor extends Logging {
  */
 class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T]) extends Logging {
 
-  log.info("IM A MEDIUM SIZED TEAPOT AND IM NOT FAT I'M BIG BONED.")
   val cursorID: Long = reply.cursorID
 
   protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
@@ -204,6 +203,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   /**
    */
   def next() = try {
+    log.info("NEXT: %s ", decoder.getClass)
     if (docs.length > 0) Cursor.Entry(docs.dequeue()) else if (hasMore) Cursor.Empty
     else
       Cursor.EOF

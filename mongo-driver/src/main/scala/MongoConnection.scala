@@ -219,7 +219,7 @@ abstract class MongoConnection extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry :  SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))_
+  def findAndRemove[Qry :  SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))(callback)
 
   /**
    * Finds the first document in the query and updates it.

@@ -114,7 +114,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                 } else if (reply.queryFailure) {
                   queryFail(reply, getMoreResult)
                 } else {
-                  getMoreResult((reply.cursorID, reply.documents).asInstanceOf[getMoreResult.T]) // TODO - Fix Me!
+                  getMoreResult((reply.cursorID, reply.documents.map(_r.decoder.decode)).asInstanceOf[getMoreResult.T]) // TODO - Fix Me!
                 }
               }
             }
