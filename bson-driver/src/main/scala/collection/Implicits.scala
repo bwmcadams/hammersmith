@@ -37,14 +37,18 @@ object `package` {
 
 
     def encode(doc: T, out: OutputBuffer) = {
+      log.trace("Reserving an encoder instance")
       val serializer = defaultSerializerPool().reserve()()
+      log.trace("Reserved an encoder instance")
       serializer.encode(doc, out)
       serializer.done
       defaultSerializerPool().release(serializer)
     }
 
     def encode(doc: T): Array[Byte] = {
+      log.trace("Reserving a decoder instance")
       val serializer = defaultSerializerPool().reserve()()
+      log.trace("Reserved a decoder instance")
       val bytes = serializer.encode(doc)
       serializer.done
       defaultSerializerPool().release(serializer)
@@ -54,7 +58,7 @@ object `package` {
     def decode(in: InputStream): T = {
       val deserializer = defaultDeserializerPool().reserve()()
       val doc = deserializer.decodeAndFetch(in).asInstanceOf[T]
-      defaultDeserializerPool().reserve()()
+      defaultDeserializerPool().release(deserializer)
       doc
     }
 
