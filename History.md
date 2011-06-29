@@ -1,4 +1,22 @@
 
+0.2.0 / 2011-06-29 
+==================
+
+  * Sorted out remaining issues w/ Type Class move.
+  * Programming is hard, let's go shopping!
+  * Code weirdly hanging & dropping in 4th decode  of message.  ARGH
+  * Closer to sane on some of the "Working" parts here.  Figuring out the type class flow from the read side has been painful mentally and compile wise
+  * Verify time to tieout on concurrent inserts
+  * Added a test to validate that concurrent inserts succeed.
+  * New encoding system in place with type classes
+  * Broken checkpoint; almost done a refactor into Type Class based serialization
+  * Tweak deps
+  * Fixed project defs.
+  * Made all tests run concurrently on a single connection.
+  * Decided using chained ThrownExpectations is a bad approach as noted by several people.  Will build up shared examples etc instead.
+  * Was testing a value after the callback was defined, NOT after the call. ThrownExpectations exposed this brokenness.
+  * Specs2 doesn't fail unless the LAST matcher does; In some cases I need more discreet multi matching for concurrency testing.  Mixed in ThrownExpectations trait to change this.
+
 0.1.0 / 2011-06-01 
 ==================
 
