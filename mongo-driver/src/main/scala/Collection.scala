@@ -126,7 +126,11 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * Counts the number of documents in a given namespace
    * -1 indicates an error, for now
    */
-  def count(callback: Int => Unit) = db.count(name)(callback)
+  def count[Qry : SerializableBSONObject, Flds : SerializableBSONObject](query : Qry = Document.empty,
+      fields : Flds = Document.empty,
+      limit : Long = 0,
+      skip : Long = 0)(callback: Int => Unit) =
+        db.count(name)(query, fields, limit, skip)(callback)
 
   // TODO - Rename
 
