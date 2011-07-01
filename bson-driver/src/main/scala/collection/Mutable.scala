@@ -28,8 +28,42 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
   // The issue here is that asInstanceOf[A] doesn't use the
   // manifest and thus doesn't do anything (no runtime type
   // check). We have to use the manifest to cast by hand.
+  // Surely there is an easier way to do this! If you know it,
+  // please advise.
   private def checkedCast[A <: Any: Manifest](value : Any): A = {
-    manifest[A].erasure.asInstanceOf[Class[A]].cast(value)
+    try {
+      // I could not tell you why we have to check both ScalaObject
+      // and AnyRef here, but for example
+      // manifest[BSONDocument] <:< manifest[AnyRef]
+      // is false.
+      if (manifest[A] <:< manifest[AnyRef] ||
+          manifest[A] <:< manifest[ScalaObject]) {
+        // casting to a boxed type
+        manifest[A].erasure.asInstanceOf[Class[A]].cast(value)
+      } else {
+        // casting to an Any such as Int, we need boxed types to unpack,
+        // which asInstanceOf does but Class.cast does not
+        val asAnyVal = manifest[A] match {
+          case m if m == manifest[Byte] => value.asInstanceOf[Byte]
+          case m if m == manifest[Short] => value.asInstanceOf[Short]
+          case m if m == manifest[Int] => value.asInstanceOf[Int]
+          case m if m == manifest[Long] => value.asInstanceOf[Long]
+          case m if m == manifest[Float] => value.asInstanceOf[Float]
+          case m if m == manifest[Double] => value.asInstanceOf[Double]
+          case m if m == manifest[Boolean] => value.asInstanceOf[Boolean]
+          case m if m == manifest[Char] => value.asInstanceOf[Char]
+          case m => throw new UnsupportedOperationException("Type " + manifest[A] + " not supported by getAs, value is: " + value)
+        }
+        asAnyVal.asInstanceOf[A]
+      }
+    } catch {
+      case cc : ClassCastException =>
+        log.debug("Error casting " +
+                  value.asInstanceOf[AnyRef].getClass.getName +
+                  " to " +
+                  manifest[A].erasure.getName)
+        throw cc
+    }
   }
 
   /**
