@@ -238,14 +238,14 @@ class DirectConnectionSpec extends Specification
     val mongo = conn("testHammersmith")("countCmd")
     mongo.dropCollection(){ success => }
     var n: Int = -10
-    mongo.count((_n: Int) => n = _n)
+    mongo.count()((_n: Int) => n = _n)
     n must eventually(beEqualTo(0)) 
 
     // Now stuff some crap in there to test again
     for (i <- 0 until 10) 
       mongo.insert(Document("foo" -> "y", "bar" -> "x")){}
 
-    mongo.count((_n: Int) => n = _n)
+    mongo.count()((_n: Int) => n = _n)
 
     n must eventually(beEqualTo(10)) 
   }
@@ -256,7 +256,7 @@ class DirectConnectionSpec extends Specification
     mongo.dropCollection(){ success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){}
     var n: Int = -10
-    mongo.count((_n: Int) => n = _n)
+    mongo.count()((_n: Int) => n = _n)
     n must eventually(beEqualTo(100)) 
   }
   def simpleFindAndModify(conn: MongoConnection) = {
@@ -283,7 +283,7 @@ class DirectConnectionSpec extends Specification
     mongo.dropCollection(){ success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){}
     var n: Int = -10
-    mongo.count((_n: Int) => n = _n)
+    mongo.count()((_n: Int) => n = _n)
     n must eventually(beEqualTo(100)) 
     var x: Int = -1
     mongo.findAndRemove(Document.empty){ doc: Document => 
