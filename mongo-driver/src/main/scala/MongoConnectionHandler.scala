@@ -119,7 +119,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               }
             }
           // TODO - Handle any errors in a "non completable" // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
-          case CompletableWriteRequest(msg: InsertMessage[_], writeResult: WriteRequestFuture) => {
+          case CompletableWriteRequest(msg, writeResult: WriteRequestFuture) => {
             log.info("Write Request Future.")
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a WriteRequestFuture.")
             // Check error state
