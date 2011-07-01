@@ -207,11 +207,23 @@ abstract class MongoConnection extends Logging {
    * Counts the number of documents in a given namespace
    * -1 indicates an error, for now
    */
-  def count(db: String)(collection: String)(callback: Int => Unit) = 
-    runCommand(db, Document("count" -> collection))(SimpleRequestFutures.command((doc: Document) => {
-      log.trace("Got a result from 'count' command: %s", doc)
-      callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
-    }))
+  def count[Qry : SerializableBSONObject, Flds : SerializableBSONObject](db: String)(collection: String)(query : Qry = Document.empty,
+    fields : Flds = Document.empty,
+    limit : Long = 0,
+    skip : Long = 0)(callback: Int => Unit) = {
+      val builder = OrderedDocument.newBuilder
+      builder += ("count" -> collection)
+      builder += ("query" -> query)
+      builder += ("fields" -> fields)
+      if (limit > 0)
+        builder += ("limit" -> limit)
+      if (skip > 0)
+        builder += ("skip" -> skip)
+      runCommand(db, builder.result)(SimpleRequestFutures.command((doc: Document) => {
+                   log.trace("Got a result from 'count' command: %s", doc)
+                   callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
+                 }))
+  }
 
   /**
    * Calls findAndModify in remove only mode with
