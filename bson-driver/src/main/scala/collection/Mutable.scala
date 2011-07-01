@@ -24,6 +24,14 @@ import org.bson.util.Logging
 import scala.collection.mutable._
 
 trait BSONDocument extends MapProxy[String, Any] with Logging {
+
+  // The issue here is that asInstanceOf[A] doesn't use the
+  // manifest and thus doesn't do anything (no runtime type
+  // check). We have to use the manifest to cast by hand.
+  private def checkedCast[A <: Any: Manifest](value : Any): A = {
+    manifest[A].erasure.asInstanceOf[Class[A]].cast(value)
+  }
+
   /**
    * as
    *
@@ -45,8 +53,8 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
       "(e.g. document.as[<ReturnType>](\"someKey\") ) to function correctly.")
 
     get(key) match {
-      case None => default(key).asInstanceOf[A]
-      case Some(value) => value.asInstanceOf[A]
+      case None => checkedCast[A](default(key))
+      case Some(value) => checkedCast[A](value)
     }
   }
 
@@ -58,7 +66,7 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
 
     get(key) match {
       case None => None
-      case Some(value) => Some(value.asInstanceOf[A])
+      case Some(value) => Some(checkedCast[A](value))
     }
   }
 
@@ -94,7 +102,7 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
 
     _dot(this, key) match {
       case None => None
-      case Some(value) => Some(value.asInstanceOf[A])
+      case Some(value) => Some(checkedCast[A](value))
     }
   }
 
