@@ -171,8 +171,8 @@ abstract class MongoConnection extends Logging {
 
   // TODO - should we allow any and do boxing elsewhere?
   // TODO - FindOne is Option[] returning, ensure!
-  def findOneByID[A <: AnyRef](db: String)(collection: String)(id: A)(callback: SingleDocQueryRequestFuture) =
-    findOne(db)(collection)(Document("_id" -> id))(callback)
+  def findOneByID[A <: AnyRef, Flds <: BSONDocument](db: String)(collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture) =
+    findOne(db)(collection)(Document("_id" -> id), fields)(callback)
 
   // TODO - Immutable mode / support immutable objects
   def insert[T](db: String)(collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {

@@ -66,8 +66,8 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.findOne(name)(query, fields)(callback)
   }
 
-  def findOneByID[Id <: AnyRef](id: Id)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    db.findOneByID(name)(id)(callback)
+  def findOneByID[Id <: AnyRef, Flds <: BSONDocument](id: Id, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    db.findOneByID(name)(id, fields)(callback)
   }
 
   def insert[T](doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
