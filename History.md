@@ -1,4 +1,18 @@
 
+0.2.5 / 2011-07-03 
+==================
+
+  * Was using same collection name to test batch inserts in both concurrency and normal test which caused test failures.  Fixed.
+  * Change CompletableWriteRequest to throw an exception in same cases Java driver would [havocp]
+  * Convert null on the wire to an absent document field rather than None [havocp]
+  * In boolCmdResult, do get("ok") not getAs[Double] [havocp]
+  * Make BSONDocument.checkedCast handle AnyVal types [havocp]
+  * In BSONDocument.getAs and friends, do a runtime type check [havocp]
+  * add fields parameter to findOneByID() [havocp]
+  * Fix tests to reflect that count() now has parameters [havocp] 
+  * Add query, fields, skip, limit parameters to count() [havocp]
+  * Handle DeleteMessage and UpdateMessage replies in addition to InsertMessage [havocp]
+
 0.2.0 / 2011-06-29 
 ==================
 
