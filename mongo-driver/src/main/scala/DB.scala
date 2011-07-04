@@ -183,8 +183,8 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.findOne(name)(collection)(query, fields)(callback)
   }
 
-  def findOneByID[A <: AnyRef](collection: String)(id: A)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.findOneByID(name)(collection)(id)(callback)
+  def findOneByID[A <: AnyRef, Flds <: BSONDocument](collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+    connection.findOneByID(name)(collection)(id, fields)(callback)
   }
 
   def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
@@ -255,8 +255,11 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     callback(colls.contains(name))
   })
 
-  def count(collection: String)(callback: Int => Unit) = 
-    connection.count(name)(collection)(callback)
+  def count[Qry : SerializableBSONObject, Flds : SerializableBSONObject](collection: String)(query : Qry = Document.empty,
+      fields : Flds = Document.empty,
+      limit : Long = 0,
+      skip : Long = 0)(callback: Int => Unit) =
+    connection.count(name)(collection)(query, fields, limit, skip)(callback)
 
   // TODO - We can't allow free form getLastError due to the async nature.. it must be locked to the call
 
