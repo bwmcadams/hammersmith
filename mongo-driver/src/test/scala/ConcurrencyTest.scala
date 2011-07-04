@@ -52,7 +52,7 @@ class ConcurrencyTestingSpec extends Specification
   }
 
   def batchInsert(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("batchInsert")
+    val mongo = conn("testHammersmith")("batchConcurrencyInsert")
     mongo.dropCollection(){ success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*){}
     var n: Int = -10
@@ -66,7 +66,7 @@ class ConcurrencyTestingSpec extends Specification
     while (x < 10 && n != 600) {
       mongo.count()((_n: Int) => n = _n)
       x += 1
-      Thread.sleep(1.seconds.inMillis)
+      Thread.sleep(5.seconds.inMillis)
     }
     log.info("Insert tie-out took %s milliseconds", start.untilNow.inMillis)
     n must eventually(beEqualTo(600)) 
