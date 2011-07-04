@@ -32,6 +32,11 @@ class HammersmithProject(info: ProjectInfo)
 
     //override def scalariformOptions = Seq(VerboseScalariform)
 
+    override def packageDocsJar = defaultJarPath("-javadoc.jar")
+    override def packageSrcJar= defaultJarPath("-sources.jar")
+    lazy val sourceArtifact = Artifact.sources(artifactID)
+    lazy val docsArtifact = Artifact.javadoc(artifactID)
+    override def packageToPublishActions = super.packageToPublishActions ++ Seq(packageDocs, packageSrc)
 
     // Use the BSON code
 //    val jBSON = "org.mongodb" % "bson" % "2.5.2"

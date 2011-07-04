@@ -10,3 +10,5 @@ tags
 \.idea/workspace.xml
 tutorial_src/build
 .idea
+*.html
+*.swo
