@@ -354,7 +354,7 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
     def gotUndefined(name: String) { /* NOOP */ }
 
-    def gotNull(name: String) = cur.put(name, None)
+    def gotNull(name: String) { /* NOOP */ }
 
     def cur = stack.top
 

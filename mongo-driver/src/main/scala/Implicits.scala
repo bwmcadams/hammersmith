@@ -53,7 +53,7 @@ trait Imports {
    * tosses an exception if necessary.
    * @throws MongoException
    */
-  protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = true): Boolean = doc.getAs[Double]("ok") match {
+  protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = true): Boolean = doc.get("ok") match {
     case Some(1.0) => {
       true
     }

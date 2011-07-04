@@ -64,7 +64,7 @@ class ConcurrencyTestingSpec extends Specification
     var x: Int = 0
     var start = Time.now
     while (x < 10 && n != 600) {
-      mongo.count((_n: Int) => n = _n)
+      mongo.count()((_n: Int) => n = _n)
       x += 1
       Thread.sleep(1.seconds.inMillis)
     }

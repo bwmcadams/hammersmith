@@ -119,7 +119,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               }
             }
           // TODO - Handle any errors in a "non completable" // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
-          case CompletableWriteRequest(msg: InsertMessage[_], writeResult: WriteRequestFuture) => {
+          case CompletableWriteRequest(msg, writeResult: WriteRequestFuture) => {
             log.info("Write Request Future.")
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a WriteRequestFuture.")
             // Check error state
@@ -128,18 +128,24 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               case Some(b) => {
                 val doc = SerializableDocument.decode(b)  // TODO - Extractors!
                 log.debug("Document found: %s", doc)
-                doc.getAs[String]("errmsg") match {
-                  case Some(error) => writeResult(new Exception(error))
-                  case None => {
-                    val w = WriteResult(ok = boolCmdResult(doc, false), 
-                                        error = doc.getAs[String]("err"), 
-                                        code = doc.getAs[Int]("code"),
-                                        n = doc.getAsOrElse[Int]("n", 0),
-                                        upsertID = doc.getAs[AnyRef]("upserted"),
-                                        updatedExisting = doc.getAs[Boolean]("updatedExisting"))
-                    log.debug("W: %s", w)
-                    writeResult((None, w).asInstanceOf[writeResult.T])
-                  }
+                val ok = boolCmdResult(doc, false)
+                // this is how the Java driver decides to throwOnError, !ok || "err"
+                val failed = !ok || doc.get("err").isDefined
+                if (failed) {
+                  // when does mongodb use errmsg vs. err ?
+                  val errmsg = doc.getAsOrElse[String]("errmsg", doc.getAs[String]("err").get)
+                  // FIXME should be a custom exception type probably
+                  writeResult(new Exception(errmsg))
+                } else {
+                  val w = WriteResult(ok = true,
+                                      error = None,
+                                      // FIXME is it possible to have a code but no error?
+                                      code = doc.getAs[Int]("code"),
+                                      n = doc.getAsOrElse[Int]("n", 0),
+                                      upsertID = doc.getAs[AnyRef]("upserted"),
+                                      updatedExisting = doc.getAs[Boolean]("updatedExisting"))
+                  log.debug("W: %s", w)
+                  writeResult((None, w).asInstanceOf[writeResult.T])
                 }
               }
               case None => {
