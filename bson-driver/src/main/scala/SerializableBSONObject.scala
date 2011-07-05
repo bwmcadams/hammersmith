@@ -45,13 +45,15 @@ trait SerializableBSONObject[T] {
   def checkKeys(doc: T): Unit
 
   /**
-   * Checks for an ID and generates one.
+   * Checks for an ID and generates one, returning a new doc with the id.
+   * The new doc may be a mutation of the old doc, OR a new object
+   * if the old doc was immutable.
    * Not all implementers will need this, but it gets invoked nonetheless
    * as a signal to BSONDocument, etc implementations to verify an id is there 
    * and generate one if needed.
    *
    */
-  def checkID(doc: T): Unit
+  def checkID(doc: T): T
 
   def _id(doc: T): Option[AnyRef]
 

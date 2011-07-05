@@ -82,22 +82,25 @@ object `package` {
      * as a signal to BSONDocument, etc implementations to verify an id is there 
      * and generate one if needed.
      */
-    def checkID(doc: T) = doc.get("_id") match {
-      case Some(oid: ObjectId) => {
-        log.debug("Found an existing OID")
-        oid.notNew()
-        //oid
+    def checkID(doc: T) : T = {
+      doc.get("_id") match {
+        case Some(oid: ObjectId) => {
+          log.debug("Found an existing OID")
+          oid.notNew()
+          //oid
+        }
+        case Some(other) => {
+          log.debug("Found a non-OID ID")
+          //other
+        }
+        case None => {
+          val oid = new ObjectId()
+          doc.put("_id", oid)
+          log.trace("no ObjectId. Generated: %s", doc.get("_id"))
+          //oid
+        }
       }
-      case Some(other) => {
-        log.debug("Found a non-OID ID")
-        //other
-      }
-      case None => {
-        val oid = new ObjectId()
-        doc.put("_id", oid)
-        log.trace("no ObjectId. Generated: %s", doc.get("_id"))
-        //oid
-      }
+      doc
     }
     
     def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")

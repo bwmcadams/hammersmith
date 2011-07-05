@@ -177,11 +177,14 @@ abstract class MongoConnection extends Logging {
   // TODO - Immutable mode / support immutable objects
   def insert[T](db: String)(collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.trace("Inserting: %s to %s.%s with WriteConcern: %s", doc, db, collection, concern)
-    if (validate) {
+    val checked = if (validate) {
       m.checkObject(doc)
       m.checkID(doc)
-    } else log.info("Validation of objects disabled; no ID Gen.")
-    send(InsertMessage(db + "." + collection, doc), callback)
+    } else {
+      log.info("Validation of objects disabled; no ID Gen.")
+      doc
+    }
+    send(InsertMessage(db + "." + collection, checked), callback)
   }
 
   /**
@@ -195,11 +198,11 @@ abstract class MongoConnection extends Logging {
    */
   def batchInsert[T](db: String)(collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.trace("Batch Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
-    docs.foreach(x => {
+    val checked = docs.map(x => {
       m.checkObject(x)
       m.checkID(x)
     })
-    send(InsertMessage(db + "." + collection, docs: _*), callback)
+    send(InsertMessage(db + "." + collection, checked: _*), callback)
   }
 
 
