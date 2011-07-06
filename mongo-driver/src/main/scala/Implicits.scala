@@ -20,6 +20,7 @@ package com.mongodb.async
 import org.bson.collection._
 import com.mongodb.async.futures._
 import org.bson.SerializableBSONObject
+import org.bson.SerializableBSONObject
 
 object `package` extends Implicits with Imports
 
@@ -29,9 +30,9 @@ trait Implicits {
   implicit def asFindOneOp[T : SerializableBSONObject](f: Either[Throwable, T] => Unit) = RequestFutures.findOne(f)
   implicit def asWriteOp(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) = RequestFutures.write(f)
   implicit def asBatchWriteOp(f: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)] => Unit) = RequestFutures.batchWrite(f)
-  implicit def asSimpleGetMoreOp[T : SerializableBSONObject](f: (Long, Seq[T]) => Unit): GetMoreRequestFuture = SimpleRequestFutures.getMore(f)
-  implicit def asSimpleQueryOp[T : SerializableBSONObject](f: Cursor[T] => Unit): CursorQueryRequestFuture = SimpleRequestFutures.query(f)
-  implicit def asSimpleFindOneOp[T : SerializableBSONObject](f: T => Unit): SingleDocQueryRequestFuture = SimpleRequestFutures.findOne(f)
+  implicit def asSimpleGetMoreOp[T : SerializableBSONObject](f: (Long, Seq[T]) => Unit): GetMoreRequestFuture[T] = SimpleRequestFutures.getMore(f)
+  implicit def asSimpleQueryOp[T : SerializableBSONObject](f: Cursor[T] => Unit): CursorQueryRequestFuture[T] = SimpleRequestFutures.query(f)
+  implicit def asSimpleFindOneOp[T : SerializableBSONObject](f: T => Unit): SingleDocQueryRequestFuture[T] = SimpleRequestFutures.findOne(f)
   implicit def asSimpleWriteOp(f: (Option[AnyRef], WriteResult) => Unit): WriteRequestFuture = SimpleRequestFutures.write(f)
   implicit def asSimpleBatchWriteOp(f: (Option[Seq[AnyRef]], WriteResult) => Unit): BatchWriteRequestFuture = SimpleRequestFutures.batchWrite(f)
   implicit def noopSimpleWrite(f: Unit): WriteRequestFuture = new WriteRequestFuture {
@@ -53,19 +54,22 @@ trait Imports {
    * tosses an exception if necessary.
    * @throws MongoException
    */
-  protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = true): Boolean = doc.get("ok") match {
-    case Some(1.0) => {
-      true
-    }
-    case Some(_) | None => {
-      if (throwOnError) throw new MongoException("Bad Boolean Command Result: %s  / %s".format(
-                                                  doc, doc.getAsOrElse[String]("errmsg", ""))
-                                                 ) else false
+  protected[mongodb] def boolCmdResult[A : SerializableBSONObject](doc: A, throwOnError: Boolean = true): Boolean = {
+    val m = implicitly[SerializableBSONObject[A]]
+    m.checkBooleanCommandResult(doc) match {
+      case None =>
+        true
+      case Some(errmsg) => {
+        if (throwOnError)
+          throw new MongoException(errmsg)
+        else
+          false
+      }
     }
   }
 
-  protected[mongodb] def boolCmdResultCallback(callback: (Boolean) => Unit, throwOnError: Boolean = true) =
-    RequestFutures.command((result: Either[Throwable, Document]) => result match {
+  protected[mongodb] def boolCmdResultCallback[A : SerializableBSONObject](callback: (Boolean) => Unit, throwOnError: Boolean = true) : SingleDocQueryRequestFuture[A] =
+    RequestFutures.command((result: Either[Throwable, A]) => result match {
       case Right(doc) => {
         callback(boolCmdResult(doc, throwOnError))
       }
@@ -75,6 +79,8 @@ trait Imports {
       }
     })
 
+  protected[mongodb] def ignoredResultCallback[A : SerializableBSONObject] =
+    RequestFutures.command((result: Either[Throwable, A]) => {})
 }
 
 

@@ -39,7 +39,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     assume(!authenticated_?, "Already authenticated.")
     val hash = hashPassword(username, password)
     log.debug("Hashed Password: '%s'", hash)
-    command("getnonce")(RequestFutures.findOne((result: Either[Throwable, Document]) => result match {
+    command[Document]("getnonce")(RequestFutures.findOne((result: Either[Throwable, Document]) => result match {
       // TODO - Callback on failure
       case Right(doc) =>
         doc.getAsOrElse[Int]("ok", 0) match {
@@ -149,12 +149,12 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * TODO - Would this perform faster partially applied?
    * TODO - Support Options here
    */
-  def command[Cmd <% BSONDocument](cmd: Cmd)(f: SingleDocQueryRequestFuture) {
+  def command[Cmd <% BSONDocument, Result : SerializableBSONObject : Manifest](cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]): Unit = {
     connection.runCommand(name, cmd)(f)
   }
 
-  def command(cmd: String): SingleDocQueryRequestFuture => Unit =
-    command(Document(cmd -> 1))_
+  def command[Result : SerializableBSONObject : Manifest](cmd: String)(f : SingleDocQueryRequestFuture[Result]) : Unit =
+    command(Document(cmd -> 1))(f)
 
   /**
   * Repeated deliberately enough times that i'll notice it later.
@@ -174,20 +174,20 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   * for (i <- 1 to 5000) println("TODO - SCALADOC")
   */
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
-  def find[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def find[Qry <: BSONDocument, Flds <: BSONDocument, Result](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture[Result])(implicit concern: WriteConcern = this.writeConcern, serializable : SerializableBSONObject[Result]) {
     connection.find(name)(collection)(query, fields, numToSkip, batchSize)(callback)
   }
 
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
-  def findOne[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def findOne[Qry <: BSONDocument, Flds <: BSONDocument, Result](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture[Result])(implicit concern: WriteConcern = this.writeConcern, serializable : SerializableBSONObject[Result]) {
     connection.findOne(name)(collection)(query, fields)(callback)
   }
 
-  def findOneByID[A <: AnyRef, Flds <: BSONDocument](collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def findOneByID[A <: AnyRef, Flds <: BSONDocument, Result](collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture[Result])(implicit concern: WriteConcern = this.writeConcern, serializable : SerializableBSONObject[Result]) {
     connection.findOneByID(name)(collection)(id, fields)(callback)
   }
 
-  def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf : Manifest[T]) {
     connection.insert(name)(collection)(doc, validate)(callback)
   }
 
@@ -199,7 +199,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    *
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
    */
-  def batchInsert[T](collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def batchInsert[T](collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     connection.batchInsert(name)(collection)(docs: _*)(callback)
   }
 
@@ -211,7 +211,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.save(name)(collection)(obj)(callback)
   }
 
-  def remove[T](collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def remove[T](collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     connection.remove(name)(collection)(obj, removeSingle)(callback)
   }
 
@@ -226,11 +226,11 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   }
 
   def dropAllIndexes(collection: String)(callback: (Boolean) => Unit) {
-    connection.dropAllIndexes(name)(collection)(boolCmdResultCallback(callback))
+    connection.dropAllIndexes(name)(collection)(boolCmdResultCallback[Document](callback))
   }
 
   def dropIndex(collection: String)(idxName: String)(callback: (Boolean) => Unit) {
-    connection.dropIndex(name)(collection)(idxName)(boolCmdResultCallback(callback))
+    connection.dropIndex(name)(collection)(idxName)(boolCmdResultCallback[Document](callback))
   }
 
   /**
@@ -240,12 +240,12 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * TODO - Ensure getLastError on this?
    * TODO - Remove from any cached db listings
    */
-  def dropDatabase()(callback: (Boolean) => Unit) = command("dropDatabase")(boolCmdResultCallback(callback))
+  def dropDatabase()(callback: (Boolean) => Unit) = command[Document]("dropDatabase")(boolCmdResultCallback[Document](callback))
 
   /**
    * invokes the 'dbStats' command
    */
-  def stats() = command("dbstats")
+  def stats() = command[Document]("dbstats")(ignoredResultCallback)
 
   /**
    * TODO - This is done the same way as the Java Driver's but rather inefficient
@@ -270,7 +270,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
+  def findAndRemove[Qry : SerializableBSONObject, Result : SerializableBSONObject : Manifest](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = connection.findAndRemove(name)(collection)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -283,14 +283,14 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject](collection: String)(
+  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject : Manifest](collection: String)(
                     query: Qry = Document.empty,
                     sort: Srt = Document.empty,
                     remove: Boolean = false,
                     update: Option[Upd] = None,
                     getNew: Boolean = false,
                     fields: Flds = Document.empty,
-                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = 
+                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture[Result]) =
     connection.findAndModify(name)(collection)(query, sort, remove, update, getNew, fields, upsert)(callback)
 
 
