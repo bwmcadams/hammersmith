@@ -40,7 +40,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   protected val bootstrap: ClientBootstrap
   protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
 
-  protected def queryFail(reply: ReplyMessage, result: RequestFuture) = { 
+  protected def queryFail(reply: ReplyMessage, result: RequestFuture[_]) = {
     log.trace("Query Failure")
     // Attempt to grab the $err document
     val err = reply.documents.headOption match {
@@ -77,8 +77,8 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
          */
         if (req.isEmpty) log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.", reply.header.responseTo)
           req.foreach(_ match {
-            case _r: CompletableReadRequest => _r match {
-              case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
+            case _r: CompletableReadRequest[_] => _r match {
+              case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture[_]) => {
                 log.trace("Single Document Request Future.")
                 // This may actually be better as a disableable assert but for now i want it hard.
                 require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
@@ -95,7 +95,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                   singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T])  // TODO - Fix me!
                 }
               }
-              case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
+              case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture[_]) => {
                 log.trace("Cursor Request Future.")
                 if (reply.cursorNotFound) {
                   log.trace("Cursor Not Found.")
@@ -106,7 +106,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                   cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
                 }
               }
-              case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
+              case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture[_]) => {
                 log.trace("Get More Request Future.")
                 if (reply.cursorNotFound) {
                   log.warn("Cursor Not Found.")

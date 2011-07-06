@@ -21,35 +21,35 @@ package futures
 import wire._
 import org.bson.SerializableBSONObject
 
-trait CompletableRequest {
+trait CompletableRequest[V] {
   val request: MongoClientMessage
-  val future: RequestFuture
+  val future: RequestFuture[V]
 }
 
 object CompletableRequest {
 
-  def apply(m: MongoClientMessage, f: RequestFuture): CompletableRequest = apply((m, f))
+  def apply[V](m: MongoClientMessage, f: RequestFuture[V]): CompletableRequest[V] = apply[V]((m, f))
 
-  def apply: PartialFunction[(MongoClientMessage, RequestFuture), CompletableRequest] = {
-    case (q: QueryMessage, f: SingleDocQueryRequestFuture) => CompletableSingleDocRequest(q, f)
-    case (q: QueryMessage, f: CursorQueryRequestFuture) => CompletableCursorRequest(q, f)
-    case (gm: GetMoreMessage, f: GetMoreRequestFuture) => CompletableGetMoreRequest(gm, f)
+  def apply[V]: PartialFunction[(MongoClientMessage, RequestFuture[V]), CompletableRequest[V]] = {
+    case (q: QueryMessage, f: SingleDocQueryRequestFuture[_]) => CompletableSingleDocRequest[V](q, f)
+    case (q: QueryMessage, f: CursorQueryRequestFuture[_]) => CompletableCursorRequest[V](q, f)
+    case (gm: GetMoreMessage, f: GetMoreRequestFuture[_]) => CompletableGetMoreRequest[V](gm, f)
     case (w: MongoClientWriteMessage, f: WriteRequestFuture) => CompletableWriteRequest(w, f)
     case (k: KillCursorsMessage, f: NoOpRequestFuture.type) => NonCompletableWriteRequest(k, f)
     case default => throw new IllegalArgumentException("Cannot handle a CompletableRequest of '%s'".format(default))
   }
 }
 
-trait CompletableReadRequest extends CompletableRequest {
-  type T
-  override val future: QueryRequestFuture
+trait CompletableReadRequest[V] extends CompletableRequest[V] {
+  type T <: V
+  override val future: QueryRequestFuture[V]
   val decoder = future.decoder
 }
 
-case class CompletableSingleDocRequest(override val request: QueryMessage, override val future: SingleDocQueryRequestFuture) extends CompletableReadRequest 
-case class CompletableCursorRequest(override val request: QueryMessage, override val future: CursorQueryRequestFuture) extends CompletableReadRequest
-case class CompletableGetMoreRequest(override val request: GetMoreMessage, override val future: GetMoreRequestFuture) extends CompletableReadRequest
-case class CompletableWriteRequest(override val request: MongoClientWriteMessage, override val future: WriteRequestFuture) extends CompletableRequest
-case class NonCompletableWriteRequest(override val request: MongoClientMessage, override val future: NoOpRequestFuture.type) extends CompletableRequest
+case class CompletableSingleDocRequest[V](override val request: QueryMessage, override val future: SingleDocQueryRequestFuture[V]) extends CompletableReadRequest[V] 
+case class CompletableCursorRequest[V](override val request: QueryMessage, override val future: CursorQueryRequestFuture[V]) extends CompletableReadRequest[V]
+case class CompletableGetMoreRequest[V](override val request: GetMoreMessage, override val future: GetMoreRequestFuture[V]) extends CompletableReadRequest[V]
+case class CompletableWriteRequest(override val request: MongoClientWriteMessage, override val future: WriteRequestFuture) extends CompletableRequest[(Option[AnyRef], WriteResult)]
+case class NonCompletableWriteRequest(override val request: MongoClientMessage, override val future: NoOpRequestFuture.type) extends CompletableRequest[Unit]
 
 

@@ -121,14 +121,14 @@ abstract class MongoConnection extends Logging {
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd)(f: SingleDocQueryRequestFuture) {
+  protected[mongodb] def runCommand[Cmd <% BSONDocument, Result : SerializableBSONObject](ns: String, cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]) {
     val qMsg = MongoConnection.createCommand(ns, cmd)
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
   }
 
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
+  protected[mongodb] def send[Result](msg: MongoClientMessage, f: RequestFuture[Result])(implicit concern: WriteConcern = this.writeConcern) =
     MongoConnection.send(msg, f)
 
   /**
@@ -159,19 +159,19 @@ abstract class MongoConnection extends Logging {
     }))
   }
 
-  def find[Qry <: BSONDocument, Flds <: BSONDocument](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def find[Qry <: BSONDocument, Flds <: BSONDocument, Result](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture[Result])(implicit concern: WriteConcern = this.writeConcern, serializable : SerializableBSONObject[Result]) {
     val qMsg = QueryMessage(db + "." + collection, numToSkip, batchSize, query, fieldSpec(fields))
     send(qMsg, callback)
   }
 
-  def findOne[Qry <: BSONDocument, Flds <: BSONDocument](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def findOne[Qry <: BSONDocument, Flds <: BSONDocument, Result](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture[Result])(implicit concern: WriteConcern = this.writeConcern, serializable : SerializableBSONObject[Result]) {
     val qMsg = QueryMessage(db + "." + collection, 0, -1, query, fieldSpec(fields))
     send(qMsg, callback)
   }
 
   // TODO - should we allow any and do boxing elsewhere?
   // TODO - FindOne is Option[] returning, ensure!
-  def findOneByID[A <: AnyRef, Flds <: BSONDocument](db: String)(collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture) =
+  def findOneByID[A <: AnyRef, Flds <: BSONDocument, Result](db: String)(collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture[Result])(implicit serializable : SerializableBSONObject[Result]) =
     findOne(db)(collection)(Document("_id" -> id), fields)(callback)
 
   // TODO - Immutable mode / support immutable objects
@@ -234,7 +234,7 @@ abstract class MongoConnection extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry :  SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))(callback)
+  def findAndRemove[Qry :  SerializableBSONObject, Result : SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -247,14 +247,14 @@ abstract class MongoConnection extends Logging {
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-   def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject](db: String)(collection: String)(
+   def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject](db: String)(collection: String)(
                     query: Qry = Document.empty,
                     sort: Srt = Document.empty,
                     remove: Boolean = false,
                     update: Option[Upd] = None,
                     getNew: Boolean = false,
                     fields: Flds = Document.empty,
-                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = {
+                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture[Result]) = {
     val cmd = OrderedDocument("findandmodify" -> collection,
                               "query" -> query,
                               "fields" -> fields,
@@ -281,7 +281,7 @@ abstract class MongoConnection extends Logging {
     }
 
     log.debug("Running findAndModify: %s", cmd)
-    runCommand(db, cmd)(SimpleRequestFutures.command((reply: Document) => {
+    runCommand(db, cmd)(SimpleRequestFutures.command((reply: Result) => {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
       val doc = reply.getAs[BSONDocument]("value")
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
@@ -348,14 +348,14 @@ abstract class MongoConnection extends Logging {
   /**
    * NOTE: If you want the "Returns Bool" version of these, use the version on Collection or DB
    */
-  def dropAllIndexes(db: String)(collection: String)(callback: SingleDocQueryRequestFuture) {
+  def dropAllIndexes[Result : SerializableBSONObject](db: String)(collection: String)(callback: SingleDocQueryRequestFuture[Result]) {
     dropIndex(db)(collection)("*")(callback)
   }
 
   /**
    * NOTE: If you want the "Returns Bool" version of these, use the version on Collection or DB
    */
-  def dropIndex(db: String)(collection: String)(name: String)(callback: SingleDocQueryRequestFuture) {
+  def dropIndex[Result : SerializableBSONObject](db: String)(collection: String)(name: String)(callback: SingleDocQueryRequestFuture[Result]) {
     // TODO index cache
     runCommand(db, Document("deleteIndexes" ->  (db + "." + collection), "index" -> name))(callback)
   }
@@ -422,8 +422,8 @@ abstract class MongoConnection extends Logging {
  */
 object MongoConnection extends Logging {
 
-  protected[mongodb] val dispatcher: ConcurrentMap[Int, CompletableRequest] =
-    new ConcurrentHashMap[Int, CompletableRequest]()
+  protected[mongodb] val dispatcher: ConcurrentMap[Int, CompletableRequest[_]] =
+    new ConcurrentHashMap[Int, CompletableRequest[_]]()
 
   protected[mongodb] val cleaningTimer = new CursorCleaningTimer()
 
@@ -444,7 +444,7 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
+  protected[mongodb] def send[Result](msg: MongoClientMessage, f: RequestFuture[Result])(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
     require(channel.isConnected, "Channel is closed.")
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet

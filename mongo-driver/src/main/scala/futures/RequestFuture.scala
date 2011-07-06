@@ -21,8 +21,8 @@ package futures
 import org.bson.util.Logging
 import org.bson.SerializableBSONObject
 
-sealed trait RequestFuture {
-  type T
+sealed trait RequestFuture[V] {
+  type T <: V
 
   val body: Either[Throwable, T] => Unit
 
@@ -33,17 +33,17 @@ sealed trait RequestFuture {
   protected[futures] var completed = false
 }
 
-sealed trait QueryRequestFuture extends RequestFuture {
+sealed trait QueryRequestFuture[V] extends RequestFuture[V] {
   type DocType
   val decoder: SerializableBSONObject[DocType]
 }
 
-trait CursorQueryRequestFuture extends QueryRequestFuture {
+trait CursorQueryRequestFuture[V] extends QueryRequestFuture[V] {
   type T <: Cursor[DocType]
   //val decoder: SerializableBSONObject[DocType]
 }
 
-trait GetMoreRequestFuture extends QueryRequestFuture {
+trait GetMoreRequestFuture[V] extends QueryRequestFuture[V] {
   type T = (Long, Seq[DocType])
   //val decoder: SerializableBSONObject[DocType]
 }
@@ -53,7 +53,7 @@ trait GetMoreRequestFuture extends QueryRequestFuture {
  * Used for findOne and commands
  * Items which return a single document, and not a cursor
  */
-trait SingleDocQueryRequestFuture extends QueryRequestFuture {
+trait SingleDocQueryRequestFuture[V] extends QueryRequestFuture[V] {
   type T = DocType
 }
 
@@ -61,7 +61,7 @@ trait SingleDocQueryRequestFuture extends QueryRequestFuture {
  * Will pass any *generated* _id along with any relevant getLastError information
  * For an update, don't expect to get ObjectId
  */
-trait WriteRequestFuture extends RequestFuture {
+trait WriteRequestFuture extends RequestFuture[(Option[AnyRef], WriteResult)] {
   type T <: (Option[AnyRef] /* ID Type */ , WriteResult)
 }
 
@@ -76,14 +76,14 @@ trait WriteRequestFuture extends RequestFuture {
  *
  * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
  */
-trait BatchWriteRequestFuture extends RequestFuture {
+trait BatchWriteRequestFuture extends RequestFuture[(Option[Seq[AnyRef]], WriteResult)] {
   type T <: (Option[Seq[AnyRef]] /* ID Type */ , WriteResult)
 }
 
 /*
  * For Noops that don't return anything such as OP_KILL_CURSORS
  */
-case object NoOpRequestFuture extends RequestFuture with Logging {
+case object NoOpRequestFuture extends RequestFuture[Unit] with Logging {
   type T = Unit
   val body = (result: Either[Throwable, Unit]) => result match {
     case Right(()) => {}
@@ -96,7 +96,7 @@ case object NoOpRequestFuture extends RequestFuture with Logging {
 
 object RequestFutures extends Logging {
   def getMore[A : SerializableBSONObject](f: Either[Throwable, (Long, Seq[A])] => Unit) =
-    new GetMoreRequestFuture {
+    new GetMoreRequestFuture[A]{
       type DocType = A
       val body = f
       val decoder = implicitly[SerializableBSONObject[A]]
@@ -104,7 +104,7 @@ object RequestFutures extends Logging {
     }
 
   def query[A : SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) =
-    new CursorQueryRequestFuture {
+    new CursorQueryRequestFuture[A] {
       type DocType = A
       type T = Cursor[A]
       val body = f
@@ -115,7 +115,7 @@ object RequestFutures extends Logging {
   def find[A : SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) = query(f)
 
   def command[A : SerializableBSONObject](f: Either[Throwable, A] => Unit) =
-    new SingleDocQueryRequestFuture {
+    new SingleDocQueryRequestFuture[A] {
       type DocType = A
       val body = f
       val decoder = implicitly[SerializableBSONObject[A]]
@@ -144,7 +144,7 @@ object SimpleRequestFutures extends Logging {
   def findOne[A : SerializableBSONObject](f: A => Unit) = command(f)
 
   def command[A : SerializableBSONObject](f: A => Unit) =
-    new SingleDocQueryRequestFuture {
+    new SingleDocQueryRequestFuture[A] {
       type DocType = A
       val body = (result: Either[Throwable, A]) => result match {
         case Right(doc) => f(doc)
@@ -155,7 +155,7 @@ object SimpleRequestFutures extends Logging {
     }
 
   def getMore[A : SerializableBSONObject](f: (Long, Seq[A]) => Unit) =
-    new GetMoreRequestFuture {
+    new GetMoreRequestFuture[A] {
       type DocType = A
       val body = (result: Either[Throwable, (Long, Seq[A])]) => result match {
         case Right((cid, docs)) => f(cid, docs)
@@ -168,7 +168,7 @@ object SimpleRequestFutures extends Logging {
   def find[T : SerializableBSONObject](f: Cursor[T] => Unit) = query(f)
 
   def query[A : SerializableBSONObject](f: Cursor[A] => Unit) =
-    new CursorQueryRequestFuture {
+    new CursorQueryRequestFuture[A] {
       type DocType = A
       type T = Cursor[A]
       val body = (result: Either[Throwable, Cursor[A]]) => result match {
