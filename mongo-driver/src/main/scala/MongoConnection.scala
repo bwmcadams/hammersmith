@@ -54,10 +54,10 @@ abstract class MongoConnection extends Logging {
 
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
-  protected implicit var maxBSONObjectSize = 0
+  protected implicit var maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
   protected var isMaster = false
 
-  protected val _connected = new AtomicBoolean(false)
+  //protected val _connected = new AtomicBoolean(false)
 
   /* TODO - Can we reuse these factories across multiple connections??? */
 
@@ -79,7 +79,10 @@ abstract class MongoConnection extends Logging {
   bootstrap.setOption("remoteAddress", addr)
 
   private val _f = bootstrap.connect()
+  // TODO - Switch to listener based establishment
   protected implicit val channel = _f.awaitUninterruptibly.getChannel
+
+  MongoConnection.channelState.put(channel, new AtomicBoolean(false)) 
 
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("keepAlive", true)
@@ -101,18 +104,19 @@ abstract class MongoConnection extends Logging {
    * @throws MongoException
    */
   def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
-    if (maxBSONObjectSize == 0 || force) {
-      log.debug("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
+    if (connected_? || force) {
+      log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
-      runCommand("admin", Document("isMaster" -> 1))(SimpleRequestFutures.command((doc: Document) => {
+      val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
+      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) => {
         log.debug("Got a result from command: %s", doc)
         isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
         maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
         gotIsMaster.set(true)
-        if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connected.set(true)
+        if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connectedState(true, maxBSONObjectSize)
         handler.maxBSONObjectSize = maxBSONObjectSize
-        log.debug("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
-      }))
+        log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
+      }), _overrideLiveCheck = true)
     } else {
       log.debug("Already have cached master status. Skipping.")
     }
@@ -365,7 +369,9 @@ abstract class MongoConnection extends Logging {
   // TODO "Ensure" mode
   val handler: MongoConnectionHandler
 
-  def connected_? = _connected.get
+  def connected_? = MongoConnection.channelState(channel).get()
+  def _connectedState(connected: Boolean, maxBSONObjectSize: Int) = 
+    MongoConnection.setChannelState(channel, connected, maxBSONObjectSize)
 
   val addr: InetSocketAddress
 
@@ -376,7 +382,7 @@ abstract class MongoConnection extends Logging {
     log.debug("Shutting Down & Cleaning up connection handler.")
     MongoConnection.cleaningTimer.stop(this)
     channel.close()
-    _connected.set(false)
+    _connectedState(false, maxBSONObjectSize)
   }
 
 
@@ -437,14 +443,49 @@ object MongoConnection extends Logging {
    */
   protected[mongodb] val deadCursors = new WeakHashMap[Channel, ConcurrentQueue[Long]]
 
+  /**
+   * Canonical guide of the status of any channels.
+   * e.g. what we know about their current live or dead status.
+   */
+  protected val channelState = new WeakHashMap[Channel, AtomicBoolean]
+
+  /**
+   * Operation queue for channels which aren't connected yet.
+   */
+  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) => Unit]]
+
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
 
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
+  
+  /** TODO - Support timing out of ops */
+  def setChannelState(channel: Channel, connected: Boolean, maxBSONObjectSize: Int) = {
+    log.info("Setting a channel state up to '%s' for '%s'", connected, channel)
+    val oldState = channelState.getOrElseUpdate(channel, new AtomicBoolean(false)).getAndSet(connected) 
+    if (oldState) connected match {
+      case true => {
+        log.info("Connection state was already connected, set to connected again.  NOOP")
+      }
+      case false => {
+        log.info("Connection state was connected, set to disconnected. Otherwise, NOOP.")
+      }
+    } else connected match {
+      case true => {
+        log.info("Connection state was disconnected, set to connected.  Dequeueing any backed up operations.")
+        channelOpQueue.get(channel).foreach { queue => 
+          queue.dequeueAll.foreach { op => op(maxBSONObjectSize) }
+        }
+      }
+      case false => {
+        log.info("Connection state was disconnected, set to disconnected again.  NOOP.")
+      }
+    }
+  }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
     require(channel.isConnected, "Channel is closed.")
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
@@ -486,11 +527,22 @@ object MongoConnection extends Logging {
         }
       }
     } else () => {}
-    channel.write(outStream.buffer())
-    outStream.close()
-    
-    /** If no write Concern and it's a write, kick the callback now.*/
-    writeCB()
+    // todo - clean this up to be more automatic like the writeCB is
+
+    val exec = (_maxBSON: Int) => {
+      // TODO - Remove this debug line ;)
+      log.info("\t => Writing channel output / MaxBSON: %d", _maxBSON)
+      channel.write(outStream.buffer())
+      outStream.close()
+      /** If no write Concern and it's a write, kick the callback now.*/
+      writeCB()
+    }
+    // If the channel is open, it still doesn't mean we have a valid Mongo Connection.
+    if (!channelState(channel).get && !_overrideLiveCheck) {
+      log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
+      channelOpQueue.getOrElseUpdate(channel, new ConcurrentQueue) += exec
+    } else exec(maxBSONObjectSize)
+
   }
 
 

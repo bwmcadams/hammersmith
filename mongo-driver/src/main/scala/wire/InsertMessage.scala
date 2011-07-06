@@ -58,7 +58,7 @@ abstract class InsertMessage[T : SerializableBSONObject] extends MongoClientWrit
       log.debug("Total: %d, Last Doc Size: %d", total, n)
       // If we went over the size, backtrack and start a new message
       if (total >= (4 * maxBSON)) {
-        log.info("Exceeded MaxBSON, kicking in a new batch.")
+        log.info("Exceeded MaxBSON [%s] (total: %s), kicking in a new batch.", maxBSON, total)
         enc.seek(-n)
         /* TODO - This recursion may be bad and wonky... */
         InsertMessage(namespace, (doc +: q): _*).build(enc)

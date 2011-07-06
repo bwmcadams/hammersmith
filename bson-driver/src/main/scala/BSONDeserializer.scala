@@ -49,7 +49,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
 
     if (first) _in._max = len
 
-    log.info("Decoding, length: %d", len)
+    log.trace("Decoding, length: %d", len)
 
     _callback.objectStart()
     while (decodeElement()) {

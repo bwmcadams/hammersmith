@@ -141,10 +141,10 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   try {
     val _d = Seq.newBuilder[T] 
     for (doc <- reply.documents) {
-      log.info("Decoding: %s", doc)
+      log.trace("Decoding: %s", doc)
       try {
         val x = decoder.decode(doc)
-        log.info("Decoded: %s", x)
+        log.trace("Decoded: %s", x)
         _d += x
       } catch {
         case e => log.info("ERROR!!!!!!!!! %s", e)
