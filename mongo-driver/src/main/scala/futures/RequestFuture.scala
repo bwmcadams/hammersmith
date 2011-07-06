@@ -22,7 +22,7 @@ import org.bson.util.Logging
 import org.bson.SerializableBSONObject
 
 sealed trait RequestFuture[V] {
-  type T <: V
+  type T
 
   val body: Either[Throwable, T] => Unit
 
