@@ -54,14 +54,17 @@ trait Imports {
    * tosses an exception if necessary.
    * @throws MongoException
    */
-  protected[mongodb] def boolCmdResult[A : SerializableBSONObject](doc: A, throwOnError: Boolean = true): Boolean = doc.get("ok") match {
-    case Some(1.0) => {
-      true
-    }
-    case Some(_) | None => {
-      if (throwOnError) throw new MongoException("Bad Boolean Command Result: %s  / %s".format(
-                                                  doc, doc.getAsOrElse[String]("errmsg", ""))
-                                                 ) else false
+  protected[mongodb] def boolCmdResult[A : SerializableBSONObject](doc: A, throwOnError: Boolean = true): Boolean = {
+    val m = implicitly[SerializableBSONObject[A]]
+    m.checkBooleanCommandResult(doc) match {
+      case None =>
+        true
+      case Some(errmsg) => {
+        if (throwOnError)
+          throw new MongoException(errmsg)
+        else
+          false
+      }
     }
   }
 

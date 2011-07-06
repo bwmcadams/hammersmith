@@ -57,5 +57,17 @@ trait SerializableBSONObject[T] {
 
   def _id(doc: T): Option[AnyRef]
 
+  /**
+   * Checks the "ok" field for result, if the command failed,
+   * returns the "errmsg" field, on success returns None.
+   */
+  def checkBooleanCommandResult(doc: T): Option[String]
+
+  /**
+   * Extracts a document from the "value" field, if possible.
+   * Should not throw; should return None if the field is missing
+   * or invalid.
+   */
+  def getValueField(doc: T)(implicit mf : Manifest[T]): Option[T]
 }
 

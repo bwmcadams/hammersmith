@@ -32,11 +32,11 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * TODO - Would this perform faster partially applied?
    * TODO - Support Options here
    */
-  def command[Cmd <% BSONDocument, Result : SerializableBSONObject](cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]) : Unit = {
+  def command[Cmd <% BSONDocument, Result : SerializableBSONObject : Manifest](cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]) : Unit = {
     db.command[Cmd, Result](cmd)(f)
   }
 
-  def command[Result : SerializableBSONObject](cmd: String)(f : SingleDocQueryRequestFuture[Result]) : Unit =
+  def command[Result : SerializableBSONObject : Manifest](cmd: String)(f : SingleDocQueryRequestFuture[Result]) : Unit =
     command[Document, Result](Document(cmd -> 1))(f)
 
   /**
@@ -70,7 +70,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.findOneByID(name)(id, fields)(callback)
   }
 
-  def insert[T](doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def insert[T](doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     db.insert(name)(doc, validate)(callback)
   }
   
@@ -82,7 +82,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    *
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
    */
-  def batchInsert[T](docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def batchInsert[T](docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     db.batchInsert(name)(docs: _*)(callback)
   }
 
@@ -90,11 +90,11 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.update(name)(query, update, upsert, multi)(callback)
   }
 
-  def save[T](obj: T)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def save[T](obj: T)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     db.save(name)(obj)(callback)
   }
 
-  def remove[T](obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def remove[T](obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     db.remove(name)(obj, removeSingle)(callback)
   }
 
@@ -147,7 +147,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject, Result : SerializableBSONObject](query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = db.findAndRemove(name)(query)(callback)
+  def findAndRemove[Qry : SerializableBSONObject, Result : SerializableBSONObject : Manifest](query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = db.findAndRemove(name)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -160,7 +160,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject](
+  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject : Manifest](
                     query: Qry = Document.empty,
                     sort: Srt = Document.empty,
                     remove: Boolean = false,

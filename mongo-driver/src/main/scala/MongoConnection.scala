@@ -121,7 +121,7 @@ abstract class MongoConnection extends Logging {
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
-  protected[mongodb] def runCommand[Cmd <% BSONDocument, Result : SerializableBSONObject](ns: String, cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]) {
+  protected[mongodb] def runCommand[Cmd <% BSONDocument, Result : SerializableBSONObject : Manifest](ns: String, cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]) {
     val qMsg = MongoConnection.createCommand(ns, cmd)
     log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
     send(qMsg, f)
@@ -175,7 +175,7 @@ abstract class MongoConnection extends Logging {
     findOne(db)(collection)(Document("_id" -> id), fields)(callback)
 
   // TODO - Immutable mode / support immutable objects
-  def insert[T](db: String)(collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def insert[T](db: String)(collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf : Manifest[T]) {
     log.trace("Inserting: %s to %s.%s with WriteConcern: %s", doc, db, collection, concern)
     val checked = if (validate) {
       m.checkObject(doc)
@@ -196,7 +196,7 @@ abstract class MongoConnection extends Logging {
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
    * TODO - Support turning off ID Validation
    */
-  def batchInsert[T](db: String)(collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def batchInsert[T](db: String)(collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf : Manifest[T]) {
     log.trace("Batch Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
     val checked = docs.map(x => {
       m.checkObject(x)
@@ -234,7 +234,7 @@ abstract class MongoConnection extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry :  SerializableBSONObject, Result : SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))(callback)
+  def findAndRemove[Qry :  SerializableBSONObject, Result : SerializableBSONObject : Manifest](db: String)(collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = findAndModify(db)(collection)(query=query, remove=true, update=Option[Document](null))(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -247,7 +247,7 @@ abstract class MongoConnection extends Logging {
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-   def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject](db: String)(collection: String)(
+   def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject : Manifest](db: String)(collection: String)(
                     query: Qry = Document.empty,
                     sort: Srt = Document.empty,
                     remove: Boolean = false,
@@ -280,10 +280,13 @@ abstract class MongoConnection extends Logging {
       cmd += "upsert" -> upsert
     }
 
+    val m = implicitly[SerializableBSONObject[Result]]
+
     log.debug("Running findAndModify: %s", cmd)
     runCommand(db, cmd)(SimpleRequestFutures.command((reply: Result) => {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
-      val doc = reply.getAs[BSONDocument]("value")
+
+      val doc = m.getValueField(reply)
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
@@ -324,7 +327,7 @@ abstract class MongoConnection extends Logging {
     }*/
   }
 
-  def remove[T](db: String)(collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def remove[T](db: String)(collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     send(DeleteMessage(db + "." + collection, obj, removeSingle), callback)
   }
 
@@ -348,14 +351,14 @@ abstract class MongoConnection extends Logging {
   /**
    * NOTE: If you want the "Returns Bool" version of these, use the version on Collection or DB
    */
-  def dropAllIndexes[Result : SerializableBSONObject](db: String)(collection: String)(callback: SingleDocQueryRequestFuture[Result]) {
+  def dropAllIndexes[Result : SerializableBSONObject : Manifest](db: String)(collection: String)(callback: SingleDocQueryRequestFuture[Result]) {
     dropIndex(db)(collection)("*")(callback)
   }
 
   /**
    * NOTE: If you want the "Returns Bool" version of these, use the version on Collection or DB
    */
-  def dropIndex[Result : SerializableBSONObject](db: String)(collection: String)(name: String)(callback: SingleDocQueryRequestFuture[Result]) {
+  def dropIndex[Result : SerializableBSONObject : Manifest](db: String)(collection: String)(name: String)(callback: SingleDocQueryRequestFuture[Result]) {
     // TODO index cache
     runCommand(db, Document("deleteIndexes" ->  (db + "." + collection), "index" -> name))(callback)
   }

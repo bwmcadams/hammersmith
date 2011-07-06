@@ -149,11 +149,11 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * TODO - Would this perform faster partially applied?
    * TODO - Support Options here
    */
-  def command[Cmd <% BSONDocument, Result : SerializableBSONObject](cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]): Unit = {
+  def command[Cmd <% BSONDocument, Result : SerializableBSONObject : Manifest](cmd: Cmd)(f: SingleDocQueryRequestFuture[Result]): Unit = {
     connection.runCommand(name, cmd)(f)
   }
 
-  def command[Result : SerializableBSONObject](cmd: String)(f : SingleDocQueryRequestFuture[Result]) : Unit =
+  def command[Result : SerializableBSONObject : Manifest](cmd: String)(f : SingleDocQueryRequestFuture[Result]) : Unit =
     command(Document(cmd -> 1))(f)
 
   /**
@@ -187,7 +187,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.findOneByID(name)(collection)(id, fields)(callback)
   }
 
-  def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf : Manifest[T]) {
     connection.insert(name)(collection)(doc, validate)(callback)
   }
 
@@ -199,7 +199,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    *
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
    */
-  def batchInsert[T](collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def batchInsert[T](collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     connection.batchInsert(name)(collection)(docs: _*)(callback)
   }
 
@@ -211,7 +211,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.save(name)(collection)(obj)(callback)
   }
 
-  def remove[T](collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
+  def remove[T](collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T], mf: Manifest[T]) {
     connection.remove(name)(collection)(obj, removeSingle)(callback)
   }
 
@@ -270,7 +270,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject, Result : SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = connection.findAndRemove(name)(collection)(query)(callback)
+  def findAndRemove[Qry : SerializableBSONObject, Result : SerializableBSONObject : Manifest](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture[Result]) = connection.findAndRemove(name)(collection)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -283,7 +283,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject](collection: String)(
+  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject, Result : SerializableBSONObject : Manifest](collection: String)(
                     query: Qry = Document.empty,
                     sort: Srt = Document.empty,
                     remove: Boolean = false,

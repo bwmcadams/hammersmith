@@ -104,6 +104,28 @@ object `package` {
     }
     
     def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")
+
+    def checkBooleanCommandResult(doc : T): Option[String] = {
+      doc.get("ok") match {
+        case Some(1.0) =>
+          None
+        case Some(_) | None =>
+          Some("Bad Boolean Command Result: %s  / %s".format(doc, doc.getAsOrElse[String]("errmsg", "")))
+      }
+    }
+
+    def getValueField(doc: T)(implicit mf : Manifest[T]): Option[T] = {
+      try {
+          val v = doc.getAs[T]("value")
+          if (v.isEmpty)
+            None
+          else
+            v
+      } catch {
+        case cce : ClassCastException =>
+          None
+      }
+    }
   }
 
   implicit object SerializableDocument extends SerializableBSONDocumentLike[Document]
