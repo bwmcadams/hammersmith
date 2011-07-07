@@ -104,7 +104,7 @@ abstract class MongoConnection extends Logging {
    * @throws MongoException
    */
   def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
-    if (connected_? || force) {
+    if (!connected_? || force) {
       log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
       val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
