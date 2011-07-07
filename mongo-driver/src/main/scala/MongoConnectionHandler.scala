@@ -79,7 +79,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
           req.foreach(_ match {
             case _r: CompletableReadRequest => _r match {
               case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
-                log.trace("Single Document Request Future.")
+                log.info("Single Document Request Future. Decoder: %s.", _r.decoder)
                 // This may actually be better as a disableable assert but for now i want it hard.
                 require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
                 // Check error state
@@ -91,7 +91,6 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                 } else {
                   val doc = reply.documents.head
                   import org.bson.io.Bits._
-                  log.info("HEAD: %s", readInt(doc))
                   singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T])  // TODO - Fix me!
                 }
               }

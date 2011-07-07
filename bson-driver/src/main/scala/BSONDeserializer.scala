@@ -182,8 +182,15 @@ trait BSONDeserializer extends BSONDecoder with Logging {
       _callback.gotRegex(_: String, _in.readCStr, _in.readCStr)
     }
     case BINARY => {
-      log.trace("[Get Handle] Binary value.")
-      _binary _
+      log.info("[Get Handle] Binary value.")
+      /*_binary(_: String)*/
+      val totalLen = _in.readInt
+      log.info("[Bin] Total Length: %d", totalLen)
+      val binType = _in.read
+      log.info("[Bin] Binary Type: %s", binType)
+      val data = Array.ofDim[Byte](totalLen)
+      _in.fill(data)
+      _callback.gotBinary(_: String, binType, data)
     }
     case CODE => {
       log.trace("[Get Handle] Code value.")
