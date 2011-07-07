@@ -53,7 +53,7 @@ trait GetMoreRequestFuture extends QueryRequestFuture {
  * Used for findOne and commands
  * Items which return a single document, and not a cursor
  */
-trait SingleDocQueryRequestFuture extends QueryRequestFuture {
+trait SingleDocQueryRequestFuture extends QueryRequestFuture with Logging {
   type T = DocType
 }
 
@@ -146,9 +146,12 @@ object SimpleRequestFutures extends Logging {
   def command[A : SerializableBSONObject](f: A => Unit) =
     new SingleDocQueryRequestFuture {
       type DocType = A
-      val body = (result: Either[Throwable, A]) => result match {
-        case Right(doc) => f(doc)
-        case Left(t) => log.error(t, "Command Failed.")
+      val body = (result: Either[Throwable, A]) => {
+        log.info("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
+        result match {
+          case Right(doc) => f(doc)
+          case Left(t) => log.error(t, "Command Failed.")
+        }
       }
       val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SimpleSingleDocQueryRequestFuture}"
