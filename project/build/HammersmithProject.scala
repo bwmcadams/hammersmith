@@ -28,9 +28,10 @@ class HammersmithProject(info: ProjectInfo)
     extends DefaultProject(info)
     with AutoCompilerPlugins
     with IdeaProject
-    with GrowlingTests {
+    with GrowlingTests
+    with ScalariformPlugin {
 
-    //override def scalariformOptions = Seq(VerboseScalariform)
+    override def scalariformOptions = Seq(VerboseScalariform)
 
     override def packageDocsJar = defaultJarPath("-javadoc.jar")
     override def packageSrcJar= defaultJarPath("-sources.jar")
