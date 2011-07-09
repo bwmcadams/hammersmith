@@ -18,6 +18,7 @@ package com.mongodb.async
 package test
 
 import com.mongodb.async._
+import com.mongodb.async.util._
 import com.mongodb.async.futures.RequestFutures
 import org.bson.collection._
 import org.specs2.time.Time._
@@ -272,9 +273,9 @@ class DirectConnectionSpec extends Specification
     mongo.findAndModify(query = Document("inprogress" -> false, "name" -> "Biz report"),
       sort = Document("priority" -> -1),
       update = Some(Document("$set" -> Document("inprogress" -> true, "started" -> startDate))),
-      getNew = true) { doc: Document =>
+      getNew = true) { doc: Option[Document] =>
         log.info("FAM Doc: %s", doc)
-        found = doc
+        doc.foreach(found = _)
       }
     found must eventually(havePairs("inprogress" -> true, "name" -> "Biz report", "started" -> startDate))
   }
@@ -287,16 +288,22 @@ class DirectConnectionSpec extends Specification
     mongo.count()((_n: Int) => n = _n)
     n must eventually(beEqualTo(100))
     var x: Int = -1
-    mongo.findAndRemove(Document.empty) { doc: Document =>
-      x = doc.as[Int]("x")
+    mongo.findAndRemove(Document.empty) { result: Option[Document] =>
+      result match {
+        case Some(doc) => x = doc.as[Int]("x")
+      }
     }
     x must eventually(beEqualTo(0))
-    mongo.findAndRemove(Document.empty) { doc: Document =>
-      x = doc.as[Int]("x")
+    mongo.findAndRemove(Document.empty) { result: Option[Document] =>
+      result match {
+        case Some(doc) => x = doc.as[Int]("x")
+      }
     }
     x must eventually(beEqualTo(1))
-    mongo.findAndRemove(Document.empty) { doc: Document =>
-      x = doc.as[Int]("x")
+    mongo.findAndRemove(Document.empty) { result: Option[Document] =>
+      result match {
+        case Some(doc) => x = doc.as[Int]("x")
+      }
     }
     x must eventually(beEqualTo(2))
     success
