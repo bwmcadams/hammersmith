@@ -52,7 +52,12 @@ object MongoURI extends Logging {
         Some(auth.substring(ai + 1)))
     } else (svr, None, None)
 
-    (s.split(",").toSet, username, password)
+    def _createHost(data: Array[String]) = if (data.length > 1)
+      (data(0), data(1).toInt)
+    else (data(0), 27017)
+
+    (s.split(",").toSet.map { x: String => _createHost(x.split(":")) },
+      username, password)
   }
 
 }
