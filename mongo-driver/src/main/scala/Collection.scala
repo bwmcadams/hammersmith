@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -40,22 +40,22 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     command(Document(cmd -> 1))_
 
   /**
-  * Repeated deliberately enough times that i'll notice it later.
-  * Document all methods esp. find/findOne and special ns versions
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * for (i <- 1 to 5000) println("TODO - SCALADOC")
-  */
+   * Repeated deliberately enough times that i'll notice it later.
+   * Document all methods esp. find/findOne and special ns versions
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * for (i <- 1 to 5000) println("TODO - SCALADOC")
+   */
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
   def find[Qry <: BSONDocument, Flds <: BSONDocument](query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     db.find(name)(query, fields, numToSkip, batchSize)(callback)
@@ -66,18 +66,18 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.findOne(name)(query, fields)(callback)
   }
 
-  def findOneByID[Id <: AnyRef, Flds <: BSONDocument](id: Id, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def findOneByID[Id <: AnyRef, Flds <: BSONDocument](id: Id, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     db.findOneByID(name)(id, fields)(callback)
   }
 
   def insert[T](doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     db.insert(name)(doc, validate)(callback)
   }
-  
+
   /**
    * Insert multiple documents at once.
    * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
-   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error 
+   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
    * on your batch ---- not the first, or all of them.
    *
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
@@ -97,7 +97,6 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   def remove[T](obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     db.remove(name)(obj, removeSingle)(callback)
   }
-
 
   def createIndex[Kys <% BSONDocument, Opts <% BSONDocument](keys: Kys, options: Opts = Document.empty)(callback: WriteRequestFuture) {
     db.createIndex(name)(keys, options)(callback)
@@ -126,16 +125,15 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * Counts the number of documents in a given namespace
    * -1 indicates an error, for now
    */
-  def count[Qry : SerializableBSONObject, Flds : SerializableBSONObject](query : Qry = Document.empty,
-      fields : Flds = Document.empty,
-      limit : Long = 0,
-      skip : Long = 0)(callback: Int => Unit) =
-        db.count(name)(query, fields, limit, skip)(callback)
+  def count[Qry: SerializableBSONObject, Flds: SerializableBSONObject](query: Qry = Document.empty,
+    fields: Flds = Document.empty,
+    limit: Long = 0,
+    skip: Long = 0)(callback: Int => Unit) =
+    db.count(name)(query, fields, limit, skip)(callback)
 
   // TODO - Rename
 
   // TODO - Group
-
 
   // TODO - MapReduce
 
@@ -147,7 +145,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject](query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = db.findAndRemove(name)(query)(callback)
+  def findAndRemove[Qry: SerializableBSONObject](query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = db.findAndRemove(name)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -160,21 +158,20 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject](
-                    query: Qry = Document.empty,
-                    sort: Srt = Document.empty,
-                    remove: Boolean = false,
-                    update: Option[Upd] = Option[Document](null),
-                    getNew: Boolean = false,
-                    fields: Flds = Document.empty,
-                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = 
+  def findAndModify[Qry: SerializableBSONObject, Srt: SerializableBSONObject, Upd: SerializableBSONObject, Flds: SerializableBSONObject](
+    query: Qry = Document.empty,
+    sort: Srt = Document.empty,
+    remove: Boolean = false,
+    update: Option[Upd] = Option[Document](null),
+    getNew: Boolean = false,
+    fields: Flds = Document.empty,
+    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) =
     db.findAndModify(name)(query, sort, remove, update, getNew, fields, upsert)(callback)
-
 
   /**
    *
    */
-  def distinct[Qry : SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] => Unit) {
+  def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] => Unit) {
     command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
   }
 

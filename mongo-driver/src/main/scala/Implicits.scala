@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -46,7 +46,7 @@ trait Implicits {
 
 trait Imports {
   def fieldSpec[A <% BSONDocument](fields: A) = if (fields.isEmpty) None else Some(fields)
-  def indexName(keys: BSONDocument) = keys.mkString("_").replace("->", "").replace(" ","_")
+  def indexName(keys: BSONDocument) = keys.mkString("_").replace("->", "").replace(" ", "_")
 
   /**
    * Converts a standard Single Doc Command Result into a Boolean or,
@@ -59,8 +59,8 @@ trait Imports {
     }
     case Some(_) | None => {
       if (throwOnError) throw new MongoException("Bad Boolean Command Result: %s  / %s".format(
-                                                  doc, doc.getAsOrElse[String]("errmsg", ""))
-                                                 ) else false
+        doc, doc.getAsOrElse[String]("errmsg", "")))
+      else false
     }
   }
 
@@ -76,5 +76,4 @@ trait Imports {
     })
 
 }
-
 

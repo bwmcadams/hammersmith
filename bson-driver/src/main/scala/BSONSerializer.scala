@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -50,7 +50,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     // total bytes written
     _buf.getPosition - start
   }
-  
+
   /**
    * Encodes a Map[String, Any] into a BSONObject (or it's wire equivalent)
    * @param o the Object to encode
@@ -58,7 +58,6 @@ trait BSONSerializer extends BSONEncoder with Logging {
    */
   def putObject(o: Map[String, Any]): Int = putObject(None, o)
   def putObject(name: String, o: Map[String, Any]): Int = putObject(Some(name), o)
-
 
   /**
    * Encodes a Map[String, Any] into a BSONObject (or it's wire equivalent)
@@ -303,7 +302,6 @@ trait BSONSerializer extends BSONEncoder with Logging {
     val pos = _buf.getPosition + bytes
     log.debug("Seeking to %d", pos)
   }
-
 
   def active = _buf == null
 }

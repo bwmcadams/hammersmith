@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -27,9 +27,9 @@ import scala.collection.mutable.Stack
 import org.bson.collection._
 
 /**
-* Deserialization handler which is expected to turn a BSON ByteStream into
-* objects of type "T" (or a subclass thereof)
-*/
+ * Deserialization handler which is expected to turn a BSON ByteStream into
+ * objects of type "T" (or a subclass thereof)
+ */
 trait BSONDeserializer extends BSONDecoder with Logging {
   val callback: Callback //= new DefaultBSONCallback
   abstract class Callback extends BSONCallback {
@@ -82,7 +82,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     _decode(new Input(in), callback)
   } catch {
     case ioe: IOException => {
-      log.error(ioe, "OMG! PONIES!")  
+      log.error(ioe, "OMG! PONIES!")
       throw new BSONException("Failed to decode input data.", ioe)
     }
     case t: Throwable => log.error(t, "Unexpected exception in decode"); throw t

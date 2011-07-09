@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -20,7 +20,7 @@ package wire
 
 import org.bson.util.Logging
 import org.bson._
-import org.bson.collection.{Document , BSONDocument}
+import org.bson.collection.{ Document, BSONDocument }
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,
@@ -90,8 +90,7 @@ abstract class QueryMessage extends MongoClientMessage {
   }
 
   override def toString = "{ QueryMessage ns: %s, numSkip: %d, numReturn: %d, query: %s, fields: %s }".format(
-    namespace, numberToSkip, numberToReturn, query, returnFields
-  )
+    namespace, numberToSkip, numberToReturn, query, returnFields)
 }
 
 object QueryFlag extends Enumeration {

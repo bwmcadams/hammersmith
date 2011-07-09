@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -30,14 +30,14 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
   // check). We have to use the manifest to cast by hand.
   // Surely there is an easier way to do this! If you know it,
   // please advise.
-  private def checkedCast[A <: Any: Manifest](value : Any): A = {
+  private def checkedCast[A <: Any: Manifest](value: Any): A = {
     try {
       // I could not tell you why we have to check both ScalaObject
       // and AnyRef here, but for example
       // manifest[BSONDocument] <:< manifest[AnyRef]
       // is false.
       if (manifest[A] <:< manifest[AnyRef] ||
-          manifest[A] <:< manifest[ScalaObject]) {
+        manifest[A] <:< manifest[ScalaObject]) {
         // casting to a boxed type
         manifest[A].erasure.asInstanceOf[Class[A]].cast(value)
       } else {
@@ -57,11 +57,11 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
         asAnyVal.asInstanceOf[A]
       }
     } catch {
-      case cc : ClassCastException =>
+      case cc: ClassCastException =>
         log.debug("Error casting " +
-                  value.asInstanceOf[AnyRef].getClass.getName +
-                  " to " +
-                  manifest[A].erasure.getName)
+          value.asInstanceOf[AnyRef].getClass.getName +
+          " to " +
+          manifest[A].erasure.getName)
         throw cc
     }
   }
@@ -84,7 +84,7 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
   def as[A <: Any: Manifest](key: String): A = {
     require(manifest[A] != manifest[scala.Nothing],
       "Type inference failed; as[A]() requires an explicit type argument" +
-      "(e.g. document.as[<ReturnType>](\"someKey\") ) to function correctly.")
+        "(e.g. document.as[<ReturnType>](\"someKey\") ) to function correctly.")
 
     get(key) match {
       case None => checkedCast[A](default(key))
@@ -96,7 +96,7 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
   def getAs[A <: Any: Manifest](key: String): Option[A] = {
     require(manifest[A] != manifest[scala.Nothing],
       "Type inference failed; getAs[A]() requires an explicit type argument " +
-      "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
+        "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
 
     get(key) match {
       case None => None

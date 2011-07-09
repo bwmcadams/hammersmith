@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -28,7 +28,7 @@ import org.bson.collection._
  *
  * OP_REPLY is sent by the database in response to an OP_QUERY or
  * OP_GET_MORE message.
- * 
+ *
  * TODO - Come back to this.  We need to figure out how to lay down the 'implicit' deserializer on decode.
  *
  */
@@ -58,7 +58,7 @@ object ReplyMessage extends Logging {
     import org.bson.io.Bits._
     // TODO - Make it possible to dynamically set a decoder.
     /**
-    * TODO - It turned out to NOT be safe to share this directly and we'll need a pool.
+     * TODO - It turned out to NOT be safe to share this directly and we'll need a pool.
      */
     val decoder = new DefaultBSONDeserializer
     log.debug("Finishing decoding Reply Message with Header of '%s'", _hdr)
@@ -85,7 +85,7 @@ object ReplyMessage extends Logging {
       def _dec() = {
         val l = Array.ofDim[Byte](4)
         in.read(l)
-        val len = Bits.readInt(l) 
+        val len = Bits.readInt(l)
         log.debug("Decoding object, length: %d", len)
         val b = Array.ofDim[Byte](len - 4)
         in.read(b)
@@ -93,7 +93,7 @@ object ReplyMessage extends Logging {
         log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(n))
         n
       }
-        
+
       val documents = for (i <- 0 until numReturned) yield _dec
 
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +

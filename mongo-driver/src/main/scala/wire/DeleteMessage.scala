@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -32,7 +32,7 @@ import org.bson.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
-abstract class DeleteMessage[T : SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class DeleteMessage[T: SerializableBSONObject] extends MongoClientWriteMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use
@@ -58,7 +58,7 @@ abstract class DeleteMessage[T : SerializableBSONObject] extends MongoClientWrit
 }
 
 object DeleteMessage extends Logging {
-  def apply[T : SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) = new DeleteMessage {
+  def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) = new DeleteMessage {
     val namespace = ns
     val query = q
     val removeSingle = onlyRemoveOne
