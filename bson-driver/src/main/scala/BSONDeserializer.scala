@@ -140,11 +140,9 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     val l = Array.ofDim[Byte](4)
     _in.fill(l)
     val len = Bits.readInt(l)
-    log.info("Decoding object, length: %d", len)
     val b = Array.ofDim[Byte](len - 4)
     _in.fill(b)
     val n = Array.concat(l, b)
-    log.info("Len: %s L: %s / %s, Header: %s", len, l, Bits.readInt(l), Bits.readInt(n))
     n
   }
 
@@ -202,12 +200,12 @@ trait BSONDeserializer extends BSONDecoder with Logging {
       _callback.gotRegex(_: String, _in.readCStr, _in.readCStr)
     }
     case BINARY => {
-      log.info("[Get Handle] Binary value.")
+      log.debug("[Get Handle] Binary value.")
       /*_binary(_: String)*/
       val totalLen = _in.readInt
-      log.info("[Bin] Total Length: %d", totalLen)
+      log.trace("[Bin] Total Length: %d", totalLen)
       val binType = _in.read
-      log.info("[Bin] Binary Type: %s", binType)
+      log.trace("[Bin] Binary Type: %s", binType)
       val data = Array.ofDim[Byte](totalLen)
       _in.fill(data)
       _callback.gotBinary(_: String, binType, data)

@@ -62,14 +62,14 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     log.debug("Incoming Message received on (%s) Length: %s", buf, buf.readableBytes())
     MongoMessage.unapply(new ChannelBufferInputStream(buf)) match {
       case reply: ReplyMessage => {
-        log.info("Reply Message Received: %s", reply)
+        log.debug("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
         /**
          * Note - it is entirely OK to stuff a single result into
          * a Cursor, but not multiple results into a single.  Should be obvious.
          */
         val req = MongoConnection.dispatcher.get(reply.header.responseTo)
-        log.info("[%s] Req Obj: %s", reply.header.responseTo, req)
+        log.trace("[%s] Req Obj: %s", reply.header.responseTo, req)
         /**
          * Even when no response is wanted a 'Default' callback should be regged so
          * this is definitely warnable, for now.
@@ -78,7 +78,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
         req.foreach(_ match {
           case _r: CompletableReadRequest => _r match {
             case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
-              log.info("Single Document Request Future. Decoder: %s.", _r.decoder)
+              log.debug("Single Document Request Future. Decoder: %s.", _r.decoder)
               // This may actually be better as a disableable assert but for now i want it hard.
               require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
               // Check error state
@@ -118,7 +118,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
           }
           // TODO - Handle any errors in a "non completable" // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
           case CompletableWriteRequest(msg, writeResult: WriteRequestFuture) => {
-            log.info("Write Request Future.")
+            log.trace("Write Request Future.")
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a WriteRequestFuture.")
             // Check error state
             // Attempt to grab the document
