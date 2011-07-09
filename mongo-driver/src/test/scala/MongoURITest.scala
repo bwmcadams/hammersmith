@@ -31,13 +31,17 @@ import org.specs2.matcher._
 
 class MongoURISpec extends Specification with Logging {
   def is =
-    "The MongoDB URI Parser" ^
+    "The MongoDB URI Parser" ^ p ^
       "Should function basically with just a DB name" ^
-      basicURI1().test ^
+      basicURI1().test ^ endp ^
       "Should function basically with a DB name & collection" ^
-      basicURI2().test ^
+      basicURI2().test ^ endp ^
       "Should extract a user/password entry correctly" ^
-      userPass().test ^
+      userPass().test ^ endp ^
+      "Should extract a user/password & port entry correctly" ^
+      userPassAndPort().test ^ endp ^
+      "Should extract a user/password & multiple hosts w/ port entry correctly" ^
+      userPassAndMultiHostWithPort().test ^ endp ^
       end
 
   abstract class URITest(uri: String) {
@@ -81,6 +85,20 @@ class MongoURISpec extends Specification with Logging {
 
   case class userPass() extends URITest("mongodb://user:pass@host/bar") {
     override val testHost = List("host")
+    override val testDB = Some("bar")
+    override val testLogin = Some("user")
+    override val testPass = Some("pass")
+  }
+
+  case class userPassAndPort() extends URITest("mongodb://user:pass@host:27017/bar") {
+    override val testHost = List("host:27017")
+    override val testDB = Some("bar")
+    override val testLogin = Some("user")
+    override val testPass = Some("pass")
+  }
+
+  case class userPassAndMultiHostWithPort() extends URITest("mongodb://user:pass@host1:27011,host2:27012,host3:27013/bar") {
+    override val testHost = List("host1:27011", "host2:27012", "host3:27013")
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
