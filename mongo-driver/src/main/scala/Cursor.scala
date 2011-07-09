@@ -135,7 +135,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    */
   protected var startIndex = reply.startingFrom
 
-  log.info("Decode %s docs.", reply.documents.length)
+  log.trace("Decode %s docs.", reply.documents.length)
   try {
     val _d = Seq.newBuilder[T]
     for (doc <- reply.documents) {
@@ -150,7 +150,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
     }
     val _decoded = _d.result
     // reply.documents.map(decoder.decode)
-    log.info("Decoded %s docs: %s", _decoded.length, _decoded)
+    log.debug("Decoded %s docs: %s", _decoded.length, _decoded)
   } catch {
     case e => log.error(e, "Document decode failure: %s", e)
   }
@@ -176,12 +176,12 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
     if (gettingMore.isZero) {
       gettingMore = new CountDownLatch(1)
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
-      log.info("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
+      log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
       MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
         RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) => {
           reply match {
             case Right((id, batch)) => {
-              log.info("Got a result from 'getMore' command (id: %d).", id)
+              log.trace("Got a result from 'getMore' command (id: %d).", id)
               cursorEmpty = validCursor(id)
               docs.enqueue(batch: _*)
             }
@@ -200,18 +200,18 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   /**
    */
   def next() = try {
-    log.info("NEXT: %s ", decoder.getClass)
+    log.trace("NEXT: %s ", decoder.getClass)
     if (docs.length > 0) Cursor.Entry(docs.dequeue()) else if (hasMore) Cursor.Empty
     else
       Cursor.EOF
   } catch { // just in case
     case nse: java.util.NoSuchElementException => {
-      log.info("No Such Element Exception")
+      log.debug("No Such Element Exception")
       if (hasMore) {
-        log.info("Has More.")
+        log.debug("Has More.")
         Cursor.Empty
       } else {
-        log.info("Cursor Exhausted.")
+        log.debug("Cursor Exhausted.")
         Cursor.EOF
       }
     }
@@ -228,12 +228,12 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    * to build your own fork first.
    */
   protected[mongodb] def foreach(f: T => Unit) = {
-    log.info("Foreach: %s | empty? %s", f, isEmpty)
+    log.trace("Foreach: %s | empty? %s", f, isEmpty)
     Cursor.basicIter(this)(f)
   }
 
   def close() {
-    log.info("Closing out cursor: %s", this)
+    log.debug("Closing out cursor: %s", this)
     /**
      * Basically if the cursorEmpty is true we can just NOOP here
      * as MongoDB automatically cleans up fully iterated cursors.
@@ -253,7 +253,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    * Attempts to catch and close any uncleaned up cursors.
    */
   override def finalize() {
-    log.info("Finalizing Cursor (%s)", this)
+    log.debug("Finalizing Cursor (%s)", this)
     close()
     super.finalize()
   }

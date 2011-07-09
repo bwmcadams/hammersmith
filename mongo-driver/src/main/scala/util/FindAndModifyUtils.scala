@@ -49,7 +49,6 @@ class SerializableFindAndModifyResult[V: SerializableBSONObject: Manifest] exten
     //val deserializer = deserPool().reserve()()
     val deserializer = new FindAndModifyBSONDeserializer[V]
     val doc = deserializer.decodeResult(in)
-    log.info("DECODED DOC: %s as %s", doc, doc.getClass)
     doc
   }
 }
@@ -71,17 +70,15 @@ class FindAndModifyBSONDeserializer[V: SerializableBSONObject: Manifest] extends
   }
 
   def decodeResult(in: InputStream): FindAndModifyResult[V] = {
-    log.info("DecodeAndFetch.")
+    log.trace("DecodeAndFetch.")
     //reset()
-    log.info("Reset.")
+    log.trace("Reset.")
     try {
       decode(in, callback)
     } catch {
       case t: Throwable => log.error(t, "Failed to decode message with callback.")
     }
-    log.info("Decoded, getting.")
     val obj = get
-    log.info("Decoded, got %s.", obj)
     get.asInstanceOf[FindAndModifyResult[V]]
   }
 

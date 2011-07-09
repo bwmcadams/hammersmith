@@ -183,7 +183,7 @@ abstract class MongoConnection extends Logging {
       m.checkObject(doc)
       m.checkID(doc)
     } else {
-      log.info("Validation of objects disabled; no ID Gen.")
+      log.debug("Validation of objects disabled; no ID Gen.")
       doc
     }
     send(InsertMessage(db + "." + collection, checked), callback)
@@ -287,7 +287,6 @@ abstract class MongoConnection extends Logging {
     runCommand(db, cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) => {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
       val doc = reply.value
-      log.info("Value Doc: %s", doc)
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
@@ -460,10 +459,10 @@ object MongoConnection extends Logging {
     val oldState = channelState.getOrElseUpdate(channel, new AtomicBoolean(false)).getAndSet(connected)
     if (oldState) connected match {
       case true => {
-        log.info("Connection state was already connected, set to connected again.  NOOP")
+        log.trace("Connection state was already connected, set to connected again.  NOOP")
       }
       case false => {
-        log.info("Connection state was connected, set to disconnected. Otherwise, NOOP.")
+        log.trace("Connection state was connected, set to disconnected. Otherwise, NOOP.")
       }
     }
     else connected match {
@@ -474,7 +473,7 @@ object MongoConnection extends Logging {
         }
       }
       case false => {
-        log.info("Connection state was disconnected, set to disconnected again.  NOOP.")
+        log.trace("Connection state was disconnected, set to disconnected again.  NOOP.")
       }
     }
   }
@@ -524,8 +523,6 @@ object MongoConnection extends Logging {
     // todo - clean this up to be more automatic like the writeCB is
 
     val exec = (_maxBSON: Int) => {
-      // TODO - Remove this debug line ;)
-      log.info("\t => Writing channel output / MaxBSON: %d", _maxBSON)
       channel.write(outStream.buffer())
       outStream.close()
       /** If no write Concern and it's a write, kick the callback now.*/
