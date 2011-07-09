@@ -52,18 +52,20 @@ class MongoURISpec extends Specification with Logging {
         throw new Exception
       }
     }
-    val testHost: Seq[String] = List.empty[String]
+    val testHost: Seq[(String, Int)] = List.empty[(String, Int)]
     val testDB: Option[String] = None
     val testColl: Option[String] = None
     val testLogin: Option[String] = None
     val testPass: Option[String] = None
 
-    def test =
+    def test = {
+      log.info("HOSTS: %s DB: %s COLL: %s LOGIN: %s PASS: %s", hosts, db, collection, login, password)
       "Have the expected hostname" ! hostChk ^
         "Have the expected db" ! dbChk ^
         "Have the expected collection" ! collChk ^
         "Have the expected login" ! loginChk ^
         "Have the expected password" ! passChk
+    }
 
     def hostChk = hosts must haveTheSameElementsAs(testHost)
     def dbChk = db must_== (testDB)
@@ -73,32 +75,32 @@ class MongoURISpec extends Specification with Logging {
   }
 
   case class basicURI1() extends URITest("mongodb://foo/bar") {
-    override val testHost = List("foo")
+    override val testHost = List(("foo", 27017))
     override val testDB = Some("bar")
   }
 
   case class basicURI2() extends URITest("mongodb://foo/bar.baz") {
-    override val testHost = List("foo")
+    override val testHost = List(("foo", 27017))
     override val testDB = Some("bar")
     override val testColl = Some("baz")
   }
 
   case class userPass() extends URITest("mongodb://user:pass@host/bar") {
-    override val testHost = List("host")
+    override val testHost = List(("host", 27017))
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
   }
 
   case class userPassAndPort() extends URITest("mongodb://user:pass@host:27017/bar") {
-    override val testHost = List("host:27017")
+    override val testHost = List(("host", 27017))
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
   }
 
   case class userPassAndMultiHostWithPort() extends URITest("mongodb://user:pass@host1:27011,host2:27012,host3:27013/bar") {
-    override val testHost = List("host1:27011", "host2:27012", "host3:27013")
+    override val testHost = List(("host1", 27011), ("host2", 27012), ("host3", 27013))
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
