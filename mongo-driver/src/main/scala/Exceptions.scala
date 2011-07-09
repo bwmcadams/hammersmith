@@ -17,6 +17,6 @@
 
 package com.mongodb.async
 
-case class MongoException(msg: String, inner: Option[Throwable] = None, code: Int = -3) extends RuntimeException {
+class MongoException(msg: String, inner: Option[Throwable] = None, code: Int = -3) extends RuntimeException {
   override def toString = "MongoException(%d, '%s') { %s }".format(code, msg, inner)
 }

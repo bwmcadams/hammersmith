@@ -98,7 +98,7 @@ object ReplyMessage extends Logging {
 
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
         "Wanted: %d Got: %d".format(numReturned, documents.length))
-      log.info("Parsed Out '%d' Documents", documents.length)
+      log.trace("Parsed Out '%d' Documents", documents.length)
 
       override def toString = "ReplyMessage { " +
         "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs: %d } ".

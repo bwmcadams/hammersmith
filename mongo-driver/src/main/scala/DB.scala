@@ -269,7 +269,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry: SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
+  def findAndRemove[Qry: SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: FindAndModifyRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -289,7 +289,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     update: Option[Upd] = None,
     getNew: Boolean = false,
     fields: Flds = Document.empty,
-    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) =
+    upsert: Boolean = false)(callback: FindAndModifyRequestFuture) =
     connection.findAndModify(name)(collection)(query, sort, remove, update, getNew, fields, upsert)(callback)
 
   /**
