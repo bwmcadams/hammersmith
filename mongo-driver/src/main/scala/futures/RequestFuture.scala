@@ -18,6 +18,8 @@
 package com.mongodb.async
 package futures
 
+import com.mongodb.async.util._
+
 import org.bson.util.Logging
 import org.bson.SerializableBSONObject
 
@@ -55,7 +57,19 @@ trait GetMoreRequestFuture extends QueryRequestFuture {
  */
 trait SingleDocQueryRequestFuture extends QueryRequestFuture with Logging {
   type T = DocType
+  val m: Manifest[T]
 }
+
+/**
+ * Special command wrapper for findandModify/findAndRemove commands
+ */
+/*trait FindAndModifyRequestFuture extends QueryRequestFuture with Logging { 
+  type DocType = FindAndModifyResult
+  type T = DocType
+  type V //
+  val decoder = SerializableFindAndModifyResult
+  val valueDecoder: SerializableBSONObject[V]
+}*/
 
 /**
  * Will pass any *generated* _id along with any relevant getLastError information
@@ -112,17 +126,26 @@ object RequestFutures extends Logging {
       override def toString = "{CursorQueryRequestFuture}"
     }
 
-  def find[A : SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) = query(f)
+  def find[A: SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) = query(f)
 
-  def command[A : SerializableBSONObject](f: Either[Throwable, A] => Unit) =
+  def command[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] => Unit) =
     new SingleDocQueryRequestFuture {
       type DocType = A
+      val m = manifest[A]
       val body = f
       val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SingleDocQueryRequestFuture}"
     }
 
-  def findOne[A : SerializableBSONObject](f: Either[Throwable, A] => Unit) = command(f)
+  def findOne[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] => Unit) = command(f)
+
+  /*def findAndModify[A : SerializableBSONObject](f: Either[Throwable, FindAndModifyResult] => Unit) = 
+    new FindAndModifyRequestFuture {
+      type V = A
+      val body = f
+      val valueDecoder = implicitly[SerializableBSONObject[A]]
+      override def toString = "{FindAndModifyRequestFuture}"
+    }*/
 
   def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
     new WriteRequestFuture {
@@ -141,11 +164,12 @@ object RequestFutures extends Logging {
  * "Simpler" request futures which swallow any errors.
  */
 object SimpleRequestFutures extends Logging {
-  def findOne[A : SerializableBSONObject](f: A => Unit) = command(f)
+  def findOne[A: SerializableBSONObject: Manifest](f: A => Unit) = command(f)
 
-  def command[A : SerializableBSONObject](f: A => Unit) =
+  def command[A: SerializableBSONObject: Manifest](f: A => Unit) =
     new SingleDocQueryRequestFuture {
       type DocType = A
+      val m = manifest[A]
       val body = (result: Either[Throwable, A]) => {
         log.info("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
         result match {
@@ -157,7 +181,21 @@ object SimpleRequestFutures extends Logging {
       override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
 
-  def getMore[A : SerializableBSONObject](f: (Long, Seq[A]) => Unit) =
+  /*def findAndModify[A : SerializableBSONObject](f: FindAndModifyResult => Unit) = 
+    new FindAndModifyRequestFuture {
+      type V = A
+      val body = (result: Either[Throwable, FindAndModifyResult]) => {
+        log.info("Decoding FindAndModifyRequestFuture: %s / %s", toString, decoder)
+        result match {
+          case Right(doc) => f(doc)
+          case Left(t) => log.error(t, "FindAndModify Failed.")
+        }
+      }
+      val valueDecoder = implicitly[SerializableBSONObject[A]]
+      override def toString = "{SimpleFindAndModifyRequestFuture}"
+    }
+*/
+  def getMore[A: SerializableBSONObject](f: (Long, Seq[A]) => Unit) =
     new GetMoreRequestFuture {
       type DocType = A
       val body = (result: Either[Throwable, (Long, Seq[A])]) => result match {
@@ -168,9 +206,9 @@ object SimpleRequestFutures extends Logging {
       override def toString = "{SimpleGetMoreRequestFuture}"
     }
 
-  def find[T : SerializableBSONObject](f: Cursor[T] => Unit) = query(f)
+  def find[T: SerializableBSONObject](f: Cursor[T] => Unit) = query(f)
 
-  def query[A : SerializableBSONObject](f: Cursor[A] => Unit) =
+  def query[A: SerializableBSONObject](f: Cursor[A] => Unit) =
     new CursorQueryRequestFuture {
       type DocType = A
       type T = Cursor[A]

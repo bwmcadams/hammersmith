@@ -18,7 +18,7 @@
 package org.bson
 
 import BSON._
-import java.lang.String
+import org.bson.io.Bits
 import java.io._
 import org.bson.types._
 import java.util.{ UUID, Date => JDKDate }
@@ -123,9 +123,29 @@ trait BSONDeserializer extends BSONDecoder with Logging {
       val name = _in.readCStr
 
       log.trace("Element Decoding with Name '%s', Type '%s'", name, t)
-      _getHandle(t)(name)
+      decodeField(name, t)
       true
     }
+  }
+
+  /**
+   * Custom callback which allows users to custom decode/capture specific fields
+   *
+   * This is a convenient place to override if you need to handle certain fields specially...
+   */
+  protected def decodeField(name: String, t: Byte) =
+    _getHandle(t)(name)
+
+  protected def _rawObject() = {
+    val l = Array.ofDim[Byte](4)
+    _in.fill(l)
+    val len = Bits.readInt(l)
+    log.info("Decoding object, length: %d", len)
+    val b = Array.ofDim[Byte](len - 4)
+    _in.fill(b)
+    val n = Array.concat(l, b)
+    log.info("Len: %s L: %s / %s, Header: %s", len, l, Bits.readInt(l), Bits.readInt(n))
+    n
   }
 
   protected val _getHandle: PartialFunction[Byte, Function1[String, Unit]] = {
@@ -358,6 +378,8 @@ class DefaultBSONDeserializer extends BSONDeserializer {
     def gotMaxKey(name: String) = cur.put(name, "MaxKey") // ??
 
     def gotMinKey(name: String) = cur.put(name, "MinKey") // ??
+
+    def gotCustomObject(name: String, value: AnyRef) = cur.put(name, value)
 
     def gotUndefined(name: String) { /* NOOP */ }
 
