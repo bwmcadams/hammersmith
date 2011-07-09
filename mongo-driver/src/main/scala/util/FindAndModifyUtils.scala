@@ -37,6 +37,8 @@ class FindAndModifyResult[V: SerializableBSONObject: Manifest] extends BSONDocum
   def value: Option[V] = getAs[V]("value")
 }
 
+class NoMatchingDocumentError extends MongoException(msg = "No matching object found", code = 0)
+
 /**
  * Special container for findAndModify command results.
  * The idea is that the 'outer' shell of the document is decoded as a Document

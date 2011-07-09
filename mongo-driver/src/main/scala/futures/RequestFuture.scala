@@ -60,16 +60,10 @@ trait SingleDocQueryRequestFuture extends QueryRequestFuture with Logging {
   val m: Manifest[T]
 }
 
-/**
- * Special command wrapper for findandModify/findAndRemove commands
- */
-/*trait FindAndModifyRequestFuture extends QueryRequestFuture with Logging { 
-  type DocType = FindAndModifyResult
+trait FindAndModifyRequestFuture extends QueryRequestFuture with Logging {
   type T = DocType
-  type V //
-  val decoder = SerializableFindAndModifyResult
-  val valueDecoder: SerializableBSONObject[V]
-}*/
+  val m: Manifest[T]
+}
 
 /**
  * Will pass any *generated* _id along with any relevant getLastError information
@@ -139,13 +133,26 @@ object RequestFutures extends Logging {
 
   def findOne[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] => Unit) = command(f)
 
-  /*def findAndModify[A : SerializableBSONObject](f: Either[Throwable, FindAndModifyResult] => Unit) = 
+  /**
+   * version of Command which expects Option[A] ...
+   */
+  def findAndModify[A: SerializableBSONObject: Manifest](f: Either[Throwable, Option[A]] => Unit) =
     new FindAndModifyRequestFuture {
-      type V = A
-      val body = f
-      val valueDecoder = implicitly[SerializableBSONObject[A]]
-      override def toString = "{FindAndModifyRequestFuture}"
-    }*/
+      type DocType = A
+      val m = manifest[A]
+      val body = (result: Either[Throwable, A]) => {
+        log.debug("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
+        result match {
+          case Right(doc) => f(Right(Option(doc)))
+          case Left(t) => t match {
+            case nme: NoMatchingDocumentError => f(Right(None))
+            case e => f(Left(e))
+          }
+        }
+      }
+      val decoder = implicitly[SerializableBSONObject[A]]
+      override def toString = "{SingleDocQueryRequestFuture}"
+    }
 
   def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
     new WriteRequestFuture {
@@ -171,7 +178,7 @@ object SimpleRequestFutures extends Logging {
       type DocType = A
       val m = manifest[A]
       val body = (result: Either[Throwable, A]) => {
-        log.info("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
+        log.debug("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
         result match {
           case Right(doc) => f(doc)
           case Left(t) => log.error(t, "Command Failed.")
@@ -181,20 +188,27 @@ object SimpleRequestFutures extends Logging {
       override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
 
-  /*def findAndModify[A : SerializableBSONObject](f: FindAndModifyResult => Unit) = 
+  /**
+   * version of Command which expects Option[A] ...
+   */
+  def findAndModify[A: SerializableBSONObject: Manifest](f: Option[A] => Unit) =
     new FindAndModifyRequestFuture {
-      type V = A
-      val body = (result: Either[Throwable, FindAndModifyResult]) => {
-        log.info("Decoding FindAndModifyRequestFuture: %s / %s", toString, decoder)
+      type DocType = A
+      val m = manifest[A]
+      val body = (result: Either[Throwable, A]) => {
+        log.debug("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
         result match {
-          case Right(doc) => f(doc)
-          case Left(t) => log.error(t, "FindAndModify Failed.")
+          case Right(doc) => f(Option(doc))
+          case Left(t) => t match {
+            case nme: NoMatchingDocumentError => f(None)
+            case e => log.error(e, "Command Failed.")
+          }
         }
       }
-      val valueDecoder = implicitly[SerializableBSONObject[A]]
-      override def toString = "{SimpleFindAndModifyRequestFuture}"
+      val decoder = implicitly[SerializableBSONObject[A]]
+      override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
-*/
+
   def getMore[A: SerializableBSONObject](f: (Long, Seq[A]) => Unit) =
     new GetMoreRequestFuture {
       type DocType = A

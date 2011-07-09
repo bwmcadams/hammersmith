@@ -235,7 +235,7 @@ abstract class MongoConnection extends Logging {
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry: SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = findAndModify(db)(collection)(query = query, remove = true, update = Option[Document](null))(callback)
+  def findAndRemove[Qry: SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty)(callback: FindAndModifyRequestFuture) = findAndModify(db)(collection)(query = query, remove = true, update = Option[Document](null))(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -255,7 +255,7 @@ abstract class MongoConnection extends Logging {
     update: Option[Upd] = None,
     getNew: Boolean = false,
     fields: Flds = Document.empty,
-    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = {
+    upsert: Boolean = false)(callback: FindAndModifyRequestFuture) = {
     val cmd = OrderedDocument("findandmodify" -> collection,
       "query" -> query,
       "fields" -> fields,
@@ -290,9 +290,13 @@ abstract class MongoConnection extends Logging {
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
-        log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
-        callback(
-          new Exception("Received a bad reply from findAndModify. MAY NOT be an error (just didn't find a match?). (Reply: '%s')".format(reply)))
+        callback(reply.getAs[String]("errmsg") match {
+          case Some("No matching object found") => new NoMatchingDocumentError()
+          case default => {
+            log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
+            new MongoException("FindAndModifyError: %s".format(default))
+          }
+        })
       }
     }))
 
