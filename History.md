@@ -1,4 +1,18 @@
 
+0.2.6 / 2011-07-09 
+==================
+
+  * Fixes #34 - FindAndModify / FindAndRemove now Require Option[], and have their own wrapper type - Some stub work around a custom error type for not found which   proved... less useful than desired but hooked for figuring out None
+  * Cleanup some logging spam
+  * Scalariform cleanups..  Unfortunately it made a mess of my pretty specs2 class formatting :/
+  * Wire FindAndModify to use a custom wrapper object, only decoding user defined type class objects for 'value'
+  * Re-enabled Scalariform plugin
+  * Beginning of code correction for proper testing of Binary data
+  * Correct boolean test for whether or not we're connected.
+  * Cleaning up connection handling so that we defer any operations until after isMaster succeeds.
+  * Merge pull request #30 from havocp/support-immutable-checkID
+  * Make SerializableBSONObject.checkID return a new doc, so it can work with immutable doc types
+
 0.2.5 / 2011-07-03 
 ==================
 
