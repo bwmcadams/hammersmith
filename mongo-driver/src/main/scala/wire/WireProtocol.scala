@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -28,7 +28,7 @@ import org.bson.util.Logging
 import java.util.concurrent.atomic.AtomicInteger
 import org.bson._
 import java.io._
-import org.bson.io.{OutputBuffer , PoolOutputBuffer}
+import org.bson.io.{ OutputBuffer, PoolOutputBuffer }
 
 /**
  * Request OpCodes for communicating with MongoDB Servers

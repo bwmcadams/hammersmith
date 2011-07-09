@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -15,7 +15,6 @@
  *
  */
 package com.mongodb.async
-
 
 import org.bson.util.Logging
 import org.bson._
@@ -29,7 +28,7 @@ import com.twitter.util.CountDownLatch
 
 object Cursor extends Logging {
   trait IterState
-  case class Entry[T : SerializableBSONObject](doc: T) extends IterState
+  case class Entry[T: SerializableBSONObject](doc: T) extends IterState
   case object Empty extends IterState
   case object EOF extends IterState
   trait IterCmd
@@ -37,8 +36,7 @@ object Cursor extends Logging {
   case class Next(op: (IterState) => IterCmd) extends IterCmd
   case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
 
-  def apply[T](namespace: String, reply: ReplyMessage)
-              (implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
+  def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
     log.info("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
     try {
       new Cursor[T](namespace, reply)(ctx, decoder)
@@ -50,7 +48,7 @@ object Cursor extends Logging {
    * Internal helper, more or less a "default" iterator for internal usage
    * Not exposed publicly but useful as an example.
    */
-  protected[mongodb] def basicIter[T : SerializableBSONObject](cursor: Cursor[T])(f: T => Unit) = {
+  protected[mongodb] def basicIter[T: SerializableBSONObject](cursor: Cursor[T])(f: T => Unit) = {
     def next(op: Cursor.IterState): Cursor.IterCmd = op match {
       case Cursor.Entry(doc: T) => {
         f(doc)
@@ -67,7 +65,6 @@ object Cursor extends Logging {
     }
     iterate(cursor)(next)
   }
-
 
   /**
    * Helper for the Iteratee Pattern.
@@ -87,7 +84,7 @@ object Cursor extends Logging {
    *      The standard response to this should be Cursor.Done which tells the control loop to stop and shut down the Cursor.
    *      I suppose if you want to be special you could respond with something else but it probably won't work right.
    */
-  def iterate[T : SerializableBSONObject](cursor: Cursor[T])(op: (IterState) => IterCmd) {
+  def iterate[T: SerializableBSONObject](cursor: Cursor[T])(op: (IterState) => IterCmd) {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
     def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
       case Done => {
@@ -99,8 +96,8 @@ object Cursor extends Logging {
         next(tOp)
       }
       case NextBatch(tOp) => cursor.nextBatch(() => {
-          log.debug("Next Batch Loaded.")
-          next(tOp)
+        log.debug("Next Batch Loaded.")
+        next(tOp)
       })
     }
     next(op)
@@ -130,7 +127,8 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    */
   protected def validCursor(id: Long) = id == 0
   protected var cursorEmpty = validCursor(cursorID)
-  @volatile protected var gettingMore = new CountDownLatch(0)
+  @volatile
+  protected var gettingMore = new CountDownLatch(0)
 
   /**
    * Mutable internally as we push further through the cursor on the server
@@ -139,7 +137,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
 
   log.info("Decode %s docs.", reply.documents.length)
   try {
-    val _d = Seq.newBuilder[T] 
+    val _d = Seq.newBuilder[T]
     for (doc <- reply.documents) {
       log.trace("Decoding: %s", doc)
       try {
@@ -195,8 +193,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
           }
           gettingMore.countDown()
           notify()
-        })
-      )
+        }))
     } else log.warn("Already gettingMore on this cursor.  May be a concurrency issue if called repeatedly.")
   }
 
@@ -219,7 +216,6 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
       }
     }
   }
-
 
   def iterate = Cursor.iterate(this) _
 

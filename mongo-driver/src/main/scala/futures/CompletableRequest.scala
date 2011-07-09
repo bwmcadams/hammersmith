@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -46,10 +46,9 @@ trait CompletableReadRequest extends CompletableRequest {
   val decoder = future.decoder
 }
 
-case class CompletableSingleDocRequest(override val request: QueryMessage, override val future: SingleDocQueryRequestFuture) extends CompletableReadRequest 
+case class CompletableSingleDocRequest(override val request: QueryMessage, override val future: SingleDocQueryRequestFuture) extends CompletableReadRequest
 case class CompletableCursorRequest(override val request: QueryMessage, override val future: CursorQueryRequestFuture) extends CompletableReadRequest
 case class CompletableGetMoreRequest(override val request: GetMoreMessage, override val future: GetMoreRequestFuture) extends CompletableReadRequest
 case class CompletableWriteRequest(override val request: MongoClientWriteMessage, override val future: WriteRequestFuture) extends CompletableRequest
 case class NonCompletableWriteRequest(override val request: MongoClientMessage, override val future: NoOpRequestFuture.type) extends CompletableRequest
-
 

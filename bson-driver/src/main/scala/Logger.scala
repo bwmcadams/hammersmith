@@ -172,7 +172,7 @@ object Logger {
 
     // print logback's internal status
     println(LoggerFactory.getILoggerFactory)
-  } 
+  }
 
   def apply(logger: String): Logger = new Logger(SLFLoggerFactory getLogger logger)
   def apply(clazz: Class[_]): Logger = apply(clazz.getName)

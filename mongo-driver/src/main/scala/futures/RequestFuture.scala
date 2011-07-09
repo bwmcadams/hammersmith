@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -80,12 +80,12 @@ trait WriteRequestFuture extends RequestFuture {
 }
 
 /**
- * Will pass any *generated* _ids, in a Seq 
+ * Will pass any *generated* _ids, in a Seq
  * along with any relevant getLastError information
  * For an update, don't expect to get ObjectId
  *
  * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
- * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error 
+ * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
  * on your batch ---- not the first, or all of them.
  *
  * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
@@ -109,7 +109,7 @@ case object NoOpRequestFuture extends RequestFuture with Logging {
 }
 
 object RequestFutures extends Logging {
-  def getMore[A : SerializableBSONObject](f: Either[Throwable, (Long, Seq[A])] => Unit) =
+  def getMore[A: SerializableBSONObject](f: Either[Throwable, (Long, Seq[A])] => Unit) =
     new GetMoreRequestFuture {
       type DocType = A
       val body = f
@@ -117,7 +117,7 @@ object RequestFutures extends Logging {
       override def toString = "{GetMoreRequestFuture}"
     }
 
-  def query[A : SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) =
+  def query[A: SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) =
     new CursorQueryRequestFuture {
       type DocType = A
       type T = Cursor[A]

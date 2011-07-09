@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -40,12 +40,12 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   protected val bootstrap: ClientBootstrap
   protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
 
-  protected def queryFail(reply: ReplyMessage, result: RequestFuture) = { 
+  protected def queryFail(reply: ReplyMessage, result: RequestFuture) = {
     log.trace("Query Failure")
     // Attempt to grab the $err document
     val err = reply.documents.headOption match {
       case Some(b) => {
-        val errDoc = SerializableDocument.decode(b)  // TODO - Extractors!
+        val errDoc = SerializableDocument.decode(b) // TODO - Extractors!
         log.trace("Error Document found: %s", errDoc)
         result(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
       }
@@ -56,7 +56,6 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
       }
     }
   }
-
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val buf = e.getMessage.asInstanceOf[ChannelBuffer]
@@ -76,47 +75,47 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
          * this is definitely warnable, for now.
          */
         if (req.isEmpty) log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.", reply.header.responseTo)
-          req.foreach(_ match {
-            case _r: CompletableReadRequest => _r match {
-              case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
-                log.info("Single Document Request Future. Decoder: %s.", _r.decoder)
-                // This may actually be better as a disableable assert but for now i want it hard.
-                require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
-                // Check error state
-                if (reply.cursorNotFound) {
-                  log.trace("Cursor Not Found.")
-                  singleResult(new Exception("Cursor Not Found."))
-                } else if (reply.queryFailure) {
-                  queryFail(reply, singleResult)
-                } else {
-                  val doc = reply.documents.head
-                  import org.bson.io.Bits._
-                  singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T])  // TODO - Fix me!
-                }
-              }
-              case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
-                log.trace("Cursor Request Future.")
-                if (reply.cursorNotFound) {
-                  log.trace("Cursor Not Found.")
-                  cursorResult(new Exception("Cursor Not Found."))
-                } else if (reply.queryFailure) {
-                  queryFail(reply, cursorResult)
-                } else {
-                  cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
-                }
-              }
-              case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
-                log.trace("Get More Request Future.")
-                if (reply.cursorNotFound) {
-                  log.warn("Cursor Not Found.")
-                  getMoreResult(new Exception("Cursor Not Found"))
-                } else if (reply.queryFailure) {
-                  queryFail(reply, getMoreResult)
-                } else {
-                  getMoreResult((reply.cursorID, reply.documents.map(_r.decoder.decode)).asInstanceOf[getMoreResult.T]) // TODO - Fix Me!
-                }
+        req.foreach(_ match {
+          case _r: CompletableReadRequest => _r match {
+            case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
+              log.info("Single Document Request Future. Decoder: %s.", _r.decoder)
+              // This may actually be better as a disableable assert but for now i want it hard.
+              require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
+              // Check error state
+              if (reply.cursorNotFound) {
+                log.trace("Cursor Not Found.")
+                singleResult(new Exception("Cursor Not Found."))
+              } else if (reply.queryFailure) {
+                queryFail(reply, singleResult)
+              } else {
+                val doc = reply.documents.head
+                import org.bson.io.Bits._
+                singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T]) // TODO - Fix me!
               }
             }
+            case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
+              log.trace("Cursor Request Future.")
+              if (reply.cursorNotFound) {
+                log.trace("Cursor Not Found.")
+                cursorResult(new Exception("Cursor Not Found."))
+              } else if (reply.queryFailure) {
+                queryFail(reply, cursorResult)
+              } else {
+                cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
+              }
+            }
+            case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
+              log.trace("Get More Request Future.")
+              if (reply.cursorNotFound) {
+                log.warn("Cursor Not Found.")
+                getMoreResult(new Exception("Cursor Not Found"))
+              } else if (reply.queryFailure) {
+                queryFail(reply, getMoreResult)
+              } else {
+                getMoreResult((reply.cursorID, reply.documents.map(_r.decoder.decode)).asInstanceOf[getMoreResult.T]) // TODO - Fix Me!
+              }
+            }
+          }
           // TODO - Handle any errors in a "non completable" // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
           case CompletableWriteRequest(msg, writeResult: WriteRequestFuture) => {
             log.info("Write Request Future.")
@@ -125,7 +124,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
             // Attempt to grab the document
             reply.documents.headOption match {
               case Some(b) => {
-                val doc = SerializableDocument.decode(b)  // TODO - Extractors!
+                val doc = SerializableDocument.decode(b) // TODO - Extractors!
                 log.debug("Document found: %s", doc)
                 val ok = boolCmdResult(doc, false)
                 // this is how the Java driver decides to throwOnError, !ok || "err"
@@ -137,12 +136,12 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                   writeResult(new Exception(errmsg))
                 } else {
                   val w = WriteResult(ok = true,
-                                      error = None,
-                                      // FIXME is it possible to have a code but no error?
-                                      code = doc.getAs[Int]("code"),
-                                      n = doc.getAsOrElse[Int]("n", 0),
-                                      upsertID = doc.getAs[AnyRef]("upserted"),
-                                      updatedExisting = doc.getAs[Boolean]("updatedExisting"))
+                    error = None,
+                    // FIXME is it possible to have a code but no error?
+                    code = doc.getAs[Int]("code"),
+                    n = doc.getAsOrElse[Int]("n", 0),
+                    upsertID = doc.getAs[AnyRef]("upserted"),
+                    updatedExisting = doc.getAs[Boolean]("updatedExisting"))
                   log.debug("W: %s", w)
                   writeResult((None, w).asInstanceOf[writeResult.T])
                 }
@@ -154,7 +153,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               }
             }
           }
-          
+
           case unknown => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
         })
       }
@@ -172,12 +171,12 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.warn("Disconnected from '%s'", remoteAddress)
-//    shutdown()
+    //    shutdown()
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.info("Channel Closed to '%s'", remoteAddress)
-//    shutdown()
+    //    shutdown()
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
@@ -188,7 +187,4 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 
 }
-
-
-
 

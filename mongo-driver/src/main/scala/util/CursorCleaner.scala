@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -22,7 +22,7 @@ import com.twitter.conversions.time._
 import scala.ref.WeakReference
 import com.twitter.util._
 import org.bson.util.Logging
-import scala.collection.mutable.{WeakHashMap , HashSet}
+import scala.collection.mutable.{ WeakHashMap, HashSet }
 
 /**
  * Based on com.twitter.util.ReferenceCountedTimer
@@ -54,7 +54,7 @@ protected[mongodb] class CursorCleaningTimer(val period: Duration = 5.seconds) e
     }
   }
 
-  protected[mongodb] def scheduleCleanup() =  underlying.schedule(period.fromNow, period) {
+  protected[mongodb] def scheduleCleanup() = underlying.schedule(period.fromNow, period) {
     log.trace("Cleanup; holding connections: %s", connections)
     MongoConnection.cleanup()
   }

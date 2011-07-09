@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -82,7 +82,7 @@ object WriteConcern {
   /**
    * Create a new WriteConcern object.
    *
-   *	<p> w represents # of servers:
+   * <p> w represents # of servers:
    * 		<ul>
    * 			<li>{@code w=-1} None, no checking is done</li>
    * 			<li>{@code w=0} None, network socket errors raised</li>

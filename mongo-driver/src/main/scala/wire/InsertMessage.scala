@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -19,7 +19,7 @@ package wire
 
 import org.bson._
 import org.bson.util.Logging
-import org.bson.collection.{Document , BSONDocument}
+import org.bson.collection.{ Document, BSONDocument }
 import scala.collection.mutable.Queue
 
 /**
@@ -32,7 +32,7 @@ import scala.collection.mutable.Queue
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPINSERT
  */
-abstract class InsertMessage[T : SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWriteMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpInsert
 
@@ -69,7 +69,7 @@ abstract class InsertMessage[T : SerializableBSONObject] extends MongoClientWrit
 }
 
 object InsertMessage extends Logging {
-  def apply[T : SerializableBSONObject](ns: String, docs: T*) = new InsertMessage {
+  def apply[T: SerializableBSONObject](ns: String, docs: T*) = new InsertMessage {
     val namespace = ns
     val documents = docs
   }

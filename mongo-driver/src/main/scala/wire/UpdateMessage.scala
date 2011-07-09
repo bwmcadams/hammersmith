@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -32,7 +32,7 @@ import org.bson.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-abstract class UpdateMessage[Upd : SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class UpdateMessage[Upd: SerializableBSONObject] extends MongoClientWriteMessage {
 
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
@@ -53,7 +53,6 @@ abstract class UpdateMessage[Upd : SerializableBSONObject] extends MongoClientWr
 
   val update: Upd // The document specifying the update to perform
 
-
   // TODO - Can we actually get some useful info here?
   def ids: Seq[Option[AnyRef]] = List(None)
 
@@ -68,7 +67,7 @@ abstract class UpdateMessage[Upd : SerializableBSONObject] extends MongoClientWr
 }
 
 object UpdateMessage extends Logging {
-  def apply[Upd : SerializableBSONObject](ns: String, q: BSONDocument, updateSpec: Upd, _upsert: Boolean = false, multi: Boolean = false) = new UpdateMessage {
+  def apply[Upd: SerializableBSONObject](ns: String, q: BSONDocument, updateSpec: Upd, _upsert: Boolean = false, multi: Boolean = false) = new UpdateMessage {
     val namespace = ns
     val query = q
     val update = updateSpec

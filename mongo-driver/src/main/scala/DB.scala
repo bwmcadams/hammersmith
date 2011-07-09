@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -23,7 +23,7 @@ import org.bson.collection._
 import com.mongodb.async.futures._
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
-import com.mongodb.async.wire.{InsertMessage , QueryMessage}
+import com.mongodb.async.wire.{ InsertMessage, QueryMessage }
 
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
 
@@ -135,7 +135,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    *
    * The callback will be invoked, when the collection is created, with an instance of the new collection.
    */
-  def createCollection[Opts : SerializableBSONObject](name: String, options: Opts)(callback: Collection => Unit) = {
+  def createCollection[Opts: SerializableBSONObject](name: String, options: Opts)(callback: Collection => Unit) = {
     // TODO - Implement me
     throw new UnsupportedOperationException("Not implemented.")
   }
@@ -157,22 +157,22 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     command(Document(cmd -> 1))_
 
   /**
-  * Repeated deliberately enough times that i'll notice it later.
-  * Document all methods esp. find/findOne and special ns versions
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * TODO - SCALADOC
-  * for (i <- 1 to 5000) println("TODO - SCALADOC")
-  */
+   * Repeated deliberately enough times that i'll notice it later.
+   * Document all methods esp. find/findOne and special ns versions
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * TODO - SCALADOC
+   * for (i <- 1 to 5000) println("TODO - SCALADOC")
+   */
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
   def find[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.find(name)(collection)(query, fields, numToSkip, batchSize)(callback)
@@ -183,7 +183,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.findOne(name)(collection)(query, fields)(callback)
   }
 
-  def findOneByID[A <: AnyRef, Flds <: BSONDocument](collection: String)(id: A, fields : Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
+  def findOneByID[A <: AnyRef, Flds <: BSONDocument](collection: String)(id: A, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.findOneByID(name)(collection)(id, fields)(callback)
   }
 
@@ -194,7 +194,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   /**
    * Insert multiple documents at once.
    * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
-   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error 
+   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
    * on your batch ---- not the first, or all of them.
    *
    * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
@@ -255,14 +255,13 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     callback(colls.contains(name))
   })
 
-  def count[Qry : SerializableBSONObject, Flds : SerializableBSONObject](collection: String)(query : Qry = Document.empty,
-      fields : Flds = Document.empty,
-      limit : Long = 0,
-      skip : Long = 0)(callback: Int => Unit) =
+  def count[Qry: SerializableBSONObject, Flds: SerializableBSONObject](collection: String)(query: Qry = Document.empty,
+    fields: Flds = Document.empty,
+    limit: Long = 0,
+    skip: Long = 0)(callback: Int => Unit) =
     connection.count(name)(collection)(query, fields, limit, skip)(callback)
 
   // TODO - We can't allow free form getLastError due to the async nature.. it must be locked to the call
-
 
   /**
    * Calls findAndModify in remove only mode with
@@ -270,7 +269,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param query
    * @return the removed document
    */
-  def findAndRemove[Qry : SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
+  def findAndRemove[Qry: SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: SingleDocQueryRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
 
   /**
    * Finds the first document in the query and updates it.
@@ -283,16 +282,15 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * @param upsert do upsert (insert if document not present)
    * @return the document
    */
-  def findAndModify[Qry : SerializableBSONObject, Srt : SerializableBSONObject, Upd : SerializableBSONObject, Flds : SerializableBSONObject](collection: String)(
-                    query: Qry = Document.empty,
-                    sort: Srt = Document.empty,
-                    remove: Boolean = false,
-                    update: Option[Upd] = None,
-                    getNew: Boolean = false,
-                    fields: Flds = Document.empty,
-                    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) = 
+  def findAndModify[Qry: SerializableBSONObject, Srt: SerializableBSONObject, Upd: SerializableBSONObject, Flds: SerializableBSONObject](collection: String)(
+    query: Qry = Document.empty,
+    sort: Srt = Document.empty,
+    remove: Boolean = false,
+    update: Option[Upd] = None,
+    getNew: Boolean = false,
+    fields: Flds = Document.empty,
+    upsert: Boolean = false)(callback: SingleDocQueryRequestFuture) =
     connection.findAndModify(name)(collection)(query, sort, remove, update, getNew, fields, upsert)(callback)
-
 
   /**
    * Gets another database on the same server (without having to go up to connection)
