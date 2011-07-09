@@ -1,0 +1,107 @@
+/**
+ * Copyright (c) 2010, 2011 10gen, Inc. <http://10gen.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package com.mongodb.async
+package util
+
+import org.bson.util.Logging
+import scala.annotation.tailrec
+import scala.collection.Set
+
+/**
+ * Supports breaking down the MongoDB URI Format for connections.
+ *
+ * TODO - Make me a more scalaey functional codebase.  Mostly eyeball
+ * ported from Java.
+ *
+ * @author Brendan W. McAdams <brendan@10gen.com>
+ * @see http://www.mongodb.org/display/DOCS/Connections
+ */
+object MongoURI extends Logging {
+  final val UriPrefix = "mongodb://"
+  final val ConnSpec = "http://www.mongodb.org/display/DOCS/Connections"
+
+  def unapply(uri: String) = {
+    val obj = new MongoURI(uri)
+    Some(obj.hosts, obj.db, obj.collection, obj.username, obj.password)
+  }
+
+  protected[mongodb] def parseHosts(svr: String) = {
+    val idx = svr.indexOf("@")
+
+    val (s, username, password) = if (idx > 0) {
+      val auth = svr.substring(0, idx)
+
+      val ai = auth.indexOf(":")
+      (svr.substring(idx + 1),
+        Some(auth.substring(0, ai)),
+        Some(auth.substring(ai + 1)))
+    } else (svr, None, None)
+
+    (s.split(",").toSet, username, password)
+  }
+
+}
+
+class MongoURI(uri: String) extends Logging {
+  import MongoURI._
+
+  require(uri.startsWith(UriPrefix),
+    "MongoDB URIs must start with %s. See: %s".format(UriPrefix, ConnSpec))
+  val _uri = uri.substring(UriPrefix.length)
+
+  val idx = _uri.lastIndexOf("/")
+  val (svr, ns, opts) = if (idx < 0) (_uri, None, None) else {
+    val s = _uri.substring(0, idx)
+    val n = _uri.substring(idx + 1)
+
+    val qi = n.indexOf("?")
+    if (qi >= 0) {
+      val o = n.substring(qi + 1)
+      val _n = n.substring(0, qi)
+      (s, Some(_n), Some(o))
+    } else (s, Some(n), None)
+  }
+
+  log.info("Server: %s, NS: %s, Options: %s", svr, ns, opts)
+
+  val (_hosts, _username, _password) = parseHosts(svr)
+
+  log.info("Hosts: %s, Username: %s, Password: %s", hosts, username, password)
+
+  val (_db, _coll) = ns match {
+    case Some(_ns) => {
+      val ni = _ns.indexOf(".")
+      if (ni < 0) (Some(_ns), None) else (Some(_ns.substring(0, ni)), Some(_ns.substring(ni + 1)))
+    }
+    case None => (None, None)
+  }
+
+  log.info("DB: %s Coll: %s", _db, _coll)
+
+  def hosts = _hosts
+
+  def username = _username
+
+  def password = _password
+
+  def db = _db
+
+  def collection = _coll
+}
+
+// vim: set ts=2 sw=2 sts=2 et:
