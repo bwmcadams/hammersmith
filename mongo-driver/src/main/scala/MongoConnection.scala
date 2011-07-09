@@ -284,17 +284,19 @@ abstract class MongoConnection extends Logging {
       cmd += "upsert" -> upsert
     }
 
-    log.debug("Running findAndModify: %s", cmd)
-    runCommand(db, cmd)(SimpleRequestFutures.command((reply: Document) => {
+    implicit val valM = callback.m
+    implicit val valDec = new SerializableFindAndModifyResult[callback.T]()(callback.decoder, valM)
+
+    runCommand(db, cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) => {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
-      val doc = reply.getAs[BSONDocument]("value")
+      val doc = reply.value
+      log.info("Value Doc: %s", doc)
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
         log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
         callback(
-          new Exception("Received a bad reply from findAndModify. MAY NOT be an error (just didn't find a match?). (Reply: '%s')".format(reply))
-        )
+          new Exception("Received a bad reply from findAndModify. MAY NOT be an error (just didn't find a match?). (Reply: '%s')".format(reply)))
       }
     }))
 

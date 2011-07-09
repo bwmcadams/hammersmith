@@ -12,3 +12,5 @@ tutorial_src/build
 .idea
 *.html
 *.swo
+*.class
+log4j.properties
