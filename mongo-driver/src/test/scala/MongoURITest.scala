@@ -57,6 +57,7 @@ class MongoURISpec extends Specification with Logging {
     val testColl: Option[String] = None
     val testLogin: Option[String] = None
     val testPass: Option[String] = None
+    val testOptions: MongoOptions = MongoOptions()
 
     def test = {
       log.info("HOSTS: %s DB: %s COLL: %s LOGIN: %s PASS: %s", hosts, db, collection, login, password)
@@ -105,6 +106,7 @@ class MongoURISpec extends Specification with Logging {
     override val testLogin = Some("user")
     override val testPass = Some("pass")
   }
+
 }
 
 // vim: set ts=2 sw=2 sts=2 et:

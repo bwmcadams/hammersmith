@@ -98,6 +98,43 @@ class MongoURI(uri: String) extends Logging {
 
   log.info("DB: %s Coll: %s", _db, _coll)
 
+  opts.foreach {
+    _.split("&|;").foreach { o =>
+      val _i = o.indexOf("=")
+      if (_i >= 0) {
+        val key = o.substring(0, _i).toLowerCase
+        val value = o.substring(_i + 1)
+        key match {
+          case "maxpoolsize" => options.maxPoolSize = value.toInt
+          case "minpoolsize" => options.minPoolSize = value.toInt
+          case "waitqueuemultiple" => options.waitQueueMultiple = value.toInt
+          case "waitqueuetimeoutms" => options.waitQueueTimeout = value.toInt
+          case "connecttimeoutms" => options.connectTimeoutMS = value.toInt
+          case "sockettimeoutms" => options.socketTimeoutMS = value.toInt
+          case "autoconnectretry" => options.autoConnectRetry = _parseBool(value)
+          case "socketkeepalive" => options.socketKeepAlive = _parseBool(value)
+          case "slaveok" => options.slaveOK = _parseBool(value)
+          case "safe" => options.safe = _parseBool(value)
+          case "w" => options.w = value.toInt
+          case "wtimeout" => options.wtimeout = value.toInt
+          case "fsync" => options.fsync = _parseBool(value)
+          case unknown => log.warn("Unknown or unsupported option '%s'", value)
+        }
+      }
+    }
+  }
+
+  protected[mongodb] def _parseBool(_in: String) = {
+    val in = _in.trim
+    if (!in.isEmpty && in == "1" ||
+      in.toLowerCase == "true" || in.toLowerCase == "yes")
+      true
+    else
+      false
+  }
+
+  val options = MongoOptions()
+
   def hosts = _hosts
 
   def username = _username
@@ -108,5 +145,21 @@ class MongoURI(uri: String) extends Logging {
 
   def collection = _coll
 }
+
+case class MongoOptions(
+  var slaveOK: Boolean = false, /* Read from secondaries permitted */
+  var safe: Boolean = false, /* getLastError after every update */
+  var w: Int = 0, /* w:n added to getLastError; implies safe=true */
+  var wtimeout: Int = 0, /* MS for getLastError timeouts */
+  var fsync: Boolean = false, /* adds fsync:true to the getLastError cmd */
+  var journal: Boolean = false, /* Sync to journal; implies safe=true */
+  var connectTimeoutMS: Int = 0, /* How long a conn can take to be opened before timing out */
+  var socketTimeoutMS: Int = 0, /* How long a send or receive on a socket can take before timing out */
+  var socketKeepAlive: Boolean = false,
+  var autoConnectRetry: Boolean = false,
+  var waitQueueTimeout: Int = 1000 * 60 * 2,
+  var waitQueueMultiple: Int = 5,
+  var maxPoolSize: Int = 10,
+  var minPoolSize: Int = 1)
 
 // vim: set ts=2 sw=2 sts=2 et:
