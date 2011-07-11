@@ -29,7 +29,7 @@ import org.specs2.Specification
 import org.specs2.specification._
 import org.specs2.matcher._
 
-class MongoURISpec extends Specification with Logging {
+class MongoURISpec extends Specification with ThrownExpectations with Logging {
   def is =
     "The MongoDB URI Parser" ^ p ^
       "Should function basically with just a DB name" ^
@@ -46,7 +46,7 @@ class MongoURISpec extends Specification with Logging {
 
   abstract class URITest(uri: String) {
     val (hosts, db, collection, login, password) = uri match {
-      case MongoURI(h, d, c, l, p) => (h, d, c, l, p)
+      case MongoURI(h, d, c, l, p, o) => (h, d, c, l, p)
       case default => {
         log.error("Parsing failed.")
         throw new Exception
@@ -65,7 +65,8 @@ class MongoURISpec extends Specification with Logging {
         "Have the expected db" ! dbChk ^
         "Have the expected collection" ! collChk ^
         "Have the expected login" ! loginChk ^
-        "Have the expected password" ! passChk
+        "Have the expected password" ! passChk ^
+        "Receive the expected URI Parse return types" ! uriConnChk
     }
 
     def hostChk = hosts must haveTheSameElementsAs(testHost)
@@ -73,6 +74,28 @@ class MongoURISpec extends Specification with Logging {
     def collChk = collection must_== (testColl)
     def loginChk = login must_== (testLogin)
     def passChk = password must_== (testPass)
+    def uriConnChk = {
+      try {
+        val connSet = MongoConnection.fromURI(uri)
+
+        connSet._1 must haveSuperclass[MongoConnection]
+        testDB match {
+          case Some(dbName) => connSet._2 must beSome.which(_.name == dbName)
+          case None => connSet._2 must beNone
+        }
+        testColl match {
+          case Some(collName) => connSet._3 must beSome.which(_.name == collName)
+          case None => connSet._3 must beNone
+        }
+      } catch {
+        case use: UnsupportedOperationException => if (hosts.size > 1) {
+          success
+        } else throw use
+        case e => throw e
+      }
+      success
+
+    }
   }
 
   case class basicURI1() extends URITest("mongodb://foo/bar") {

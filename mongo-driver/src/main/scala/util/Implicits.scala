@@ -30,6 +30,7 @@ object `package` extends Imports with Implicits
 trait Imports
 
 trait Implicits {
+
 }
 
 // vim: set ts=2 sw=2 sts=2 et:

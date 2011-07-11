@@ -457,6 +457,39 @@ object MongoConnection extends Logging {
     new DirectConnection(new InetSocketAddress(hostname, port))
   }
 
+  /**
+   * Connect to MongoDB using a URI format.
+   *
+   * Because we can't tell if you are giving us just a host, a DB or a collection
+   * The return type is a Triple of Connection, Option[DB], Option[Collection].
+   *
+   * You'll be given each of thes ethat could be validly built.
+   *
+   * @see http://www.mongodb.org/display/DOCS/Connections
+   */
+  def fromURI(uri: String): (MongoConnection, Option[DB], Option[Collection]) = uri match {
+    case MongoURI(hosts, db, collection, username, password, options) => {
+      require(hosts.size > 0, "No valid hosts found in parsed host list")
+      if (hosts.size == 1) {
+        val _conn = MongoConnection(hosts.head._1, hosts.head._2)
+        // TODO - Authentication!
+        val _db = db match {
+          case Some(dbName) => Some(_conn(dbName))
+          case None => None
+        }
+
+        val _coll = collection match {
+          case Some(collName) => {
+            assume(_db.isDefined, "Cannot specify a collection name with no DB Name")
+            Some(_db.get.apply(collName))
+          }
+          case None => None
+        }
+        (_conn, _db, _coll)
+      } else throw new UnsupportedOperationException("No current support for multiple hosts in this driver")
+    }
+  }
+
   /** TODO - Support timing out of ops */
   def setChannelState(channel: Channel, connected: Boolean, maxBSONObjectSize: Int) = {
     log.info("Setting a channel state up to '%s' for '%s'", connected, channel)
