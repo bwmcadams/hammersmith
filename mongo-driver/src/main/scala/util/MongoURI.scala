@@ -37,7 +37,7 @@ object MongoURI extends Logging {
 
   def unapply(uri: String) = {
     val obj = new MongoURI(uri)
-    Some(obj.hosts, obj.db, obj.collection, obj.username, obj.password)
+    Some(obj.hosts, obj.db, obj.collection, obj.username, obj.password, obj.options)
   }
 
   protected[mongodb] def parseHosts(svr: String) = {
