@@ -1,4 +1,13 @@
 
+0.2.7 / 2011-07-11
+==================
+
+  * Added fromURI Method to MongoConnection which will connect based on a Mongo URI
+  * Added parsing of URI Options, but not fully tested yet.
+  * Hosts now return a tuple of (String, Int) for URIs always
+  * MongoURI parsing support
+  * Didnt update unit test for change of findAndModify to Option[T]
+
 0.2.6 / 2011-07-09 
 ==================
 
