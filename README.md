@@ -14,7 +14,7 @@ There is also a known issue where occasionally, an exception is thrown that caus
 
 Author/Maintainer
 -----------------
-Brendan W. McAdams (@rit) 
+* (Brendan W. McAdams (@rit))[http://github.com/bwmcadams]
 
 Contributors
 ------------
@@ -22,8 +22,8 @@ Contributors
 These fine specimens of humanity have demonstrated their 
 mastery of Scala + MongoDB by making Hammersmith more awesome in their spare time:
 
-Havoc Pennington (@havocp)
-Gerolf Seitz (@gseitz)
+* (Havoc Pennington (@havocp))[http://github.com/havocp]
+* (Gerolf Seitz (@gseitz))[http://github.com/gseitz]
 
 
 
