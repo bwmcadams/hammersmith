@@ -10,7 +10,7 @@ DISCLAIMER
 This driver is still an early beta and should be used with caution in production.  It still lacks support for crucial
 features such as Replica Sets.
 
-There is also a known issue where occasionally, an exception is thrown that causes a litter of pug puppies to burst forth from any open USB ports on your computer.  You have been warned.
+There is also a known (but completely adorable!) issue where occasionally, an exception is thrown that causes a litter of pug puppies to burst forth from any open USB ports on your computer.  You have been warned.
 
 Author/Maintainer
 -----------------
