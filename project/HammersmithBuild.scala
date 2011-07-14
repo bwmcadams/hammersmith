@@ -11,6 +11,13 @@ object HammersmithBuild extends Build {
     scalaVersion := "2.9.0-1"
   )
 
+  /**
+   * Import some sample data for testing
+   */
+  "mongoimport -d hammersmithIntegration -c yield_historical.in --drop ./mongo-driver/src/test/resources/yield_historical_in.json" !
+
+  "mongoimport -d hammersmithIntegration -c books --drop ./mongo-driver/src/test/resources/bookstore.json" ! 
+
   override lazy val settings = super.settings ++ buildSettings
 
   lazy val baseSettings = Defaults.defaultSettings ++ Seq(
