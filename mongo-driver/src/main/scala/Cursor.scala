@@ -37,7 +37,7 @@ object Cursor extends Logging {
   case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
 
   def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
-    log.info("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
+    log.debug("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
     try {
       new Cursor[T](namespace, reply)(ctx, decoder)
     } catch {
@@ -145,7 +145,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
         log.trace("Decoded: %s", x)
         _d += x
       } catch {
-        case e => log.info("ERROR!!!!!!!!! %s", e)
+        case e => log.warn("ERROR!!!!!!!!! %s", e)
       }
     }
     val _decoded = _d.result
@@ -158,7 +158,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   // TODO - Move to lazy decoding model
   protected val docs = ConcurrentQueue(reply.documents.map(decoder.decode): _*) // ConcurrentQueue(_decoded: _*)
 
-  log.info("Initializing a new cursor with cursorID: %d, startIndex: %d, docs: %s", cursorID, startIndex, docs)
+  log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d, docs: %s", cursorID, startIndex, docs)
 
   /**
    * Batch size; defaults to 0 which lets mongo control the size

@@ -141,7 +141,7 @@ class DirectConnectionSpec extends Specification
   def noopInsert(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("test_insert")
     mongo.dropCollection()(success => {
-      log.info("Dropped collection... Success? " + success)
+      log.debug("Dropped collection... Success? " + success)
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz")) {}
     // TODO - Implement 'count'
@@ -155,7 +155,7 @@ class DirectConnectionSpec extends Specification
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
     val mongo = conn("testHammersmith")("test_insert")
     mongo.dropCollection()(success => {
-      log.info("Dropped collection... Success? " + success)
+      log.debug("Dropped collection... Success? " + success)
     })
     var id: AnyRef = null
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))((oid: Option[AnyRef], res: WriteResult) => {
@@ -173,7 +173,7 @@ class DirectConnectionSpec extends Specification
     val mongo = conn("testHammersmith")("test_insert")
     implicit val safeWrite = WriteConcern.Safe
     mongo.dropCollection()(success => {
-      log.info("Dropped collection... Success? " + success)
+      log.debug("Dropped collection... Success? " + success)
     })
     var id: Option[AnyRef] = null
     var ok: Option[Boolean] = None
@@ -205,18 +205,18 @@ class DirectConnectionSpec extends Specification
   def idDebug(conn: MongoConnection) = {
     val mongo = conn("test")("idGen")
     mongo.dropCollection()(success => {
-      log.info("Dropped collection... Success? " + success)
+      log.debug("Dropped collection... Success? " + success)
     })
     val id = new ObjectId()
     var ok: Option[Boolean] = None
-    log.info("Generated a new _id : %s", id)
+    log.debug("Generated a new _id : %s", id)
     var insertedID: Option[AnyRef] = None
     val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) => {
       result match {
         case Right((oid, wr)) => {
           ok = Some(true)
           insertedID = oid
-          log.info("*** Insert Success.  ID: %s", insertedID)
+          log.debug("*** Insert Success.  ID: %s", insertedID)
         }
         case Left(t) => {
           ok = Some(false)
@@ -224,7 +224,7 @@ class DirectConnectionSpec extends Specification
         }
       }
     })
-    log.info("Inserted. %s", insertedID)
+    log.debug("Inserted. %s", insertedID)
     mongo.insert(Document("_id" -> id, "foo" -> "y", "bar" -> "x"))(handler)
 
     insertedID must eventually(beSome(id)) //Wait for the insert to finish?
@@ -274,7 +274,7 @@ class DirectConnectionSpec extends Specification
       sort = Document("priority" -> -1),
       update = Some(Document("$set" -> Document("inprogress" -> true, "started" -> startDate))),
       getNew = true) { doc: Option[Document] =>
-        log.info("FAM Doc: %s", doc)
+        log.trace("FAM Doc: %s", doc)
         doc.foreach(found = _)
       }
     found must eventually(havePairs("inprogress" -> true, "name" -> "Biz report", "started" -> startDate))
