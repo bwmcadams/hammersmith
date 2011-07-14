@@ -12,6 +12,8 @@ features such as Replica Sets.
 
 There is also a known (but completely adorable!) issue where occasionally, an exception is thrown that causes a litter of pug puppies to burst forth from any open USB ports on your computer.  You have been warned.
 
+**PRODUCED IN A FACILITY WHICH ALSO PROCESSES JAVA AND/OR FEZ'**
+
 Author/Maintainer
 -----------------
 * [Brendan W. McAdams (@rit)](http://github.com/bwmcadams)
