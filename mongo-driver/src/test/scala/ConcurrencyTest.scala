@@ -31,12 +31,15 @@ import org.specs2.matcher._
 import com.twitter.util.Time
 
 class ConcurrencyTestingSpec extends Specification
-  with Logging {
+  with Logging 
+  with HammersmithDefaultDBNames{
+  
   def is =
     "The MongoDB Direct Connection" ^
       "Works concurrently" ^
       "Support lots of concurrent batch inserts" ! mongo(batchInsert) ^
       end
+      
   object mongo extends AroundOutside[MongoConnection] {
 
     val conn = MongoConnection()
@@ -53,7 +56,7 @@ class ConcurrencyTestingSpec extends Specification
   }
 
   def batchInsert(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("batchConcurrencyInsert")
+    val mongo = conn(integrationTestDBName)("batchConcurrencyInsert")
     mongo.dropCollection() { success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*) {}
     var n: Int = -10

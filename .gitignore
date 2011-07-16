@@ -10,6 +10,12 @@ tags
 \.idea/workspace.xml
 tutorial_src/build
 .idea
+.classpath
+.project
+bson-driver/.classpath
+bson-driver/.project
+mongo-driver/.classpath
+mongo-driver/.project
 *.html
 *.swo
 *.class
