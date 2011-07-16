@@ -98,33 +98,35 @@ class MongoURISpec extends Specification with ThrownExpectations with Logging {
     }
   }
 
-  case class basicURI1() extends URITest("mongodb://foo/bar") {
-    override val testHost = List(("foo", 27017))
+  val defaultHost = "127.0.0.1"
+    
+  case class basicURI1() extends URITest("mongodb://" + defaultHost + "/bar") {
+    override val testHost = List((defaultHost, 27017))
     override val testDB = Some("bar")
   }
 
-  case class basicURI2() extends URITest("mongodb://foo/bar.baz") {
-    override val testHost = List(("foo", 27017))
+  case class basicURI2() extends URITest("mongodb://" + defaultHost + "/bar.baz") {
+    override val testHost = List((defaultHost, 27017))
     override val testDB = Some("bar")
     override val testColl = Some("baz")
   }
 
-  case class userPass() extends URITest("mongodb://user:pass@host/bar") {
-    override val testHost = List(("host", 27017))
+  case class userPass() extends URITest("mongodb://user:pass@" + defaultHost + "/bar") {
+    override val testHost = List((defaultHost, 27017))
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
   }
 
-  case class userPassAndPort() extends URITest("mongodb://user:pass@host:27017/bar") {
-    override val testHost = List(("host", 27017))
+  case class userPassAndPort() extends URITest("mongodb://user:pass@" + defaultHost + ":27017/bar") {
+    override val testHost = List((defaultHost, 27017))
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
   }
 
-  case class userPassAndMultiHostWithPort() extends URITest("mongodb://user:pass@host1:27011,host2:27012,host3:27013/bar") {
-    override val testHost = List(("host1", 27011), ("host2", 27012), ("host3", 27013))
+  case class userPassAndMultiHostWithPort() extends URITest("mongodb://user:pass@" + defaultHost+ ":27011,localhost:27012," + defaultHost + ":27013/bar") {
+    override val testHost = List((defaultHost, 27011), ("localhost", 27012), (defaultHost, 27013))
     override val testDB = Some("bar")
     override val testLogin = Some("user")
     override val testPass = Some("pass")
