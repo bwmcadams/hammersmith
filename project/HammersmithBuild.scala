@@ -20,10 +20,7 @@ object HammersmithBuild extends Build {
 
   override lazy val settings = super.settings ++ buildSettings
 
-  lazy val baseSettings = Defaults.defaultSettings ++ Seq(
-    posterous.Publish.posterousEmail := "ask n8han",
-    posterous.Publish.posterousPassword := "where to properly set this"
-  )
+  lazy val baseSettings = Defaults.defaultSettings 
 
   lazy val parentSettings = baseSettings ++ Publish.settings
 
