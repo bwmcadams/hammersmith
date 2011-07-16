@@ -29,8 +29,17 @@ import org.specs2.Specification
 import org.specs2.specification._
 import org.specs2.matcher._
 
+
+
+trait HammersmithDefaultDBNames {
+  val integrationTestDBName= "hammersmithIntegration"
+   
+}
 class DirectConnectionSpec extends Specification
-  with Logging {
+  with Logging 
+  with HammersmithDefaultDBNames{
+  
+ 
   def is =
     "The MongoDB Direct Connection" ^
       "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster) ^
@@ -89,7 +98,7 @@ class DirectConnectionSpec extends Specification
   def connectIsMaster(conn: MongoConnection) = {
     conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.trace("DB: %s", _)) })
 
-    conn("test").collectionNames({ colls: Seq[String] => colls.foreach(log.trace("Collection: %s", _)) })
+    conn(integrationTestDBName).collectionNames({ colls: Seq[String] => colls.foreach(log.trace("Collection: %s", _)) })
 
     conn.connected_? must eventually(beTrue)
 
@@ -98,7 +107,7 @@ class DirectConnectionSpec extends Specification
   // todo - this relies heavily on whats on my local workstation; needs to be generic
   def iterateSimpleCursor(conn: MongoConnection) = {
     var x = 0
-    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
+    conn(integrationTestDBName).find("books")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
       for (doc <- cursor) {
         x += 1
       }
@@ -109,7 +118,7 @@ class DirectConnectionSpec extends Specification
 
   def iterateComplexCursor(conn: MongoConnection) = {
     var x = 0
-    conn("bookstore").find("inventory")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
+    conn(integrationTestDBName).find("books")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
       def next(op: Cursor.IterState): Cursor.IterCmd = op match {
         case Cursor.Entry(doc) => {
           x += 1
@@ -129,7 +138,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def distinctValue(conn: MongoConnection) = {
-    conn("bookstore")("inventory").distinct("author")((values: Seq[Any]) => {
+    conn(integrationTestDBName)("books").distinct("author")((values: Seq[Any]) => {
       for (item <- values) {
         log.trace("Got a value: %s", item.asInstanceOf[String])
       }
@@ -139,7 +148,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def noopInsert(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("test_insert")
+    val mongo = conn(integrationTestDBName)("test_insert")
     mongo.dropCollection()(success => {
       log.debug("Dropped collection... Success? " + success)
     })
@@ -153,7 +162,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("test_insert")
+    val mongo = conn(integrationTestDBName)("test_insert")
     mongo.dropCollection()(success => {
       log.debug("Dropped collection... Success? " + success)
     })
@@ -170,7 +179,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def insertWithSafeImplicitWriteConcern(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("test_insert")
+    val mongo = conn(integrationTestDBName)("test_insert")
     implicit val safeWrite = WriteConcern.Safe
     mongo.dropCollection()(success => {
       log.debug("Dropped collection... Success? " + success)
@@ -203,7 +212,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def idDebug(conn: MongoConnection) = {
-    val mongo = conn("test")("idGen")
+    val mongo = conn(integrationTestDBName)("idGen")
     mongo.dropCollection()(success => {
       log.debug("Dropped collection... Success? " + success)
     })
@@ -238,7 +247,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def countCmd(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("countCmd")
+    val mongo = conn(integrationTestDBName)("countCmd")
     mongo.dropCollection() { success => }
     var n: Int = -10
     mongo.count()((_n: Int) => n = _n)
@@ -254,7 +263,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def batchInsert(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("batchInsert")
+    val mongo = conn(integrationTestDBName)("batchInsert")
     mongo.dropCollection() { success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*) {}
     var n: Int = -10
@@ -262,7 +271,7 @@ class DirectConnectionSpec extends Specification
     n must eventually(beEqualTo(100))
   }
   def simpleFindAndModify(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("findModify")
+    val mongo = conn(integrationTestDBName)("findModify")
     mongo.dropCollection() { success => }
     mongo.insert(Document("name" -> "Next promo", "inprogress" -> false, "priority" -> 0, "tasks" -> Seq("select product", "add inventory", "do placement"))) {}
     mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 1, "tasks" -> Seq("run sales report", "email report"))) {}
@@ -281,7 +290,7 @@ class DirectConnectionSpec extends Specification
   }
 
   def findAndRemoveTest(conn: MongoConnection) = {
-    val mongo = conn("testHammersmith")("findRemove")
+    val mongo = conn(integrationTestDBName)("findRemove")
     mongo.dropCollection() { success => }
     mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*) {}
     var n: Int = -10
