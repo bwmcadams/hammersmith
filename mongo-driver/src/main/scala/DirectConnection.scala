@@ -21,6 +21,7 @@ import org.bson.util.Logging
 
 import java.net.InetSocketAddress
 import org.jboss.netty.bootstrap.ClientBootstrap
+import org.jboss.netty.channel.ChannelFuture
 /**
  * Direct Connection to a single mongod (or mongos) instance
  *
@@ -30,8 +31,8 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
 
   log.info("Initialized Direct MongoDB connection on address '%s'", addr)
 
-  lazy val handler = new DirectConnectionHandler(bootstrap)
+  lazy val handler = new DirectConnectionHandler(bootstrap, _f)
 
 }
 
-protected[mongodb] class DirectConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler
+protected[mongodb] class DirectConnectionHandler(bootstrap: ClientBootstrap, channelFuture: ChannelFuture) extends MongoConnectionHandler (bootstrap, channelFuture)

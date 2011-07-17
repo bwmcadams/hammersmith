@@ -19,7 +19,7 @@ package com.mongodb.async
 import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
-import org.jboss.netty.channel.ChannelHandlerContext
+import org.jboss.netty.channel.{ChannelHandlerContext, ChannelFuture}
 import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
 import com.mongodb.async.futures.RequestFutures
 import com.mongodb.async.util.ConcurrentQueue
@@ -36,10 +36,10 @@ object Cursor extends Logging {
   case class Next(op: (IterState) => IterCmd) extends IterCmd
   case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
 
-  def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
+  def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T], channelFuture: ChannelFuture) = {
     log.debug("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
     try {
-      new Cursor[T](namespace, reply)(ctx, decoder)
+      new Cursor[T](namespace, reply)(ctx, decoder, channelFuture)
     } catch {
       case e => log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
     }
@@ -111,12 +111,12 @@ object Cursor extends Logging {
  * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
  * TODO - Generic version with type passing
  */
-class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T]) extends Logging {
+class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T], channelFuture: ChannelFuture) extends Logging {
 
   val cursorID: Long = reply.cursorID
 
   protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
-  protected implicit val channel = ctx.getChannel
+  protected implicit val channel = Some(ctx.getChannel)
   protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize // todo - will this change ? Should we explicitly grab it when needed
 
   /**
@@ -177,7 +177,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
       gettingMore = new CountDownLatch(1)
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
       log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
-      MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
+      MongoConnection.sendToChannel(GetMoreMessage(namespace, batchSize, cursorID),
         RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) => {
           reply match {
             case Right((id, batch)) => {

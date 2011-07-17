@@ -36,8 +36,8 @@ import java.nio.ByteOrder
  * @author Brendan W. McAdams <brendan@10gen.com>
  * @since 0.1
  */
-abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging {
-  protected val bootstrap: ClientBootstrap
+abstract class MongoConnectionHandler(bootstrap: ClientBootstrap, channelFuture: ChannelFuture) extends SimpleChannelHandler with Logging {
+
   protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
 
   protected def queryFail(reply: ReplyMessage, result: RequestFuture) = {
@@ -101,7 +101,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               } else if (reply.queryFailure) {
                 queryFail(reply, cursorResult)
               } else {
-                cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
+                cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder, channelFuture).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
               }
             }
             case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {

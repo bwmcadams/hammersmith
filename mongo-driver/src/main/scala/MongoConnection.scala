@@ -56,7 +56,6 @@ abstract class MongoConnection extends Logging {
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
   protected implicit var maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
-  protected var isMaster = false
 
   //protected val _connected = new AtomicBoolean(false)
 
@@ -78,51 +77,65 @@ abstract class MongoConnection extends Logging {
   })
 
   bootstrap.setOption("remoteAddress", addr)
-
-  private val _f = bootstrap.connect()
-  // TODO - Switch to listener based establishment
-  protected implicit val channel = _f.awaitUninterruptibly.getChannel
-
-  MongoConnection.channelState.put(channel, new AtomicBoolean(false))
-
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("keepAlive", true)
-  if (!_f.isSuccess) {
-    log.error("Failed to connect.", _f.getCause)
-    bootstrap.releaseExternalResources()
-  } else {
-    log.debug("Connected and retrieved a write channel (%s)", channel)
-    checkMaster()
-  }
 
+  private var isMaster = false
+
+  protected implicit val _f = bootstrap.connect()
+
+  private implicit var channel:Option[Channel] = None            
+        
+  MongoConnection.channelFutureState.put(_f, new AtomicBoolean(false))
+
+  _f.addListener(new ChannelFutureListener(){
+    def operationComplete(future: ChannelFuture) = {
+      
+      if(!_f.equals(future)) throw new Exception("future & future don't exisit")
+	    	if (!future.isSuccess) {
+	    		log.error("Failed to connect.", future.getCause)
+	    		
+	    		bootstrap.releaseExternalResources()
+		} else {
+			log.debug("Connected and retrieved a write channel (%s)", future.getChannel)
+			
+			_successfulState(true, maxBSONObjectSize)
+			channel = Some(future.getChannel)
+			_connectedState(false, maxBSONObjectSize)
+			checkMaster()
+	    	}
+    }
+  })
   /**
-   * Utility method to pull back a number of pieces of information
-   * including maxBSONObjectSize, and sort of serves as a verification
-   * of a live connection.
-   *
-   * @param force Forces the isMaster call to run regardless of cached status
-   * @param requireMaster Requires a master to be found or throws an Exception
-   * @throws MongoException
-   */
+	* Utility method to pull back a number of pieces of information
+	* including maxBSONObjectSize, and sort of serves as a verification
+	* of a live connection.
+	*
+	* @param force Forces the isMaster call to run regardless of cached status
+	* @param requireMaster Requires a master to be found or throws an Exception
+	* @throws MongoException
+	*/
   def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
-    if (!connected_? || force) {
-      log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
-      val gotIsMaster = new AtomicBoolean(false)
-      val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
-      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) => {
-        log.debug("Got a result from command: %s", doc)
-        isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
-        maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
-        gotIsMaster.set(true)
-        if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connectedState(true, maxBSONObjectSize)
-        handler.maxBSONObjectSize = maxBSONObjectSize
-        log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
-      }), _overrideLiveCheck = true)
+	if (!isMaster || force) {
+		log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
+		val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
+		MongoConnection.sendToChannel(qMsg, 
+				SimpleRequestFutures.command((doc: Document) => {
+					log.debug("Got a result from command: %s", doc)
+					isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
+					maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
+					if (requireMaster && !isMaster) {
+						throw new Exception("Couldn't find a master.") 
+					}else{
+						_connectedState(true, maxBSONObjectSize)
+					}
+					handler.maxBSONObjectSize = maxBSONObjectSize
+					log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
+				}), _overrideIsMasterCheck = true)
     } else {
       log.debug("Already have cached master status. Skipping.")
     }
   }
-
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
@@ -367,11 +380,25 @@ abstract class MongoConnection extends Logging {
   }
 
   // TODO "Ensure" mode
+  
   val handler: MongoConnectionHandler
 
-  def connected_? = MongoConnection.channelState(channel).get()
-  def _connectedState(connected: Boolean, maxBSONObjectSize: Int) =
-    MongoConnection.setChannelState(channel, connected, maxBSONObjectSize)
+  def successful_?():Boolean = MongoConnection.channelFutureState(_f).get()
+
+  def connected_?():Boolean = channel match {
+    case Some(null) => throw new Exception("NPE!")
+    case Some(c) => MongoConnection.channelState(c).get()
+    case None => false
+  }
+  
+  def _successfulState(connected: Boolean, maxBSONObjectSize: Int) =
+    MongoConnection.setChannelFutureState(_f, connected, maxBSONObjectSize)
+    
+  def _connectedState(connected: Boolean, maxBSONObjectSize: Int) = channel match {
+    case Some(c) => MongoConnection.setChannelState(connected, maxBSONObjectSize)
+    case None => throw new Exception ("Attempted setting of channel state with no channel")
+  }
+    
 
   val addr: InetSocketAddress
 
@@ -380,7 +407,7 @@ abstract class MongoConnection extends Logging {
   protected[mongodb] def shutdown() {
     log.debug("Shutting Down & Cleaning up connection handler.")
     MongoConnection.cleaningTimer.stop(this)
-    channel.close()
+    channel.get.close()
     _connectedState(false, maxBSONObjectSize)
   }
 
@@ -439,17 +466,14 @@ object MongoConnection extends Logging {
    */
   protected[mongodb] val deadCursors = new WeakHashMap[Channel, ConcurrentQueue[Long]]
 
-  /**
-   * Canonical guide of the status of any channels.
-   * e.g. what we know about their current live or dead status.
-   */
+
   protected val channelState = new WeakHashMap[Channel, AtomicBoolean]
+  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Channel) => Unit]]
 
-  /**
-   * Operation queue for channels which aren't connected yet.
-   */
-  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) => Unit]]
+  protected val channelFutureState = new WeakHashMap[ChannelFuture, AtomicBoolean]
+  protected val channelFutureOpQueue = new WeakHashMap[ChannelFuture, ConcurrentQueue[(Channel) => Unit]]
 
+  
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
@@ -490,10 +514,10 @@ object MongoConnection extends Logging {
     }
   }
 
-  /** TODO - Support timing out of ops */
-  def setChannelState(channel: Channel, connected: Boolean, maxBSONObjectSize: Int) = {
-    log.info("Setting a channel state up to '%s' for '%s'", connected, channel)
-    val oldState = channelState.getOrElseUpdate(channel, new AtomicBoolean(false)).getAndSet(connected)
+    /** TODO - Support timing out of ops */
+  def setChannelState(connected: Boolean, maxBSONObjectSize: Int)(implicit channel: Option[Channel]) = {
+    log.info("Setting a channel state up to '%s' for '%s'", connected, channel.get)
+    val oldState = channelState.getOrElseUpdate(channel.get, new AtomicBoolean(false)).getAndSet(connected)
     if (oldState) connected match {
       case true => {
         log.trace("Connection state was already connected, set to connected again.  NOOP")
@@ -505,8 +529,8 @@ object MongoConnection extends Logging {
     else connected match {
       case true => {
         log.info("Connection state was disconnected, set to connected.  Dequeueing any backed up operations.")
-        channelOpQueue.get(channel).foreach { queue =>
-          queue.dequeueAll.foreach { op => op(maxBSONObjectSize) }
+        channelOpQueue.get(channel.get).foreach { queue =>
+          queue.dequeueAll.foreach { op => op(channel.get) }
         }
       }
       case false => {
@@ -514,9 +538,33 @@ object MongoConnection extends Logging {
       }
     }
   }
+  /** TODO - Support timing out of ops */
+  def setChannelFutureState(channelFuture: ChannelFuture, connected: Boolean, maxBSONObjectSize: Int)(implicit channel: Option[Channel]) = {
+    log.info("Setting a channelFuture state up to '%s' for '%s'", connected, channelFuture)
+    val oldState = channelFutureState.getOrElseUpdate(channelFuture, new AtomicBoolean(false)).getAndSet(connected)
+    if (oldState) connected match {
+      case true => {
+        log.trace("Connection state was already connected, set to connected again.  NOOP")
+      }
+      case false => {
+        log.trace("Connection state was connected, set to disconnected. Otherwise, NOOP.")
+      }
+    }
+    else connected match {
+      case true => {
+        log.info("Connection state was disconnected, set to connected.  Dequeueing any backed up operations.")
+        channelFutureOpQueue.get(channelFuture).foreach { queue =>
+          queue.dequeueAll.foreach { op => op(channelFuture.getChannel) }
+        }
+      }
+      case false => {
+        log.trace("Connection state was disconnected, set to disconnected again.  NOOP.")
+      }
+    }
+  }
+  
+  protected[mongodb] def sendHelper(msg: MongoClientMessage, f: RequestFuture, _overrideIsMasterCheck: Boolean = false)(implicit maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
-    require(channel.isConnected, "Channel is closed.")
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
@@ -559,31 +607,62 @@ object MongoConnection extends Logging {
     } else () => {}
     // todo - clean this up to be more automatic like the writeCB is
 
-    val exec = (_maxBSON: Int) => {
+    val exec = (channel: Channel) => {
       channel.write(outStream.buffer())
       outStream.close()
       /** If no write Concern and it's a write, kick the callback now.*/
       writeCB()
     }
-    // If the channel is open, it still doesn't mean we have a valid Mongo Connection.
-    if (!channelState(channel).get && !_overrideLiveCheck) {
-      log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
-      channelOpQueue.getOrElseUpdate(channel, new ConcurrentQueue) += exec
-    } else exec(maxBSONObjectSize)
+    exec
+  }
+  
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideIsMasterCheck: Boolean = false)(implicit channelFuture: ChannelFuture, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
+
+	if (channelFutureState(channelFuture).get) {
+	  sendToChannel(msg, f, _overrideIsMasterCheck)(Some(channelFuture.getChannel), maxBSONObjectSize, concern)
+	}
+	else{
+	  	val exec = sendHelper(msg, f, _overrideIsMasterCheck)
+	    
+		log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideIsMasterCheck)
+	  	channelFutureOpQueue.getOrElseUpdate(channelFuture, new ConcurrentQueue) += exec
+	} 
+  }
+    
+  protected[mongodb] def sendToChannel(msg: MongoClientMessage, f: RequestFuture, _overrideIsMasterCheck: Boolean = false)(implicit channel: Option[Channel], maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
+
+    channel match {
+      case Some(c) => {
+        require(c.isConnected, "Channel is closed.")
+            
+	    val exec = sendHelper(msg, f, _overrideIsMasterCheck)
+		
+	    if (channelState(c).get || _overrideIsMasterCheck) {
+	    		exec(c)
+	    }
+	    else{
+	    		log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideIsMasterCheck)
+	    		channelOpQueue.getOrElseUpdate(c, new ConcurrentQueue) += exec
+	    }         
+      }
+      case None => {
+        log.debug("Request sent to non-existent channel")
+      }
+    }
 
   }
-
+  
   protected[mongodb] def createCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd) = {
     log.trace("Attempting to create command '%s' on DB '%s.$cmd'", cmd, ns)
     QueryMessage(ns + ".$cmd", 0, -1, cmd)
   }
-
+  
   /**
    * Deferred - doesn't actually happen immediately
    */
-  protected[mongodb] def killCursors(ids: Long*)(implicit channel: Channel) {
-    log.debug("Adding Dead Cursors to cleanup list: %s on Channel: %s", ids, channel)
-    deadCursors.getOrElseUpdate(channel, new ConcurrentQueue[Long]) ++= ids
+  protected[mongodb] def killCursors(ids: Long*)(implicit channel: Option[Channel]) {
+    log.debug("Adding Dead Cursors to cleanup list: %s on Channel: %s", ids, channel.get)
+    deadCursors.getOrElseUpdate(channel.get, new ConcurrentQueue[Long]) ++= ids
   }
 
   /**
@@ -595,19 +674,21 @@ object MongoConnection extends Logging {
     if (deadCursors.isEmpty) {
       log.debug("No Dead Cursors.")
     } else {
-      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => if (!entry._2.isEmpty) {
-        // TODO - ensure no concurrency issues / blockages here.
-        log.trace("Pre DeQueue: %s", entry._2.length)
-        val msg = KillCursorsMessage(entry._2.dequeueAll())
-        log.trace("Post DeQueue: %s", entry._2.length)
-        log.debug("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
-        MongoConnection.send(msg, NoOpRequestFuture)(entry._1, 1024 * 1024 * 4) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
-      } else {
-        log.debug("Removing Channel '%s' from cursor cleanup queue as it has no dead cursors.", entry._1) // should help with auto shutdown of cleaner thread + process
-        deadCursors.remove(entry._1)
+      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => {
+    	  	val queue = entry._2
+    	  	val channel = entry._1
+        if (!queue.isEmpty) {
+	        // TODO - ensure no concurrency issues / blockages here.
+	        log.trace("Pre DeQueue: %s", queue.length)
+	        val msg = KillCursorsMessage(queue.dequeueAll())
+	        log.trace("Post DeQueue: %s", queue.length)
+	        log.debug("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
+	        MongoConnection.sendToChannel(msg, NoOpRequestFuture)(Some(channel), 1024 * 1024 * 4) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
+	      } else {
+	        log.debug("Removing Channel '%s' from cursor cleanup queue as it has no dead cursors.", channel) // should help with auto shutdown of cleaner thread + process
+	        deadCursors.remove(channel)
+	      }
       })
     }
   }
-
 }
-

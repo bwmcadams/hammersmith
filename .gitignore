@@ -12,6 +12,7 @@ tutorial_src/build
 .idea
 .classpath
 .project
+.settings/
 bson-driver/.classpath
 bson-driver/.project
 mongo-driver/.classpath
