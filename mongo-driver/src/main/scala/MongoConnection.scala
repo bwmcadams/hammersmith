@@ -519,8 +519,7 @@ object MongoConnection extends Logging {
     require(channel.isConnected, "Channel is closed.")
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
-      if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4))
+    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
     log.trace("PreWrite with outStream '%s'", outStream)
     /**
