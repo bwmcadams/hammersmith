@@ -65,8 +65,8 @@ abstract class MongoConnection extends Logging {
   /**
    * Factory for client socket channels, reused by all connectors where possible.
    */
-  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
-    Executors.newCachedThreadPool)
+  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Boss")),
+      Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Worker")))
 
   protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
