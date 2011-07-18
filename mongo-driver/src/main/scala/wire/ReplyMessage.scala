@@ -87,11 +87,12 @@ object ReplyMessage extends Logging {
         in.read(l)
         val len = Bits.readInt(l)
         log.debug("Decoding object, length: %d", len)
-        val b = Array.ofDim[Byte](len - 4)
-        in.read(b)
-        val n = Array.concat(l, b)
-        log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(n))
-        n
+        val b = Array.ofDim[Byte](len)
+        in.read(b, 4, len - 4)
+        // copy length to the full array
+        Array.copy(l, 0, b, 0, 4)
+        log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(b))
+        b
       }
 
       val documents = for (i <- 0 until numReturned) yield _dec
