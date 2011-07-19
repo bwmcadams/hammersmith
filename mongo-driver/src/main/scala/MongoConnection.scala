@@ -72,7 +72,7 @@ abstract class MongoConnection extends Logging {
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
     def getPipeline = {
-      val p = Channels.pipeline(new BSONFrameDecoder(), handler)
+      val p = Channels.pipeline(new ReplyMessageDecoder(), handler)
       p
     }
   })
