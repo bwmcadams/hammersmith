@@ -78,6 +78,13 @@ abstract class MongoConnection extends Logging {
   })
 
   bootstrap.setOption("remoteAddress", addr)
+  /* AdaptiveReceiveBufferSizePredictor gradually scales the buffer up and down
+   * depending on how many bytes arrive in each read()
+   */
+  bootstrap.setOption("child.receiveBufferSizePredictor",
+    new AdaptiveReceiveBufferSizePredictor(128, /* minimum */
+      256, /* initial */
+      1024 * 1024 * 4 /* max */ ));
 
   private val _f = bootstrap.connect()
   // TODO - Switch to listener based establishment
