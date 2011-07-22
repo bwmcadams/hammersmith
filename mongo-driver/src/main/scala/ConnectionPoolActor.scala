@@ -36,8 +36,12 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   //with MailboxPressureCapacitor // overrides pressureThreshold based on mailboxes
   with ActiveFuturesPressureCapacitor // mailbox makes way more sense, but this isn't broken for now
   with SmallestMailboxSelector
-  with Filter
-  with RunningMeanBackoff
+  //with RunningMeanBackoff
+  // With a backoff filter, ActorPool kills connections immediately
+  // even with pending replies, while we need to first stop sending them
+  // stuff and then leave them for a timeout, I guess.
+  // FIXME For now, just never stop connections.
+  with BasicNoBackoffFilter
   with BasicRampup {
 
   override def receive = {
@@ -60,8 +64,9 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   override val partialFill = true
   override val selectionCount = 1
   override val rampupRate = 0.1
-  override val backoffRate = 0.50
-  override val backoffThreshold = 0.50
+  // FIXME disabled along with RunningMeanBackoff
+  //override val backoffRate = 0.50
+  //override val backoffThreshold = 0.50
 
   // this dispatcher is work-stealing, so if a connection is stuck others can take its work;
   // it also has a thread pool with core pool size of upperBound, which means we
@@ -70,13 +75,13 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   // threads above core pool size even if all threads were busy.
   private val childDispatcher =
     Dispatchers.newExecutorBasedEventDrivenWorkStealingDispatcher("Hammersmith Connection Dispatcher").
-      withNewThreadPoolWithLinkedBlockingQueueWithCapacity(1).
+      withNewThreadPoolWithSynchronousQueueWithFairness(false).
       setCorePoolSize(upperBound).
       buildThreadPool
 
   override def instance = {
     val actorRef = Actor.actorOf(new ConnectionChannelActor(addr))
-    //actorRef.dispatcher = childDispatcher
+    actorRef.dispatcher = childDispatcher
     log.trace("ConnectionPoolActor %s created new pooled instance %s", self.uuid, actorRef.uuid)
     actorRef
   }

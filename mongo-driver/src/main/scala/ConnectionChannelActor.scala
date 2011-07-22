@@ -83,12 +83,14 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
     futureChannel.addListener(new ChannelFutureListener() {
       val connectionActor = self
+      logActorState("ConstructFutureListener", connectionActor)
       // CAUTION we are coming in to the actor from an outside
       // thread here; the safety is that we keep the channel suspended
       // so should not get messages or do anything else with it until
       // this completes.
       override def operationComplete(f: ChannelFuture) = {
         log.trace("ChannelFutureListener notified for %s", connectionActor.uuid)
+        logActorState("channel future complete", connectionActor)
         if (f.isSuccess) {
           log.debug("Successfully opened a new channel %s", addressString)
           maybeChannel = Some(f.getChannel)
@@ -113,10 +115,11 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
                 log.debug("Resuming %s %s with max size %d and isMaster %s",
                   addressString, connectionActor.uuid, maxBSONObjectSize, isMaster)
 
-                // now we can get messages
+                // now we can get messages.
                 connectionActor.dispatcher.resume(connectionActor)
+                logActorState("post-resume", connectionActor)
               }
-              log.trace("Setup thread exiting for %s", self.uuid)
+              log.trace("Setup thread exiting for %s", connectionActor.uuid)
             }
           },
             "Setup Hammersmith channel thread")
@@ -136,6 +139,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
   override def preStart = {
     log.trace("preStart on %s", self.uuid)
+    logActorState("preStart", self)
     // this will suspend receiving messages until channel is open,
     // if the pool we're in uses a work-stealing dispatcher, then
     // other connections should get those messages instead.
@@ -146,6 +150,10 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   override def postStop = {
     log.trace("postStop on %s", self.uuid)
     failAllPending(ConnectionFailure(new Exception("Connection to %s stopped".format(addressString))))
+    maybeChannel foreach { channel =>
+      channel.close()
+    }
+    maybeChannel = None
   }
 
   override def receive = {
@@ -172,11 +180,15 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
           log.trace("channel error on %s: %s %s", self.uuid, exception.getClass.getName, exception.getMessage)
           val failMessage = ConnectionFailure(exception)
           failAllPending(failMessage)
+          // can no longer handle messages
+          self.stop
         }
         case ChannelClosed => {
           log.trace("channel close on %s", self.uuid)
           val failMessage = ConnectionFailure(new Exception("Channel %s is closed".format(addressString)))
           failAllPending(failMessage)
+          // can no longer handle messages
+          self.stop
         }
       }
   }
@@ -314,7 +326,8 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   }
 }
 
-private[mongodb] object ConnectionChannelActor {
+private[mongodb] object ConnectionChannelActor
+  extends Logging {
 
   // These are some extra messages specific to the netty channel,
   // that plain ConnectionActor doesn't support. We also get all
@@ -326,6 +339,11 @@ private[mongodb] object ConnectionChannelActor {
   case class ChannelError(t: Throwable) extends IncomingFromNetty
   // connection closed in netty thread
   case object ChannelClosed extends IncomingFromNetty
+
+  def logActorState(where: String, actor: ActorRef) = {
+    log.trace("%s: %s isRunning %s isShutdown %s isUnstarted %s",
+      where, actor.uuid, actor.isRunning, actor.isShutdown, actor.isUnstarted)
+  }
 
   /**
    * Factory for client socket channels, reused by all connections. Since it is shared,
@@ -462,25 +480,63 @@ private[mongodb] object ConnectionChannelActor {
     val addressString: String)
     extends SimpleChannelHandler with Logging {
 
+    logActorState("HandlerConstruct", connectionActor)
+
+    // we only want to send ChannelClosed one time.
+    private var sentClosed = false
+
+    private def sendIfAlive(message: ConnectionChannelActor.IncomingFromNetty) = {
+      if (connectionActor.isRunning) {
+        connectionActor ! message
+      } else {
+        message match {
+          case ChannelClosed =>
+            log.debug("Actor %s shutdown=%s unstarted=%s, dropping pointless closed message", connectionActor.uuid,
+              connectionActor.isShutdown, connectionActor.isUnstarted)
+          case _ =>
+            log.warn("Actor %s shutdown=%s unstarted=%s, dropping message %s", connectionActor.uuid,
+              connectionActor.isShutdown, connectionActor.isUnstarted, message)
+        }
+      }
+    }
+
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
+      logActorState("messageReceived", connectionActor)
       val reply = e.getMessage.asInstanceOf[ReplyMessage]
       log.debug("Reply Message Received: %s", reply)
-      connectionActor ! ConnectionChannelActor.ServerMessageReceived(reply)
+      sendIfAlive(ConnectionChannelActor.ServerMessageReceived(reply))
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-      log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler: %s", e.getCause)
-      connectionActor ! ConnectionChannelActor.ChannelError(e.getCause)
+      logActorState("exceptionCaught", connectionActor)
+      e.getCause match {
+        case alreadyClosed: java.nio.channels.ClosedChannelException =>
+          log.trace("Ignoring already-closed exception in ConnectionHandler")
+        case _ =>
+          log.error(e.getCause, "Exception caught in ConnectionHandler: %s", e.getCause)
+          sendIfAlive(ConnectionChannelActor.ChannelError(e.getCause))
+          sendClosed()
+      }
+    }
+
+    private def sendClosed() = {
+      if (!sentClosed) {
+        sendIfAlive(ConnectionChannelActor.ChannelClosed)
+        sentClosed = true
+      }
+      // we can't stop the actor here, it has to stop itself so it can get the error
     }
 
     override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-      log.warn("Disconnected from '%s'", addressString)
-      connectionActor ! ConnectionChannelActor.ChannelError(new Exception("Disconnected from mongod at " + addressString))
+      logActorState("channelDisconnected", connectionActor)
+      log.info("Hammersmith channel disconnected from '%s'", addressString)
+      sendClosed()
     }
 
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-      log.info("Channel Closed to '%s'", addressString)
-      connectionActor ! ConnectionChannelActor.ChannelClosed
+      logActorState("channelClosed", connectionActor)
+      log.info("Hammersmith channel '%s' closed", addressString)
+      sendClosed()
     }
   }
 }
