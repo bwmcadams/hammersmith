@@ -60,84 +60,37 @@ abstract class MongoConnection extends Logging {
 
   implicit protected val connectionActorHolder = ConnectionActorHolder(connectionActor)
 
-  // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
-  /** Maximum size of BSON this server allows. */
-  protected implicit var maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
-  protected var isMaster = false
-
-  //protected val _connected = new AtomicBoolean(false)
-
-  /* TODO - Can we reuse these factories across multiple connections??? */
-
-  /**
-   * Factory for client socket channels, reused by all connectors where possible.
-   */
-  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Boss")),
-    Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Worker")))
-
-  protected implicit val bootstrap = new ClientBootstrap(channelFactory)
-
-  bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-    def getPipeline = {
-      val p = Channels.pipeline(new ReplyMessageDecoder(), handler)
-      p
-    }
-  })
-
-  bootstrap.setOption("remoteAddress", addr)
-  /* AdaptiveReceiveBufferSizePredictor gradually scales the buffer up and down
-   * depending on how many bytes arrive in each read()
-   */
-  bootstrap.setOption("child.receiveBufferSizePredictor",
-    new AdaptiveReceiveBufferSizePredictor(128, /* minimum */
-      256, /* initial */
-      1024 * 1024 * 4 /* max */ ));
-
-  private val _f = bootstrap.connect()
-
-  /* FIXME the channel variable needs to be removed from here, so that ONLY the DirectConnectionActor
-   * can ever touch the channel (once the channel is established). All access goes through DirectConnectionActor.
-   * Basically, we replace our channel with an actor, and move the channel-using code into the actor.
-   */
-  // TODO - Switch to listener based establishment
-  protected implicit val channel = _f.awaitUninterruptibly.getChannel
-
-  MongoConnection.channelState.put(channel, new AtomicBoolean(false))
-
-  bootstrap.setOption("tcpNoDelay", true)
-  bootstrap.setOption("keepAlive", true)
-  if (!_f.isSuccess) {
-    log.error("Failed to connect.", _f.getCause)
-    bootstrap.releaseExternalResources()
-  } else {
-    log.debug("Connected and retrieved a write channel (%s)", channel)
-    checkMaster()
-  }
+  private case class CheckMasterState(isMaster: Boolean, maxBSONObjectSize: Int)
+  private var checkMasterState: Option[CheckMasterState] = None
 
   /**
    * Utility method to pull back a number of pieces of information
    * including maxBSONObjectSize, and sort of serves as a verification
    * of a live connection.
    *
+   * FIXME what does this even mean when we have a pool of channels?
+   * FIXME this blocks, but if it's async the API is messed up,
+   *       since requireMaster can't mean anything.
+   *
    * @param force Forces the isMaster call to run regardless of cached status
    * @param requireMaster Requires a master to be found or throws an Exception
    * @throws MongoException
    */
   def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
-    if (!connected_? || force) {
-      log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
-      val gotIsMaster = new AtomicBoolean(false)
-      val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
-      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) => {
-        log.debug("Got a result from command: %s", doc)
-        isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
-        maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
-        gotIsMaster.set(true)
-        if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connectedState(true, maxBSONObjectSize)
-        log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
-      }), _overrideLiveCheck = true)
-    } else {
-      log.debug("Already have cached master status. Skipping.")
+    if (!checkMasterState.isDefined || force) {
+      log.info("Checking Master Status... (Force? %s)", force)
+      // FIXME note this is sending CheckMaster to a random actor in the pool...
+      val futureReply: Future[Any] = connectionActor !!! ConnectionActor.SendClientCheckMasterMessage(force)
+      // we block here... maybe not great?
+      futureReply.get match {
+        case ConnectionActor.CheckMasterReply(isMaster, maxBSONObjectSize) =>
+          checkMasterState = Some(CheckMasterState(isMaster, maxBSONObjectSize))
+      }
+    }
+    if (requireMaster) {
+      if (!(checkMasterState.isDefined && checkMasterState.get.isMaster)) {
+        throw new Exception("Connection is required to be master and is not")
+      }
     }
   }
 
@@ -384,26 +337,13 @@ abstract class MongoConnection extends Logging {
     runCommand(db, Document("deleteIndexes" -> (db + "." + collection), "index" -> name))(callback)
   }
 
-  // TODO "Ensure" mode
-  val handler: MongoConnectionHandler
-
-  def connected_? = MongoConnection.channelState(channel).get()
-  def _connectedState(connected: Boolean, maxBSONObjectSize: Int) =
-    MongoConnection.setChannelState(channel, connected, maxBSONObjectSize)
-
   val addr: InetSocketAddress
 
   protected[mongodb] var _writeConcern: WriteConcern = WriteConcern.Normal
 
-  protected[mongodb] def shutdown() {
-    log.debug("Shutting Down & Cleaning up connection handler.")
-    channel.close()
-    _connectedState(false, maxBSONObjectSize)
-  }
-
   def close() {
     log.info("Closing down connection.")
-    shutdown()
+    connectionActor.stop()
   }
 
   /**
@@ -440,19 +380,6 @@ abstract class MongoConnection extends Logging {
  * @since 0.1
  */
 object MongoConnection extends Logging {
-
-  /**
-   * Canonical guide of the status of any channels.
-   * e.g. what we know about their current live or dead status.
-   */
-  protected val channelState = new WeakHashMap[Channel, AtomicBoolean]
-
-  /**
-   * Operation queue for channels which aren't connected yet.
-   * FIXME this whole thing can just be dumped because we can just throw messages
-   * at the connectionActor which will queue them for us in its mailbox.
-   */
-  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) => Unit]]
 
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
@@ -494,31 +421,6 @@ object MongoConnection extends Logging {
     }
   }
 
-  /** TODO - Support timing out of ops */
-  def setChannelState(channel: Channel, connected: Boolean, maxBSONObjectSize: Int) = {
-    log.info("Setting a channel state up to '%s' for '%s'", connected, channel)
-    val oldState = channelState.getOrElseUpdate(channel, new AtomicBoolean(false)).getAndSet(connected)
-    if (oldState) connected match {
-      case true => {
-        log.trace("Connection state was already connected, set to connected again.  NOOP")
-      }
-      case false => {
-        log.trace("Connection state was connected, set to disconnected. Otherwise, NOOP.")
-      }
-    }
-    else connected match {
-      case true => {
-        log.info("Connection state was disconnected, set to connected.  Dequeueing any backed up operations.")
-        channelOpQueue.get(channel).foreach { queue =>
-          queue.dequeueAll.foreach { op => op(maxBSONObjectSize) }
-        }
-      }
-      case false => {
-        log.trace("Connection state was disconnected, set to disconnected again.  NOOP.")
-      }
-    }
-  }
-
   private def completeRequestFuture(f: RequestFuture, reply: ConnectionActor.Outgoing) = {
     (reply, f) match {
       case (ConnectionActor.CursorReply(cursorActor), rf: CursorQueryRequestFuture) =>
@@ -541,7 +443,7 @@ object MongoConnection extends Logging {
    * This whole mess could be deleted in an API-breaking phase 2, in which
    * we'd use Akka futures and eliminate the RequestFuture.
    */
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit connectionActorHolder: ConnectionActorHolder, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal): Unit = {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit connectionActorHolder: ConnectionActorHolder, concern: WriteConcern = WriteConcern.Normal): Unit = {
     val connectionActor = connectionActorHolder.actor
     val actorMessage: ConnectionActor.Incoming =
       (msg, f) match {

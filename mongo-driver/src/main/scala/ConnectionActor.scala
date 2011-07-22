@@ -41,15 +41,19 @@ object ConnectionActor
   extends Logging {
   // Messages we can handle
   sealed trait Incoming
+
   // client requests sent to us from app
   sealed trait SendClientMessage extends Incoming {
     val message: MongoClientMessage
-    val overrideLiveCheck: Boolean
+    val overrideLiveCheck: Boolean // FIXME this means nothing now because we don't process messages on non-live actors
   }
   sealed trait SendClientWriteMessage extends SendClientMessage {
     val concern: WriteConcern
+    override val message: MongoClientWriteMessage
   }
-
+  case class SendClientCheckMasterMessage(force: Boolean, override val overrideLiveCheck: Boolean = false) extends SendClientMessage {
+    override val message = ConnectionActor.createCommand("admin", Document("isMaster" -> 1))
+  }
   case class SendClientGetMoreMessage(override val message: GetMoreMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
   case class SendClientCursorMessage(override val message: QueryMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
   case class SendClientSingleDocumentMessage(override val message: QueryMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
@@ -69,12 +73,17 @@ object ConnectionActor
   case class ConnectionFailure(override val exception: Throwable) extends Failure
 
   // These replies are on success, we send a failure message otherwise
+  case class CheckMasterReply(isMaster: Boolean, maxBSONObjectSize: Int) extends Outgoing
   case class GetMoreReply(cursorID: Long, documents: Seq[Array[Byte]]) extends Outgoing
   case class CursorReply(cursorActor: ActorRef) extends Outgoing
   case class SingleDocumentReply(document: Array[Byte]) extends Outgoing
   case class OptionalSingleDocumentReply(maybeDocument: Option[Array[Byte]]) extends Outgoing
   case class WriteReply(id: Option[AnyRef], result: WriteResult) extends Outgoing
   case class BatchWriteReply(ids: Option[Seq[AnyRef]], result: WriteResult) extends Outgoing
+
+  protected[mongodb] def createCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd) = {
+    QueryMessage(ns + ".$cmd", 0, -1, cmd)
+  }
 
   protected[mongodb] def buildQueryFailure(reply: ReplyMessage): QueryFailure = {
     log.trace("Query Failure")
@@ -107,6 +116,20 @@ object ConnectionActor
     } else {
       buildPotentialSuccess
     }
+  })
+
+  protected[mongodb] def parseCheckMasterReply(reply: ReplyMessage): (Boolean, Int) = {
+    val doc = implicitly[SerializableBSONObject[Document]].decode(reply.documents.head)
+    log.debug("Got a result from isMaster command: %s", doc)
+    val isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
+    val maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
+    (isMaster, maxBSONObjectSize)
+  }
+
+  protected[mongodb] def buildCheckMasterReply(reply: ReplyMessage): Outgoing = checkQueryFailure(reply)({
+    log.trace("building CheckMaster reply.")
+    val (isMaster, maxBSONObjectSize) = parseCheckMasterReply(reply)
+    CheckMasterReply(isMaster, maxBSONObjectSize)
   })
 
   protected[mongodb] def buildGetMoreReply(reply: ReplyMessage): Outgoing = checkCursorFailure(reply)({

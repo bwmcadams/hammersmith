@@ -33,10 +33,4 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
   log.info("Initialized Direct MongoDB connection on address '%s'", addr)
 
   override protected val connectionActor = Actor.actorOf(new ConnectionPoolActor(addr)).start
-
-  lazy val handler = new DirectConnectionHandler(addr.toString, connectionActor)
-}
-
-protected[mongodb] class DirectConnectionHandler(override val addressString: String,
-  override val connectionActor: ActorRef) extends MongoConnectionHandler {
 }
