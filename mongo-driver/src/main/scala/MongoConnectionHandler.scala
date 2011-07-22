@@ -47,7 +47,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     message match {
       case reply: ReplyMessage => {
         log.debug("Reply Message Received: %s", reply)
-        connectionActor ! DirectConnectionActor.ServerMessageReceived(reply)
+        connectionActor ! ConnectionChannelActor.ServerMessageReceived(reply)
       }
       case default => {
         log.warn("Unknown message type '%s'; ignoring.", default)
@@ -58,19 +58,19 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
     // TODO - pass this up to the user layer?
     log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler: %s", e.getCause)
-    connectionActor ! DirectConnectionActor.ChannelError(e.getCause)
+    connectionActor ! ConnectionChannelActor.ChannelError(e.getCause)
     // TODO - Close connection?
   }
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.warn("Disconnected from '%s'", addressString)
-    connectionActor ! DirectConnectionActor.ChannelError(new Exception("Disconnected from mongod at " + addressString))
+    connectionActor ! ConnectionChannelActor.ChannelError(new Exception("Disconnected from mongod at " + addressString))
     //    shutdown()
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     log.info("Channel Closed to '%s'", addressString)
-    connectionActor ! DirectConnectionActor.ChannelClosed
+    connectionActor ! ConnectionChannelActor.ChannelClosed
     //    shutdown()
   }
 

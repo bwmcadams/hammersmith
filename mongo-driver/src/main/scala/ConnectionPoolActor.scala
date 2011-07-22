@@ -55,6 +55,6 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   override val backoffThreshold = 0.50
 
   override def instance = {
-    Actor.actorOf(new DirectConnectionActor(addr))
+    Actor.actorOf(new ConnectionChannelActor(addr))
   }
 }

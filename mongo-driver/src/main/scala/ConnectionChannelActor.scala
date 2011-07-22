@@ -26,16 +26,16 @@ import java.nio.ByteOrder
 import java.net.InetSocketAddress
 
 /**
- * A DirectConnectionActor is a ConnectionActor wrapping a single netty channel.
- * These then go in an actor pool. Maybe should not be called DirectConnectionActor,
+ * A ConnectionChannelActor is a ConnectionActor wrapping a single netty channel.
+ * These then go in an actor pool. Maybe should not be called ConnectionChannelActor,
  * something like SingleChannelActor perhaps?
  */
-private[mongodb] class DirectConnectionActor(private val addr: InetSocketAddress)
+private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddress)
   extends ConnectionActor
   with Actor
   with Logging {
   import ConnectionActor._
-  import DirectConnectionActor._
+  import ConnectionChannelActor._
 
   private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) => Outgoing)
 
@@ -187,7 +187,7 @@ private[mongodb] class DirectConnectionActor(private val addr: InetSocketAddress
   }
 }
 
-private[mongodb] object DirectConnectionActor {
+private[mongodb] object ConnectionChannelActor {
 
   // These are some extra messages specific to the netty channel,
   // that plain ConnectionActor doesn't support. We also get all
