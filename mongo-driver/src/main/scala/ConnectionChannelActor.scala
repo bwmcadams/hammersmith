@@ -122,7 +122,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
               }
             }
           },
-            "Setup channel thread")
+            "Setup Hammersmith channel thread")
         } else {
           log.error("Failed to connect to %s, suiciding actor", addressString, f.getCause)
           require(maybeChannel.isEmpty)
