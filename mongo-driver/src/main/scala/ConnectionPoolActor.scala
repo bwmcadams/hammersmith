@@ -27,7 +27,7 @@ import java.nio.ByteOrder
 import java.net.InetSocketAddress
 import akka.dispatch.Future
 
-protected[mongodb] class ConnectionPoolActor(val addr: InetSocketAddress)
+protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress)
   extends ConnectionActor
   with Logging
   with Actor
@@ -54,27 +54,7 @@ protected[mongodb] class ConnectionPoolActor(val addr: InetSocketAddress)
   override val backoffRate = 0.50
   override val backoffThreshold = 0.50
 
-  /*
-   *  The theory here is to always keep a
-   *  future-netty-channel pending (once on pool creation, and then up to the max
-   *  pool size, it always starts opening a new channel whenever a new actor is created).
-   *  There's no way in Akka to do ActorPool.instance() asynchronously, so when the pool
-   *  goes to create a new actor we'll just block until the channel opens. But, since
-   *  we start opening a new channel earlier, we hopefully won't block too long.
-   *  The alternative is to make each individual single-channel actor able to work
-   *  without the channel, and that's kind of a nightmare.
-   *  Two Akka fixes that would help here would be:
-   *   - allow an async instance()
-   *   - allow the single-channel actors to avoid receiving any messages until the
-   *     channel is established, like a self.suspend()/self.unsuspend() kind of API
-   *  Better ideas welcome.
-   */
-  private case class ReadyChannelInfo(channel: Channel, maxBSONObjectSize: Int)
-  private var nextChannel: Future[ReadyChannelInfo] = null /* FIXME move channel-creation code over here */
-
   override def instance = {
-    val thisChannel = nextChannel.get // we just block FIXME what to do if channel creation fails?
-    nextChannel = null // FIXME start loading another channel, unless we already have upperBound
-    Actor.actorOf(new DirectConnectionActor(thisChannel.channel, thisChannel.maxBSONObjectSize))
+    Actor.actorOf(new DirectConnectionActor(addr))
   }
 }

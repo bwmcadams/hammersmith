@@ -38,7 +38,7 @@ import akka.actor.ActorRef
  * @since 0.1
  */
 abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging {
-  protected val bootstrap: ClientBootstrap
+  protected val addressString: String
   protected val connectionActor: ActorRef
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
@@ -47,7 +47,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     message match {
       case reply: ReplyMessage => {
         log.debug("Reply Message Received: %s", reply)
-        connectionActor ! ConnectionActor.ServerMessageReceived(reply)
+        connectionActor ! DirectConnectionActor.ServerMessageReceived(reply)
       }
       case default => {
         log.warn("Unknown message type '%s'; ignoring.", default)
@@ -58,28 +58,25 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
     // TODO - pass this up to the user layer?
     log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler: %s", e.getCause)
-    connectionActor ! ConnectionActor.ChannelError(remoteAddress.toString, e.getCause)
+    connectionActor ! DirectConnectionActor.ChannelError(e.getCause)
     // TODO - Close connection?
   }
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    log.warn("Disconnected from '%s'", remoteAddress)
-    connectionActor ! ConnectionActor.ChannelError(remoteAddress.toString, new Exception("Disconnected from mongod " + remoteAddress))
+    log.warn("Disconnected from '%s'", addressString)
+    connectionActor ! DirectConnectionActor.ChannelError(new Exception("Disconnected from mongod at " + addressString))
     //    shutdown()
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    log.info("Channel Closed to '%s'", remoteAddress)
-    connectionActor ! ConnectionActor.ChannelClosed(remoteAddress.toString)
+    log.info("Channel Closed to '%s'", addressString)
+    connectionActor ! DirectConnectionActor.ChannelClosed
     //    shutdown()
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    log.info("Connected to '%s' (Configging Channel to Little Endian)", remoteAddress)
+    log.info("Connected to '%s' (Configging Channel to Little Endian)", addressString)
     e.getChannel.getConfig.setOption("bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN))
   }
-
-  def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
-
 }
 

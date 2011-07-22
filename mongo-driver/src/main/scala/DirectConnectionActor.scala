@@ -23,18 +23,19 @@ import org.jboss.netty.channel._
 import org.jboss.netty.buffer._
 import org.bson.util.Logging
 import java.nio.ByteOrder
+import java.net.InetSocketAddress
 
 /**
  * A DirectConnectionActor is a ConnectionActor wrapping a single netty channel.
  * These then go in an actor pool. Maybe should not be called DirectConnectionActor,
  * something like SingleChannelActor perhaps?
  */
-private[mongodb] class DirectConnectionActor(private val channel: Channel,
-  private implicit val maxBSONObjectSize: Int)
+private[mongodb] class DirectConnectionActor(private val addr: InetSocketAddress)
   extends ConnectionActor
   with Actor
   with Logging {
   import ConnectionActor._
+  import DirectConnectionActor._
 
   private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) => Outgoing)
 
@@ -42,27 +43,43 @@ private[mongodb] class DirectConnectionActor(private val channel: Channel,
   // actor runs in only one thread at a time.
   private var senders = Map[Int, ClientSender]()
 
+  // channel and max BSON size are created asynchronously
+  private var maybeChannel: Option[Channel] = None
+  private implicit var maxBSONObjectSize: Int = 1024 * 1204 * 4
+
+  private val addressString = addr.toString
+
+  override def preStart = {
+    // don't get any messages until we get our channel open
+    self.dispatcher.suspend(self)
+    // FIXME launch the channel-opening process
+    // FIXME when channel is open or fails to open, unsuspend
+  }
+
+  override def postStop = {
+    failAllPending(ConnectionFailure(new Exception("Connection to %s stopped".format(addressString))))
+  }
+
   override def receive = {
     case incoming: Incoming => incoming match {
       // message is from the app
       case clientWriteMessage: SendClientMessage => {
         sendMessageToMongo(self.channel, clientWriteMessage)
       }
-      // message is from the netty channel handler
+    }
+    case netty: IncomingFromNetty => netty match {
       case ServerMessageReceived(message) => {
         message match {
           case reply: ReplyMessage =>
             handleReplyMessage(reply)
         }
       }
-      // message is from the netty channel handler
-      case ChannelError(channelDescription, exception) => {
+      case ChannelError(exception) => {
         val failMessage = ConnectionFailure(exception)
         failAllPending(failMessage)
       }
-      // message is from the netty channel handler
-      case ChannelClosed(channelDescription) => {
-        val failMessage = ConnectionFailure(new Exception("Channel %s is closed".format(channelDescription)))
+      case ChannelClosed => {
+        val failMessage = ConnectionFailure(new Exception("Channel %s is closed".format(addressString)))
         failAllPending(failMessage)
       }
     }
@@ -168,4 +185,18 @@ private[mongodb] class DirectConnectionActor(private val channel: Channel,
     } else exec(maxBSONObjectSize)
 */
   }
+}
+
+private[mongodb] object DirectConnectionActor {
+
+  // These are some extra messages specific to the netty channel,
+  // that plain ConnectionActor doesn't support. We also get all
+  // the ConnectionActor messages.
+  sealed trait IncomingFromNetty
+  // from netty thread
+  case class ServerMessageReceived(message: MongoServerMessage) extends IncomingFromNetty
+  // an error sent to us from netty thread
+  case class ChannelError(t: Throwable) extends IncomingFromNetty
+  // connection closed in netty thread
+  case object ChannelClosed extends IncomingFromNetty
 }

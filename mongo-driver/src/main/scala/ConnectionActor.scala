@@ -58,13 +58,6 @@ object ConnectionActor
   case class SendClientSingleWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern, override val overrideLiveCheck: Boolean = false) extends SendClientWriteMessage
   case class SendClientBatchWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern, override val overrideLiveCheck: Boolean = false) extends SendClientWriteMessage
 
-  // server message sent from netty thread
-  case class ServerMessageReceived(message: MongoServerMessage) extends Incoming
-  // an error sent to us from netty thread
-  case class ChannelError(channelDescription: String, t: Throwable) extends Incoming
-  // connection closed in netty thread
-  case class ChannelClosed(channelDescription: String) extends Incoming
-
   // Messages we can send
   sealed trait Outgoing
   sealed trait Failure extends Outgoing {
