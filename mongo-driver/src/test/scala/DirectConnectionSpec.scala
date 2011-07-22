@@ -88,6 +88,7 @@ class DirectConnectionSpec extends Specification
       conn.connected_? must eventually(beTrue)
       t
       // TODO - make sure this works (We are reusing)
+      // Does not work - executes before Commands complete executing
       /*conn.close()
       conn.connected_? must eventually(beFalse)*/
     }

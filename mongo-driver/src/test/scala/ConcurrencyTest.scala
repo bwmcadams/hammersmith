@@ -48,8 +48,8 @@ class ConcurrencyTestingSpec extends Specification
       conn.connected_? must eventually(beTrue)
       t
       // TODO - make sure this works (We are reusing)
-      /*conn.close()
-      conn.connected_? must eventually(beFalse)*/
+      conn.close()
+      conn.connected_? must eventually(beFalse)
     }
 
     def outside: MongoConnection = conn
