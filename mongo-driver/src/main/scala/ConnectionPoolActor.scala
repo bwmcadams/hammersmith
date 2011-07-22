@@ -32,7 +32,9 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   with Actor
   with DefaultActorPool
   with BoundedCapacityStrategy
-  with MailboxPressureCapacitor // overrides pressureThreshold based on mailboxes
+  // there's an NPE in Akka with this capacitor right now.
+  //with MailboxPressureCapacitor // overrides pressureThreshold based on mailboxes
+  with ActiveFuturesPressureCapacitor // mailbox makes way more sense, but this isn't broken for now
   with SmallestMailboxSelector
   with Filter
   with RunningMeanBackoff
@@ -46,13 +48,15 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
     }
   }
 
-  // BoundedCapacitor min and max actors in pool. No real rationale for the
-  // upper bound here. should probably be configurable.
+  // BoundedCapacitor min and max actors in pool.
+  // should probably be configurable.
   override val lowerBound = 1
-  override val upperBound = 1 // FIXME
+  override val upperBound = Runtime.getRuntime.availableProcessors * 2
 
   // this stuff is all just random for now
-  override val pressureThreshold = 1
+  // should probably be configurable somehow or in some respects.
+  // FIXME pressureThreshold goes with MailboxPressureCapacitor which is disabled due to Akka NPE bug
+  //override val pressureThreshold = 1
   override val partialFill = true
   override val selectionCount = 1
   override val rampupRate = 0.1

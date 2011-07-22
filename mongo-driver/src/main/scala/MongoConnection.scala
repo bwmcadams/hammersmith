@@ -343,8 +343,13 @@ abstract class MongoConnection extends Logging {
     if (checkMasterState.isDefined) {
       true
     } else {
+      // for some reason blocking in checkMaster times out
+      // right now, probably some kind of deadlock, needs debugging.
+      /*
       checkMaster()
       checkMasterState.isDefined
+      */
+      true
     }
   }
 

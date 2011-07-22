@@ -43,6 +43,8 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
   log.trace("Constructing ConnectionChannelActor")
 
+  self.timeout = 60 * 1000 // 60 seconds (timeout in millis)
+
   private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) => Outgoing)
 
   // remember, no need for any of this to be thread-safe since

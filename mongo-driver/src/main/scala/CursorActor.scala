@@ -39,8 +39,10 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
 
   import CursorActor._
 
+  self.timeout = 60 * 1000 // 60 seconds (timeout in millis)
+
   /**
-   * Cursor ID 0 indicates "No more results"
+   * Cursor ID 0 indicates "No more results on SERVER"
    * HOWEVER - Cursors can be positive OR negative
    * If we were initialized with a cursorID of 0, there are no more results
    * otherwise we'll flip this later during our getMores
@@ -54,12 +56,14 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
 
   override def receive: Receive = {
     case Next => {
-      if (cursorEmpty) {
-        self.reply(EOF)
-      } else if (documents.isEmpty) {
-        fetchMore(self.channel)
-        // recursively try again.
-        receive.apply(Next)
+      if (documents.isEmpty) {
+        if (cursorEmpty) {
+          self.reply(EOF)
+        } else {
+          fetchMore(self.channel)
+          // recursively try again.
+          receive.apply(Next)
+        }
       } else {
         val (doc, newQueue) = documents.dequeue
         documents = newQueue
