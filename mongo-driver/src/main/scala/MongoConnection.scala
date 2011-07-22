@@ -19,19 +19,19 @@ package com.mongodb.async
 
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
-
 import org.bson._
 import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
+import org.jboss.netty.handler.execution._
+import org.jboss.netty.util._
 import java.nio.ByteOrder
 import com.mongodb.async.wire._
 import scala.collection.JavaConversions._
 import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
-
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{ ConcurrentHashMap, Executors }
+import java.util.concurrent.{ ConcurrentHashMap, Executors, SynchronousQueue, ThreadPoolExecutor, TimeUnit }
 import scala.collection.mutable.{ ConcurrentMap, WeakHashMap }
 import com.mongodb.async.util.{ ConcurrentQueue, CursorCleaningTimer }
 import org.bson.types.ObjectId
@@ -71,8 +71,52 @@ abstract class MongoConnection extends Logging {
   protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
+    /* The executor ensures that we use more than one thread, so apps
+     * that call back into hammersmith from a callback don't deadlock,
+     * and so apps can use CPU (e.g. decoding) without slowing down IO.
+     *
+     * This executor does nothing to preserve order of message
+     * processing.
+     * By going unordered, we can decode replies and
+     * run app callbacks in parallel. That seems like a pretty
+     * big win; otherwise, we can only use one CPU to decode and
+     * process replies.
+     * (Replies from a connection pool would be in
+     * undefined order anyhow from the app's perspective,
+     * since the app doesn't know which socket the request
+     * went to.)
+     *
+     * Netty comes with a MemoryAwareThreadPoolExecutor and
+     * OrderedMemoryAwareThreadPoolExecutor. These have
+     * two problems. First, they use a queue,
+     * which means they never go above CorePoolSize
+     * (the queue has a fixed upper limit). This would create
+     * a deadlock if CorePoolSize threads are busy and the app
+     * calls back to Hammersmith. Moreover, the memory limit
+     * can create a deadlock if it stops accepting more messages
+     * and the app calls back to Hammersmith. Basically we can never
+     * stop processing messages or there's a deadlock.
+     * So we don't use the executors from Netty, instead using a plain
+     * ThreadPoolExecutor.
+     *
+     * Actors could be better than threads, in the future. Unlike
+     * invoking a callback, sending a message to an actor should not
+     * tie up the pipeline and risk deadlock.
+     */
+    private val appCallbackExecutor =
+      new ThreadPoolExecutor(Runtime.getRuntime.availableProcessors * 2, /* core pool size */
+        Int.MaxValue, /* max pool size (must be infinite to avoid deadlocks) */
+        20, TimeUnit.SECONDS, /* time to keep idle threads alive */
+        new SynchronousQueue[Runnable], /* queue that doesn't queue; we must make a thread, or we could deadlock */
+        ThreadFactories("Hammersmith Reply Handler"))
+
+    private val appCallbackExecutionHandler =
+      new ExecutionHandler(appCallbackExecutor)
+
     def getPipeline = {
-      val p = Channels.pipeline(new ReplyMessageDecoder(), handler)
+      val p = Channels.pipeline(new ReplyMessageDecoder(),
+        appCallbackExecutionHandler,
+        handler)
       p
     }
   })
