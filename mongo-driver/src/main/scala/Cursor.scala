@@ -156,6 +156,16 @@ class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) exten
     }
   }
 
+  // FIXME drop this once we don't need the compat
+  def nextBatch(notify: Function0[Unit]) {
+    nextEntryFuture match {
+      case Some(f) =>
+        f.onComplete({ future => notify.apply() })
+      case None =>
+        notify.apply()
+    }
+  }
+
   def iterate = Cursor.iterate(this) _
 
   /**

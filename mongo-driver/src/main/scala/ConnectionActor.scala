@@ -31,7 +31,8 @@ import org.bson.collection._
  * Subclasses would include the single-channel DirectConnectionActor
  * and an actor derived from ActorPool.
  */
-class ConnectionActor {
+class ConnectionActor
+  extends Logging {
   self => Actor
 
   import ConnectionActor._
@@ -139,13 +140,13 @@ object ConnectionActor
 
   protected[mongodb] def buildCursorReply(connectionActor: ActorRef, namespace: String, reply: ReplyMessage): Outgoing = checkCursorFailure(reply)({
     log.trace("building Cursor Request reply.")
-    val cursorActor = new CursorActor(connectionActor,
+    val cursorActor = Actor.actorOf(new CursorActor(connectionActor,
       reply.cursorID,
       namespace,
       reply.startingFrom,
-      reply.documents)
+      reply.documents)).start
 
-    CursorReply(Actor.actorOf(cursorActor).start)
+    CursorReply(cursorActor)
   })
 
   protected[mongodb] def buildSingleDocumentReply(reply: ReplyMessage): Outgoing = checkCursorFailure(reply)({

@@ -30,7 +30,7 @@ import akka.actor.ActorRef
  */
 class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with Logging {
 
-  log.info("Initialized Direct MongoDB connection on address '%s'", addr)
+  log.info("Initializing Direct MongoDB connection on address '%s'", addr)
 
-  override protected val connectionActor = Actor.actorOf(new ConnectionPoolActor(addr)).start
+  override protected lazy val connectionActor = Actor.actorOf(new ConnectionPoolActor(addr)).start
 }

@@ -22,14 +22,13 @@ import akka.routing._
 import com.mongodb.async.wire._
 import org.jboss.netty.channel._
 import org.jboss.netty.buffer._
-import org.bson.util.Logging
 import java.nio.ByteOrder
 import java.net.InetSocketAddress
+import akka.dispatch.Dispatchers
 import akka.dispatch.Future
 
 protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress)
   extends ConnectionActor
-  with Logging
   with Actor
   with DefaultActorPool
   with BoundedCapacityStrategy
@@ -39,12 +38,18 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   with RunningMeanBackoff
   with BasicRampup {
 
-  override def receive = _route
+  override def receive = {
+    case m if _route.isDefinedAt(m) => {
+      log.trace("pool %s routing message %s",
+        self.uuid, m)
+      _route.apply(m)
+    }
+  }
 
   // BoundedCapacitor min and max actors in pool. No real rationale for the
   // upper bound here. should probably be configurable.
   override val lowerBound = 1
-  override val upperBound = 10
+  override val upperBound = 1 // FIXME
 
   // this stuff is all just random for now
   override val pressureThreshold = 1
@@ -54,7 +59,21 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   override val backoffRate = 0.50
   override val backoffThreshold = 0.50
 
+  // this dispatcher is work-stealing, so if a connection is stuck others can take its work;
+  // it also has a thread pool with core pool size of upperBound, which means we
+  // won't create threads until upperBound threads are used up.
+  // The thread pool queue has fixed capacity of 1 because otherwise we'd never create
+  // threads above core pool size even if all threads were busy.
+  private val childDispatcher =
+    Dispatchers.newExecutorBasedEventDrivenWorkStealingDispatcher("Hammersmith Connection Dispatcher").
+      withNewThreadPoolWithLinkedBlockingQueueWithCapacity(1).
+      setCorePoolSize(upperBound).
+      buildThreadPool
+
   override def instance = {
-    Actor.actorOf(new ConnectionChannelActor(addr))
+    val actorRef = Actor.actorOf(new ConnectionChannelActor(addr))
+    //actorRef.dispatcher = childDispatcher
+    log.trace("ConnectionPoolActor %s created new pooled instance %s", self.uuid, actorRef.uuid)
+    actorRef
   }
 }

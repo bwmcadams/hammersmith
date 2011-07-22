@@ -33,15 +33,15 @@ import java.util.concurrent._
 
 /**
  * A ConnectionChannelActor is a ConnectionActor wrapping a single netty channel.
- * These then go in an actor pool. Maybe should not be called ConnectionChannelActor,
- * something like SingleChannelActor perhaps?
+ * These then go in an actor pool.
  */
 private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddress)
   extends ConnectionActor
-  with Actor
-  with Logging {
+  with Actor {
   import ConnectionActor._
   import ConnectionChannelActor._
+
+  log.trace("Constructing ConnectionChannelActor")
 
   private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) => Outgoing)
 
@@ -59,6 +59,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   private def startOpeningChannel() = {
     // don't get any messages until we get our channel open
     self.dispatcher.suspend(self)
+    log.trace("Suspended message delivery to %s", self.uuid)
 
     val bootstrap = new ClientBootstrap(channelFactory)
     val pipelineFactory = new ConnectionActorPipelineFactory(self, addressString)
@@ -85,28 +86,21 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
       // so should not get messages or do anything else with it until
       // this completes.
       override def operationComplete(f: ChannelFuture) = {
+        log.trace("ChannelFutureListener notified for %s", connectionActor.uuid)
         if (f.isSuccess) {
           log.debug("Successfully opened a new channel %s", addressString)
           maybeChannel = Some(f.getChannel)
-
-          // Need to check master and bson size to proceed. Send message
-          // in this IO thread, but then we need to wait on it
-          // in another thread so this IO thread can get the reply.
-          log.debug("Sending isMaster command on channel %s", maybeChannel.get)
-          val qMsg = ConnectionActor.createCommand("admin", Document("isMaster" -> 1))
-          val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
-          qMsg.write(outStream)
-          maybeChannel.get.write(outStream.buffer())
-          outStream.close()
 
           // And yet another thread, but again this thread should be the only one
           // touching the fields in our actor until it completes, since we're
           // still suspended.
           val t = new Thread(new Runnable() {
             override def run = {
+              log.trace("Waiting on setup steps to complete for actor %s", connectionActor.uuid)
               pipelineFactory.awaitSetup()
+              log.trace("Setup steps completed for actor %s", connectionActor.uuid)
               if (pipelineFactory.setupFailed) {
-                log.error("Failed to setup %s, suiciding actor", addressString, pipelineFactory.setupFailure)
+                log.error("Failed to setup %s, suiciding actor: %s", addressString, pipelineFactory.setupFailure.getMessage)
                 maybeChannel.get.close()
                 maybeChannel = None
                 connectionActor.stop()
@@ -114,63 +108,79 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
                 maxBSONObjectSize = pipelineFactory.maxBSONObjectSize
                 isMaster = pipelineFactory.isMaster
 
-                log.debug("Successfully setup %s with max size %d and isMaster %s",
-                  addressString, maxBSONObjectSize, isMaster)
+                log.debug("Resuming %s %s with max size %d and isMaster %s",
+                  addressString, connectionActor.uuid, maxBSONObjectSize, isMaster)
 
                 // now we can get messages
                 connectionActor.dispatcher.resume(connectionActor)
               }
+              log.trace("Setup thread exiting for %s", self.uuid)
             }
           },
             "Setup Hammersmith channel thread")
+          log.trace("Starting setup thread for %s", connectionActor.uuid)
+          t.start()
         } else {
-          log.error("Failed to connect to %s, suiciding actor", addressString, f.getCause)
+          log.error("Failed to connect to %s, suiciding actor %s: %s", addressString, connectionActor.uuid, f.getCause)
           require(maybeChannel.isEmpty)
 
           // and we die
           connectionActor.stop()
         }
+        log.trace("Leaving channel listener for %s", connectionActor.uuid)
       }
     })
   }
 
   override def preStart = {
+    log.trace("preStart on %s", self.uuid)
     // this will suspend receiving messages until channel is open,
     // if the pool we're in uses a work-stealing dispatcher, then
     // other connections should get those messages instead.
     startOpeningChannel()
+    log.trace("leaving preStart on %s", self.uuid)
   }
 
   override def postStop = {
+    log.trace("postStop on %s", self.uuid)
     failAllPending(ConnectionFailure(new Exception("Connection to %s stopped".format(addressString))))
   }
 
   override def receive = {
-    case incoming: Incoming => incoming match {
-      // message is from the app
-      case clientWriteMessage: SendClientMessage => {
-        sendMessageToMongo(self.channel, clientWriteMessage)
-      }
-    }
-    case netty: IncomingFromNetty => netty match {
-      case ServerMessageReceived(message) => {
-        message match {
-          case reply: ReplyMessage =>
-            handleReplyMessage(reply)
+    case incoming: Incoming =>
+      log.trace("%s incoming message %s", self.uuid, incoming)
+      incoming match {
+        // message is from the app
+        case clientWriteMessage: SendClientMessage => {
+          sendMessageToMongo(self.channel, clientWriteMessage)
         }
       }
-      case ChannelError(exception) => {
-        val failMessage = ConnectionFailure(exception)
-        failAllPending(failMessage)
+      log.trace("Post-send, senders waiting for reply: %s", senders)
+    case netty: IncomingFromNetty =>
+      log.trace("%s incoming netty %s", self.uuid, netty)
+      netty match {
+        case ServerMessageReceived(message) => {
+          message match {
+            case reply: ReplyMessage =>
+              handleReplyMessage(reply)
+          }
+          log.trace("Post-handle-reply, waiting for reply: %s", senders)
+        }
+        case ChannelError(exception) => {
+          log.trace("channel error on %s: %s %s", self.uuid, exception.getClass.getName, exception.getMessage)
+          val failMessage = ConnectionFailure(exception)
+          failAllPending(failMessage)
+        }
+        case ChannelClosed => {
+          log.trace("channel close on %s", self.uuid)
+          val failMessage = ConnectionFailure(new Exception("Channel %s is closed".format(addressString)))
+          failAllPending(failMessage)
+        }
       }
-      case ChannelClosed => {
-        val failMessage = ConnectionFailure(new Exception("Channel %s is closed".format(addressString)))
-        failAllPending(failMessage)
-      }
-    }
   }
 
   private def failAllPending(failMessage: ConnectionFailure) = {
+    log.trace("Failing all pending senders: %s", senders)
     val oldSenders = senders
     senders = Map()
     oldSenders foreach { kv =>
@@ -179,9 +189,20 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   }
 
   private def handleReplyMessage(message: ReplyMessage) = {
-    senders.get(message.header.responseTo) foreach { client =>
-      senders = senders - message.header.responseTo
-      client.channel ! client.outgoingReplyBuilder(message)
+    senders.get(message.header.responseTo) match {
+      case Some(client) => {
+        senders = senders - message.header.responseTo
+        val actorReply = client.outgoingReplyBuilder(message)
+        log.trace("matched response to %s and sending reply %s",
+          message.header.responseTo, actorReply)
+        client.channel ! actorReply
+        log.trace("matched response to %s and removed from senders: %s",
+          message.header.responseTo, senders)
+      }
+      case None => {
+        log.trace("nobody was interested in response %s", message.header.responseTo)
+        log.trace("interested senders are: %s", senders)
+      }
     }
   }
 
@@ -244,7 +265,8 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     log.trace("PreWrite with outStream '%s'", outStream)
 
     clientRequest.message.write(outStream)
-    log.debug("Writing Message '%s' out to stream '%s' which we'll write to channel momentarily", clientRequest.message, outStream)
+    log.debug("Writing Message %s '%s' out to stream '%s' which we'll write to channel momentarily",
+      clientRequest.message.requestID, clientRequest.message, outStream)
 
     if (maybeReplyBuilder.isDefined && maybeWriteMessage.isDefined) {
       if (concern.safe_?) {
@@ -254,9 +276,9 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         log.trace("Created a GetLastError Message: %s", gle)
         // we reply to the original SendClientWriteMessage when we get the GLE reply.
         // the write itself has no reply
-        senders = senders + Pair(wMsg.requestID, ClientSender(senderChannel, maybeReplyBuilder.get))
+        senders = senders + Pair(gle.requestID, ClientSender(senderChannel, maybeReplyBuilder.get))
         gle.write(outStream)
-        log.debug("Wrote a getLastError to the tail end of the output buffer.")
+        log.debug("Wrote a getLastError with request ID %s", gle.requestID)
       } else {
         // if unsafe, we can just generate a reply here and now saying it "succeeded"
         // and go ahead and send the reply, no need to add to "senders"
@@ -268,12 +290,20 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
           case _ =>
             throw new Exception("this should not be possible, write message was not one")
         }
+        log.trace("Sending immediate reply %s to unsafe write request ID %s",
+          writeReply, clientRequest.message.requestID)
         senderChannel ! writeReply
       }
     } else {
       // for non-writes, if there's a reply builder we save it in "senders"
-      maybeReplyBuilder foreach { builder =>
-        senders = senders + Pair(clientRequest.message.requestID, ClientSender(senderChannel, builder))
+      maybeReplyBuilder match {
+        case Some(builder) => {
+          senders = senders + Pair(clientRequest.message.requestID, ClientSender(senderChannel, builder))
+        }
+        case None => {
+          log.trace("No reply builder for request %s, not saving in senders",
+            clientRequest.message.requestID)
+        }
       }
     }
 
@@ -309,13 +339,16 @@ private[mongodb] object ConnectionChannelActor {
     private val actorHandler = new ConnectionActorHandler(connectionActor, addressString)
     private val setupHandler = new ConnectionSetupHandler(addressString)
     private val pipeline = Channels.pipeline(new ReplyMessageDecoder(), setupHandler)
+    private var setup = false
 
     override def getPipeline = pipeline
 
     def awaitSetup() {
+      require(!setup)
       setupHandler.await()
       // now swap in the real handler
       pipeline.replace(setupHandler, "actorHandler", actorHandler)
+      setup = true
     }
 
     // can only call these after awaitSetup
@@ -350,14 +383,17 @@ private[mongodb] object ConnectionChannelActor {
 
     def await() = {
       readyLatch.await()
+      log.trace("Setup handler await() complete")
     }
 
-    def checkReadiness() = {
-      if (maybeMaxBSONObjectSize.isDefined &&
-        maybeIsMaster.isDefined &&
-        connected) {
-        readyLatch.countDown()
-      }
+    override def handleUpstream(ctx: ChannelHandlerContext, e: ChannelEvent) = {
+      log.trace("setup handler incoming on channel: %s", e)
+      super.handleUpstream(ctx, e)
+    }
+
+    override def handleDownstream(ctx: ChannelHandlerContext, e: ChannelEvent) = {
+      log.trace("setup handler outgoing on channel: %s", e)
+      super.handleDownstream(ctx, e)
     }
 
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
@@ -368,11 +404,19 @@ private[mongodb] object ConnectionChannelActor {
       maybeIsMaster = Some(m)
       maybeMaxBSONObjectSize = Some(b)
 
-      checkReadiness()
+      log.trace("isMaster reply was isMaster=%s bson object size %s", maybeIsMaster.get, maybeMaxBSONObjectSize.get)
+
+      require(maybeMaxBSONObjectSize.isDefined &&
+        maybeIsMaster.isDefined &&
+        connected)
+
+      log.trace("Setup handler is ready, counting down the latch")
+      readyLatch.countDown()
     }
 
     private def fail(exception: Throwable) = {
       maybeFailure = Some(exception)
+      log.trace("Setup handler logged failure, counting down the latch: %s", exception.getMessage)
       readyLatch.countDown()
     }
 
@@ -394,8 +438,17 @@ private[mongodb] object ConnectionChannelActor {
     override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       log.info("Connected to '%s' (Configging Channel to Little Endian)", addressString)
       e.getChannel.getConfig.setOption("bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN))
+
       connected = true
-      checkReadiness()
+
+      // Need to check master and bson size to proceed.
+      // Send the query here.
+      log.trace("Sending isMaster command on channel %s", ctx.getChannel)
+      val qMsg = ConnectionActor.createCommand("admin", Document("isMaster" -> 1))
+      val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
+      qMsg.write(outStream)(MongoMessage.DefaultMaxBSONObjectSize)
+      ctx.getChannel.write(outStream.buffer())
+      outStream.close()
     }
   }
 
@@ -411,7 +464,6 @@ private[mongodb] object ConnectionChannelActor {
       val reply = e.getMessage.asInstanceOf[ReplyMessage]
       log.debug("Reply Message Received: %s", reply)
       connectionActor ! ConnectionChannelActor.ServerMessageReceived(reply)
-
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {

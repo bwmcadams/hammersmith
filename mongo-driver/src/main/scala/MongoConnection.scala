@@ -54,11 +54,12 @@ protected[mongodb] case class ConnectionActorHolder(actor: ActorRef)
  */
 abstract class MongoConnection extends Logging {
 
-  log.info("Initializing MongoConnectionHandler.")
+  log.info("Initializing MongoConnection.")
 
   protected val connectionActor: ActorRef
 
-  implicit protected val connectionActorHolder = ConnectionActorHolder(connectionActor)
+  // lazy to avoid forcing connection actor to be created during construct
+  implicit protected lazy val connectionActorHolder = ConnectionActorHolder(connectionActor)
 
   private case class CheckMasterState(isMaster: Boolean, maxBSONObjectSize: Int)
   private var checkMasterState: Option[CheckMasterState] = None
@@ -337,6 +338,16 @@ abstract class MongoConnection extends Logging {
     runCommand(db, Document("deleteIndexes" -> (db + "." + collection), "index" -> name))(callback)
   }
 
+  // FIXME this doesn't really mean a whole lot on a connection pool.
+  def connected_? = {
+    if (checkMasterState.isDefined) {
+      true
+    } else {
+      checkMaster()
+      checkMasterState.isDefined
+    }
+  }
+
   val addr: InetSocketAddress
 
   protected[mongodb] var _writeConcern: WriteConcern = WriteConcern.Normal
@@ -443,7 +454,7 @@ object MongoConnection extends Logging {
    * This whole mess could be deleted in an API-breaking phase 2, in which
    * we'd use Akka futures and eliminate the RequestFuture.
    */
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit connectionActorHolder: ConnectionActorHolder, concern: WriteConcern = WriteConcern.Normal): Unit = {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit connectionActorHolder: ConnectionActorHolder, concern: WriteConcern): Unit = {
     val connectionActor = connectionActorHolder.actor
     val actorMessage: ConnectionActor.Incoming =
       (msg, f) match {
