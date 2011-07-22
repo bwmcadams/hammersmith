@@ -64,8 +64,8 @@ abstract class MongoConnection extends Logging {
   /**
    * Factory for client socket channels, reused by all connectors where possible.
    */
-  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool,
-    Executors.newCachedThreadPool)
+  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Boss")),
+      Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Worker")))
 
   protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
@@ -567,8 +567,7 @@ object MongoConnection extends Logging {
 
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN,
-      if (maxBSONObjectSize > 0) maxBSONObjectSize else 1024 * 1024 * 4))
+    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
     log.trace("PreWrite with outStream '%s'", outStream)
     /**
