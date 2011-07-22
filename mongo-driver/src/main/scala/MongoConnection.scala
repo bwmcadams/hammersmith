@@ -19,7 +19,6 @@ package com.mongodb.async
 
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
-
 import org.bson._
 import org.bson.collection._
 import org.jboss.netty.bootstrap.ClientBootstrap
@@ -29,13 +28,19 @@ import com.mongodb.async.wire._
 import scala.collection.JavaConversions._
 import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
-
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{ ConcurrentHashMap, Executors }
-import scala.collection.mutable.{ ConcurrentMap, WeakHashMap }
+import java.util.concurrent.Executors
 import org.bson.types.ObjectId
 import org.bson.util.Logging
 import com.mongodb.async.util._
+import scala.collection.mutable.WeakHashMap
+import com.mongodb.async.util.ConcurrentQueue
+import akka.actor.{ Channel => _, _ }
+import akka.dispatch._
+
+// this is needed because "implicit ActorRef" is too dangerous, need a dedicated type
+// to be implicitly supplied
+protected[mongodb] case class ConnectionActorHolder(actor: ActorRef)
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -50,6 +55,10 @@ import com.mongodb.async.util._
 abstract class MongoConnection extends Logging {
 
   log.info("Initializing MongoConnectionHandler.")
+
+  protected val connectionActor: ActorRef
+
+  implicit protected val connectionActorHolder = ConnectionActorHolder(connectionActor)
 
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
@@ -432,9 +441,6 @@ abstract class MongoConnection extends Logging {
  */
 object MongoConnection extends Logging {
 
-  protected[mongodb] val dispatcher: ConcurrentMap[Int, CompletableRequest] =
-    new ConcurrentHashMap[Int, CompletableRequest]()
-
   /**
    * Canonical guide of the status of any channels.
    * e.g. what we know about their current live or dead status.
@@ -511,18 +517,63 @@ object MongoConnection extends Logging {
     }
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
-    f match {
-      /* FIXME based on the future flavor, we want to send the right message to the actor.
-       * A big code cleanup with Akka is to use Akka futures
-       * and then we just create actor messages in the first place and don't have to do this translation.
-       * That should delete a lot of code but could be a phase 2 (keeping this translation here lets us first
-       * use actors internally, and then in phase 2 switch to Akka futures in the API).
-       */
-      case rf: CursorQueryRequestFuture =>
-
+  private def completeRequestFuture(f: RequestFuture, reply: ConnectionActor.Outgoing) = {
+    (reply, f) match {
+      case (ConnectionActor.CursorReply(cursorActor), rf: CursorQueryRequestFuture) =>
+        rf(Cursor[rf.DocType](cursorActor)(rf.decoder).asInstanceOf[rf.T])
+      case (ConnectionActor.GetMoreReply(cursorId, docs), rf: GetMoreRequestFuture) =>
+        rf(cursorId, docs map { doc => rf.decoder.decode(doc) })
+      case (ConnectionActor.SingleDocumentReply(doc), rf: SingleDocQueryRequestFuture) =>
+        rf(rf.decoder.decode(doc))
+      case (ConnectionActor.OptionalSingleDocumentReply(maybeDoc), rf: FindAndModifyRequestFuture) =>
+        rf(rf.decoder.decode(maybeDoc.get)) // FIXME the FindAndModifyRequestFuture should take an Option?
+      case (ConnectionActor.WriteReply(maybeId, result), rf: WriteRequestFuture) =>
+        rf((maybeId, result).asInstanceOf[rf.T]) // something is busted that we need this cast
+      case (ConnectionActor.BatchWriteReply(maybeIds, result), rf: BatchWriteRequestFuture) =>
+        rf((maybeIds, result).asInstanceOf[rf.T]) // something is busted that we need this cast
+      case (_, NoOpRequestFuture) => // silence compiler, can't happen
     }
-    (_maxBSON: Int) => { /* FIXME */ }
+  }
+
+  /*
+   * This whole mess could be deleted in an API-breaking phase 2, in which
+   * we'd use Akka futures and eliminate the RequestFuture.
+   */
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit connectionActorHolder: ConnectionActorHolder, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal): Unit = {
+    val connectionActor = connectionActorHolder.actor
+    val actorMessage: ConnectionActor.Incoming =
+      (msg, f) match {
+        case (m: QueryMessage, rf: CursorQueryRequestFuture) =>
+          ConnectionActor.SendClientCursorMessage(m, _overrideLiveCheck)
+        case (m: GetMoreMessage, rf: GetMoreRequestFuture) =>
+          ConnectionActor.SendClientGetMoreMessage(m, _overrideLiveCheck)
+        case (m: QueryMessage, rf: SingleDocQueryRequestFuture) =>
+          ConnectionActor.SendClientSingleDocumentMessage(m, _overrideLiveCheck)
+        case (m: QueryMessage, rf: FindAndModifyRequestFuture) =>
+          ConnectionActor.SendClientOptionalSingleDocumentMessage(m, _overrideLiveCheck)
+        case (m: MongoClientWriteMessage, rf: WriteRequestFuture) =>
+          ConnectionActor.SendClientSingleWriteMessage(m, concern, _overrideLiveCheck)
+        case (m: MongoClientWriteMessage, rf: BatchWriteRequestFuture) =>
+          ConnectionActor.SendClientBatchWriteMessage(m, concern, _overrideLiveCheck)
+        case (m: KillCursorsMessage, NoOpRequestFuture) =>
+          ConnectionActor.SendClientKillCursorsMessage(m, _overrideLiveCheck)
+      }
+    if (f == NoOpRequestFuture) {
+      connectionActor ! actorMessage
+    } else {
+      val replyFuture: Future[Any] = connectionActor !!! actorMessage
+      replyFuture.onComplete({ replyFuture =>
+        try {
+          replyFuture.get match {
+            case o: ConnectionActor.Outgoing =>
+              completeRequestFuture(f, o)
+          }
+        } catch {
+          case e: Throwable =>
+            f(e)
+        }
+      })
+    }
   }
 
   protected[mongodb] def createCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd) = {

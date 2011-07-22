@@ -47,7 +47,7 @@ class DirectConnection(val addr: InetSocketAddress) extends MongoConnection with
    *  channel is established.
    *  Better ideas welcome.
    */
-  private val connectionActor = Actor.actorOf(new DirectConnectionActor(channel, maxBSONObjectSize)).start
+  override protected val connectionActor = Actor.actorOf(new DirectConnectionActor(channel, maxBSONObjectSize)).start
 
   lazy val handler = new DirectConnectionHandler(bootstrap, connectionActor)
 }

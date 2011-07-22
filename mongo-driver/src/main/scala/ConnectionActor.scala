@@ -81,7 +81,7 @@ object ConnectionActor
   case class SingleDocumentReply(document: Array[Byte]) extends Outgoing
   case class OptionalSingleDocumentReply(maybeDocument: Option[Array[Byte]]) extends Outgoing
   case class WriteReply(id: Option[AnyRef], result: WriteResult) extends Outgoing
-  case class BatchWriteReply(ids: Seq[AnyRef], result: WriteResult) extends Outgoing
+  case class BatchWriteReply(ids: Option[Seq[AnyRef]], result: WriteResult) extends Outgoing
 
   protected[mongodb] def buildQueryFailure(reply: ReplyMessage): QueryFailure = {
     log.trace("Query Failure")
@@ -150,8 +150,8 @@ object ConnectionActor
   protected[mongodb] def buildWriteReply(reply: ReplyMessage): Outgoing = checkQueryFailure(reply)({
     log.trace("building WriteReply.")
     buildBatchWriteReply(reply) match {
-      case BatchWriteReply(ids, result) =>
-        WriteReply(ids.headOption, result)
+      case BatchWriteReply(maybeIds, result) =>
+        WriteReply(maybeIds flatMap { _.headOption }, result)
       case f: Failure =>
         f
       case _ =>
@@ -186,7 +186,7 @@ object ConnectionActor
           log.debug("W: %s", w)
           // FIXME obviously this doesn't work if there are multiple IDs.
           // need to look up how that shows up in the protocol.
-          BatchWriteReply(Seq(w.upsertID), w)
+          BatchWriteReply(Some(Seq(w.upsertID)), w)
         }
       }
       case None => {
