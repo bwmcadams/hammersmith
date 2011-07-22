@@ -19,16 +19,14 @@ package com.mongodb.async
 import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
-import org.jboss.netty.channel.ChannelHandlerContext
-import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
-import com.mongodb.async.futures.RequestFutures
-import com.mongodb.async.util.ConcurrentQueue
 import scala.annotation.tailrec
-import com.twitter.util.CountDownLatch
+import akka.actor._
+import akka.dispatch._
 
 object Cursor extends Logging {
   trait IterState
   case class Entry[T: SerializableBSONObject](doc: T) extends IterState
+  // FIXME Empty is just a leftover now since there's no manual NextBatch
   case object Empty extends IterState
   case object EOF extends IterState
   trait IterCmd
@@ -36,14 +34,18 @@ object Cursor extends Logging {
   case class Next(op: (IterState) => IterCmd) extends IterCmd
   case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
 
-  def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
-    log.debug("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
+  def apply[T: SerializableBSONObject](cursorActor: ActorRef): Cursor[T] = {
+    log.debug("Instantiate new Cursor[%s]", implicitly[SerializableBSONObject[T]])
     try {
-      new Cursor[T](namespace, reply)(ctx, decoder)
+      new Cursor[T](cursorActor)
     } catch {
-      case e => log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
+      case e => {
+        log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
+        throw e
+      }
     }
   }
+
   /**
    * Internal helper, more or less a "default" iterator for internal usage
    * Not exposed publicly but useful as an example.
@@ -95,10 +97,11 @@ object Cursor extends Logging {
         log.trace("Next!")
         next(tOp)
       }
-      case NextBatch(tOp) => cursor.nextBatch(() => {
-        log.debug("Next Batch Loaded.")
+      // FIXME NextBatch is just a leftover now
+      case NextBatch(tOp) => {
+        log.trace("NextBatch (just treating the same as Next)")
         next(tOp)
-      })
+      }
     }
     next(op)
   }
@@ -107,113 +110,49 @@ object Cursor extends Logging {
 /**
  * Cursor for MongoDB
  *
- * Currently, using next() will block when it needs to do a getmore.
- * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
- * TODO - Generic version with type passing
+ * FIXME this could now just derive from Iterator[Future[T]] and add close() and batchSize.
+ * There's no need for a custom API like this, since NextBatch is now automatic... could drop a lot of code.
  */
-class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T]) extends Logging {
+class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) extends Logging {
 
-  val cursorID: Long = reply.cursorID
+  // Go ahead and ask the actor for an entry
+  private var nextEntryFuture: Option[Future[Any]] = Some(cursorActor !!! CursorActor.Next)
 
-  protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
-  protected implicit val channel = ctx.getChannel
-  protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize // todo - will this change ? Should we explicitly grab it when needed
-
-  /**
-   * Cursor ID 0 indicates "No more results"
-   * HOWEVER - Cursors can be positive OR negative
-   * If we were initialized with a cursorID of 0, there are no more results
-   * otherwise we'll flip this later during our getMores
-   */
-  protected def validCursor(id: Long) = id == 0
-  protected var cursorEmpty = validCursor(cursorID)
-  @volatile
-  protected var gettingMore = new CountDownLatch(0)
-
-  /**
-   * Mutable internally as we push further through the cursor on the server
-   */
-  protected var startIndex = reply.startingFrom
-
-  log.trace("Decode %s docs.", reply.documents.length)
-  try {
-    val _d = Seq.newBuilder[T]
-    for (doc <- reply.documents) {
-      log.trace("Decoding: %s", doc)
-      try {
-        val x = decoder.decode(doc)
-        log.trace("Decoded: %s", x)
-        _d += x
-      } catch {
-        case e => log.warn("ERROR!!!!!!!!! %s", e)
-      }
-    }
-    val _decoded = _d.result
-    // reply.documents.map(decoder.decode)
-    log.debug("Decoded %s docs: %s", _decoded.length, _decoded)
-  } catch {
-    case e => log.error(e, "Document decode failure: %s", e)
-  }
-
-  // TODO - Move to lazy decoding model
-  protected val docs = ConcurrentQueue(reply.documents.map(decoder.decode): _*) // ConcurrentQueue(_decoded: _*)
-
-  log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d, docs: %s", cursorID, startIndex, docs)
-
-  /**
-   * Batch size; defaults to 0 which lets mongo control the size
-   */
-  protected var batch = 0
+  // batch size is cached locally and also sent to the actor
+  private var batch = 0
 
   def batchSize = batch
-  def batchSize_=(size: Int) { batch = size }
-
-  // Whether or not there are more docs *on the server*
-  def hasMore = !cursorEmpty
-  def isEmpty = docs.length == 0 && cursorEmpty
-
-  def nextBatch(notify: Function0[Unit]) {
-    if (gettingMore.isZero) {
-      gettingMore = new CountDownLatch(1)
-      assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
-      log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
-      MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) => {
-          reply match {
-            case Right((id, batch)) => {
-              log.trace("Got a result from 'getMore' command (id: %d).", id)
-              cursorEmpty = validCursor(id)
-              docs.enqueue(batch: _*)
-            }
-            case Left(t) => {
-              // TODO - should we have some way of signalling an error to the callback?
-              log.error(t, "Command 'getMore' failed.")
-              cursorEmpty = true // assume a server issue
-            }
-          }
-          gettingMore.countDown()
-          notify()
-        }))
-    } else log.warn("Already gettingMore on this cursor.  May be a concurrency issue if called repeatedly.")
+  def batchSize_=(size: Int) {
+    batch = size
+    cursorActor ! CursorActor.SetBatchSize(size)
   }
+
+  // Whether or not we've received EOF
+  def hasMore = nextEntryFuture.isDefined
+  def isEmpty = !hasMore
 
   /**
    */
-  def next() = try {
+  def next(): Cursor.IterState = {
+    val decoder = implicitly[SerializableBSONObject[T]]
     log.trace("NEXT: %s ", decoder.getClass)
-    if (docs.length > 0) Cursor.Entry(docs.dequeue()) else if (hasMore) Cursor.Empty
-    else
-      Cursor.EOF
-  } catch { // just in case
-    case nse: java.util.NoSuchElementException => {
-      log.debug("No Such Element Exception")
-      if (hasMore) {
-        log.debug("Has More.")
-        Cursor.Empty
-      } else {
-        log.debug("Cursor Exhausted.")
+
+    nextEntryFuture match {
+      case Some(f) =>
+        f.get match {
+          case CursorActor.Entry(bytes) =>
+            // kick off request for next one
+            nextEntryFuture = Some(cursorActor !!! CursorActor.Next)
+
+            // return this one
+            val doc = decoder.decode(bytes)
+            Cursor.Entry(doc)
+          case CursorActor.EOF =>
+            nextEntryFuture = None
+            Cursor.EOF
+        }
+      case None =>
         Cursor.EOF
-      }
     }
   }
 
@@ -233,20 +172,9 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   }
 
   def close() {
-    log.debug("Closing out cursor: %s", this)
-    /**
-     * Basically if the cursorEmpty is true we can just NOOP here
-     * as MongoDB automatically cleans up fully iterated cursors.
-     */
-    if (hasMore) {
-      validCursor(0) // zero out the 'hasMore' status
-      MongoConnection.killCursors(cursorID)
-    }
+    log.debug("%s stopping cursor actor: %s", this, cursorActor)
 
-    /**
-     * Clean out any remaining items
-     */
-    docs.clear()
+    cursorActor.stop()
   }
 
   /**
@@ -257,5 +185,4 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
     close()
     super.finalize()
   }
-
 }

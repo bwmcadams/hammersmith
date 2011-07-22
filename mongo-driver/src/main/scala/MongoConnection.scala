@@ -33,7 +33,6 @@ import org.jboss.netty.buffer._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{ ConcurrentHashMap, Executors }
 import scala.collection.mutable.{ ConcurrentMap, WeakHashMap }
-import com.mongodb.async.util.{ ConcurrentQueue, CursorCleaningTimer }
 import org.bson.types.ObjectId
 import org.bson.util.Logging
 import com.mongodb.async.util._
@@ -51,7 +50,6 @@ import com.mongodb.async.util._
 abstract class MongoConnection extends Logging {
 
   log.info("Initializing MongoConnectionHandler.")
-  MongoConnection.cleaningTimer.acquire(this)
 
   // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
   /** Maximum size of BSON this server allows. */
@@ -66,7 +64,7 @@ abstract class MongoConnection extends Logging {
    * Factory for client socket channels, reused by all connectors where possible.
    */
   val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Boss")),
-      Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Worker")))
+    Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Worker")))
 
   protected implicit val bootstrap = new ClientBootstrap(channelFactory)
 
@@ -87,6 +85,11 @@ abstract class MongoConnection extends Logging {
       1024 * 1024 * 4 /* max */ ));
 
   private val _f = bootstrap.connect()
+
+  /* FIXME the channel variable needs to be removed from here, so that ONLY the DirectConnectionActor
+   * can ever touch the channel (once the channel is established). All access goes through DirectConnectionActor.
+   * Basically, we replace our channel with an actor, and move the channel-using code into the actor.
+   */
   // TODO - Switch to listener based establishment
   protected implicit val channel = _f.awaitUninterruptibly.getChannel
 
@@ -122,7 +125,6 @@ abstract class MongoConnection extends Logging {
         maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
         gotIsMaster.set(true)
         if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connectedState(true, maxBSONObjectSize)
-        handler.maxBSONObjectSize = maxBSONObjectSize
         log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
       }), _overrideLiveCheck = true)
     } else {
@@ -386,7 +388,6 @@ abstract class MongoConnection extends Logging {
 
   protected[mongodb] def shutdown() {
     log.debug("Shutting Down & Cleaning up connection handler.")
-    MongoConnection.cleaningTimer.stop(this)
     channel.close()
     _connectedState(false, maxBSONObjectSize)
   }
@@ -433,18 +434,6 @@ object MongoConnection extends Logging {
 
   protected[mongodb] val dispatcher: ConcurrentMap[Int, CompletableRequest] =
     new ConcurrentHashMap[Int, CompletableRequest]()
-
-  protected[mongodb] val cleaningTimer = new CursorCleaningTimer()
-
-  /**
-   * Cursors that need to be cleaned up
-   * Weak is GOOD.  The idea here with a WeakHashMap is that internally
-   * the Key is stored as a WeakReference.
-   *
-   * This means that a channel being in the deadCursors map will NOT PREVENT IT
-   * from being garbage collected.
-   */
-  protected[mongodb] val deadCursors = new WeakHashMap[Channel, ConcurrentQueue[Long]]
 
   /**
    * Canonical guide of the status of any channels.
@@ -523,97 +512,22 @@ object MongoConnection extends Logging {
   }
 
   protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
-    require(channel.isConnected, "Channel is closed.")
-    val isWrite = f.isInstanceOf[WriteRequestFuture]
-    // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
-    log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
-    log.trace("PreWrite with outStream '%s'", outStream)
-    /**
-     * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
-     * The GLE / Safe write stuff is setup later
-     */
-    if (!isWrite) dispatcher.put(msg.requestID, CompletableRequest(msg, f))
-    msg.write(outStream)
-    log.debug("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
+    f match {
+      /* FIXME based on the future flavor, we want to send the right message to the actor.
+       * A big code cleanup with Akka is to use Akka futures
+       * and then we just create actor messages in the first place and don't have to do this translation.
+       * That should delete a lot of code but could be a phase 2 (keeping this translation here lets us first
+       * use actors internally, and then in phase 2 switch to Akka futures in the API).
+       */
+      case rf: CursorQueryRequestFuture =>
 
-    /**
-     * Determine if we need to execute a GetLastError (E.G. w > 0),
-     * or execute a non-GLEed immediate callback against write requests.
-     */
-    // Quick callback when needed to be invoked immediately after write
-    val writeCB: () => Unit = if (isWrite) {
-      msg match {
-        case wMsg: MongoClientWriteMessage => if (concern.safe_?) {
-          val gle = createCommand(wMsg.namespace.split("\\.")(0), Document("getlasterror" -> 1))
-          log.trace("Created a GetLastError Message: %s", gle)
-          /**
-           * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
-           * Note we dispatch the GetLastError's ID but with the write message !
-           */
-          dispatcher.put(gle.requestID, CompletableRequest(msg, f))
-          gle.write(outStream)
-          log.debug("Wrote a getLastError to the tail end of the output buffer.")
-          () => {}
-        } else () => { wMsg.ids.foreach(x => f((x, WriteResult(true)).asInstanceOf[f.T])) }
-        case unknown => {
-          val e = new IllegalArgumentException("Invalid type of message passed; WriteRequestFutures expect a MongoClientWriteMessage underneath them. Got " + unknown)
-          log.error(e, "Error in write.")
-          () => { f(e) }
-        }
-      }
-    } else () => {}
-    // todo - clean this up to be more automatic like the writeCB is
-
-    val exec = (_maxBSON: Int) => {
-      channel.write(outStream.buffer())
-      outStream.close()
-      /** If no write Concern and it's a write, kick the callback now.*/
-      writeCB()
     }
-    // If the channel is open, it still doesn't mean we have a valid Mongo Connection.
-    if (!channelState(channel).get && !_overrideLiveCheck) {
-      log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
-      channelOpQueue.getOrElseUpdate(channel, new ConcurrentQueue) += exec
-    } else exec(maxBSONObjectSize)
-
+    (_maxBSON: Int) => { /* FIXME */ }
   }
 
   protected[mongodb] def createCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd) = {
     log.trace("Attempting to create command '%s' on DB '%s.$cmd'", cmd, ns)
     QueryMessage(ns + ".$cmd", 0, -1, cmd)
   }
-
-  /**
-   * Deferred - doesn't actually happen immediately
-   */
-  protected[mongodb] def killCursors(ids: Long*)(implicit channel: Channel) {
-    log.debug("Adding Dead Cursors to cleanup list: %s on Channel: %s", ids, channel)
-    deadCursors.getOrElseUpdate(channel, new ConcurrentQueue[Long]) ++= ids
-  }
-
-  /**
-   *  Clean up any resources (Typically cursors)
-   *  Called regularly by a managed CursorCleaner thread.
-   */
-  protected[mongodb] def cleanup() {
-    log.trace("Cursor Cleanup running.")
-    if (deadCursors.isEmpty) {
-      log.debug("No Dead Cursors.")
-    } else {
-      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => if (!entry._2.isEmpty) {
-        // TODO - ensure no concurrency issues / blockages here.
-        log.trace("Pre DeQueue: %s", entry._2.length)
-        val msg = KillCursorsMessage(entry._2.dequeueAll())
-        log.trace("Post DeQueue: %s", entry._2.length)
-        log.debug("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
-        MongoConnection.send(msg, NoOpRequestFuture)(entry._1, 1024 * 1024 * 4) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
-      } else {
-        log.debug("Removing Channel '%s' from cursor cleanup queue as it has no dead cursors.", entry._1) // should help with auto shutdown of cleaner thread + process
-        deadCursors.remove(entry._1)
-      })
-    }
-  }
-
 }
 

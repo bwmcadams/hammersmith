@@ -26,7 +26,7 @@ object HammersmithBuild extends Build {
 
   lazy val defaultSettings = baseSettings ++ Seq(
     libraryDependencies ++= Seq(casbah, commonsPool, scalaj_collection, netty, twitterUtilCore, slf4j, specs2),
-    resolvers ++= Seq(jbossRepo, sbtReleases, sbtSnapshots, twttrRepo),
+    resolvers ++= Seq(jbossRepo, sbtReleases, sbtSnapshots, twttrRepo, akkaRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
     testFrameworks += TestFrameworks.Specs2
@@ -52,7 +52,7 @@ object HammersmithBuild extends Build {
     id = "mongo-driver",
     base = file("mongo-driver"),
     settings = defaultSettings ++ Seq(
-      libraryDependencies += slf4jJCL
+      libraryDependencies ++= Seq(slf4jJCL, akkaActor)
     )
   ) dependsOn(bson)
 }
@@ -83,6 +83,9 @@ object Dependencies {
   // Twitter-util
   val twitterUtilCore = "com.twitter" % "util-core" % "1.8.15"
 
+  // akka-actor
+  val akkaActor = "se.scalablesolutions.akka" % "akka-actor" % "1.1"
+
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.4" % "test"
   val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.6.3" % "test->default"
@@ -96,4 +99,6 @@ object Resolvers {
 
   val jbossRepo = "JBoss Public Repo" at "https://repository.jboss.org/nexus/content/groups/public-jboss/"
   val twttrRepo = "Twitter Public Repo" at "http://maven.twttr.com"
+
+  val akkaRepo = "Akka Repo" at "http://akka.io/repository"
 }
