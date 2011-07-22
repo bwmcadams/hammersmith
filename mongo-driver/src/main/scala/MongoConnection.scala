@@ -449,6 +449,8 @@ object MongoConnection extends Logging {
 
   /**
    * Operation queue for channels which aren't connected yet.
+   * FIXME this whole thing can just be dumped because we can just throw messages
+   * at the connectionActor which will queue them for us in its mailbox.
    */
   protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) => Unit]]
 
