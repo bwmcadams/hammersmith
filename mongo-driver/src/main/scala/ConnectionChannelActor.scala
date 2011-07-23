@@ -18,6 +18,7 @@
 package com.mongodb.async
 
 import akka.actor.{ Channel => AkkaChannel, _ }
+import akka.dispatch.Future
 import com.mongodb.async.wire._
 import com.mongodb.async.util._
 import org.bson._
@@ -57,6 +58,14 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   private var isMaster = false
 
   private val addressString = addr.toString
+
+  private def asyncSend(channel: AkkaChannel[Any], message: Any) = {
+    // We have to do this _asynchronously_ because sending a message
+    // to an Akka future synchronously invokes app callbacks.
+    // If the app then called back to the connection it would
+    // deadlock.
+    Future(channel ! message, self.timeout)(self.dispatcher)
+  }
 
   private def startOpeningChannel() = {
     // don't get any messages until we get our channel open
@@ -198,7 +207,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     val oldSenders = senders
     senders = Map()
     oldSenders foreach { kv =>
-      kv._2.channel ! failMessage
+      asyncSend(kv._2.channel, failMessage)
     }
   }
 
@@ -209,7 +218,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         val actorReply = client.outgoingReplyBuilder(message)
         log.trace("matched response to %s and sending reply %s",
           message.header.responseTo, actorReply)
-        client.channel ! actorReply
+        asyncSend(client.channel, actorReply)
         log.trace("matched response to %s and removed from senders: %s",
           message.header.responseTo, senders)
       }
@@ -233,7 +242,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     val channel = maybeChannel.get
 
     if (!channel.isConnected) {
-      senderChannel ! ConnectionFailure(new Exception("Channel is closed."))
+      asyncSend(senderChannel, ConnectionFailure(new Exception("Channel is closed.")))
       return
     }
     require(channel.isConnected, "Channel is closed.")
@@ -306,7 +315,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         }
         log.trace("Sending immediate reply %s to unsafe write request ID %s",
           writeReply, clientRequest.message.requestID)
-        senderChannel ! writeReply
+        asyncSend(senderChannel, writeReply)
       }
     } else {
       // for non-writes, if there's a reply builder we save it in "senders"

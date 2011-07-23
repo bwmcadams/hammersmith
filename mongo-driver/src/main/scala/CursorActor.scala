@@ -63,6 +63,16 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
     Entries(oldDocs)
   }
 
+  // use this to send to the app, but not needed to send to
+  // connection actor
+  private def asyncSend(channel: Channel[Any], message: Any) = {
+    // We have to do this _asynchronously_ because sending a message
+    // to an Akka future synchronously invokes app callbacks.
+    // If the app then called back to the cursor actor it would
+    // deadlock.
+    Future(channel ! message, self.timeout)(self.dispatcher)
+  }
+
   override def receive: Receive = {
     case GetMore => {
       log.trace("Someone sent GetMore to CursorActor cursorID %s", cursorID)
@@ -79,7 +89,7 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
       cursorEmpty = validCursor(replyID)
       documents ++= replyDocs
 
-      log.trace("CursorActor %s now empty=%s num docs %s",
+      log.trace("CursorActor %s now empty=%s num docs %s after getMore",
         cursorID, cursorEmpty, documents.length)
 
       // maybe we can make the requesters happy now
@@ -111,7 +121,8 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
         // we have no docs and never will. EOF everyone.
         log.trace("CursorActor %s sending EOF to all", cursorID)
         for (sender <- sendersWhoWantMore) {
-          sender ! EOF
+          log.trace("CursorActor %s sending EOF to %s", cursorID, sender)
+          asyncSend(sender, EOF)
         }
         sendersWhoWantMore = Queue()
       } else {
@@ -129,10 +140,10 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
         log.trace("CursorActor %s has %s documents and nobody to give them to", cursorID, documents.length)
       } else {
         // give the first sender what we have
-        log.trace("CursorActor %s has %s documents and will give them to first pending sender", cursorID, documents.length)
         val (replyTo, newQueue) = sendersWhoWantMore.dequeue
         sendersWhoWantMore = newQueue
-        replyTo ! takeDocuments()
+        log.trace("CursorActor %s has %s documents, giving them to first pending sender %s", cursorID, documents.length, replyTo)
+        asyncSend(replyTo, takeDocuments())
 
         // we may need a new batch for remaining senders, or may
         // need to send them EOF, so recurse.
