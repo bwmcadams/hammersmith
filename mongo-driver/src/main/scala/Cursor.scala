@@ -115,8 +115,9 @@ object Cursor extends Logging {
  */
 class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) extends Logging {
 
-  // Go ahead and ask the actor for an entry
-  private var nextEntryFuture: Option[Future[Any]] = Some(cursorActor !!! CursorActor.Next)
+  // Go ahead and ask the actor for some entries
+  private var nextEntriesFuture: Option[Future[Any]] = Some(cursorActor !!! CursorActor.GetMore)
+  private var documents: Seq[T] = Seq()
 
   // batch size is cached locally and also sent to the actor
   private var batch = 0
@@ -127,42 +128,60 @@ class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) exten
     cursorActor ! CursorActor.SetBatchSize(size)
   }
 
-  // Whether or not we've received EOF
-  def hasMore = nextEntryFuture.isDefined
-  def isEmpty = !hasMore
+  def hasMore = isEmpty // FIXME hasMore is a back-compat thing, we no longer expose client vs. server state
+  def isEmpty = documents.isEmpty && !nextEntriesFuture.isDefined
+
+  private def popEntry() = {
+    val doc = documents.head
+    documents = documents.tail
+    Cursor.Entry(doc)
+  }
 
   /**
    */
   def next(): Cursor.IterState = {
     val decoder = implicitly[SerializableBSONObject[T]]
-    log.trace("NEXT: %s ", decoder.getClass)
+    log.trace("NEXT: %s have %s docs", decoder.getClass, documents.length)
 
-    nextEntryFuture match {
-      case Some(f) =>
-        f.get match {
-          case CursorActor.Entry(bytes) =>
-            // kick off request for next one
-            nextEntryFuture = Some(cursorActor !!! CursorActor.Next)
-
-            // return this one
-            val doc = decoder.decode(bytes)
-            Cursor.Entry(doc)
-          case CursorActor.EOF =>
-            nextEntryFuture = None
-            Cursor.EOF
-        }
-      case None =>
-        Cursor.EOF
+    if (documents.isEmpty) {
+      nextEntriesFuture match {
+        case Some(f) =>
+          log.trace("blocking on future to get next entries from CursorActor")
+          f.get match {
+            case CursorActor.Entries(docsBytes) =>
+              // kick off request for next one
+              log.trace("Sending a GetMore to the CursorActor, have %s docs from previous GetMore", docsBytes.length)
+              nextEntriesFuture = Some(cursorActor !!! CursorActor.GetMore)
+              // save the results from this future
+              documents = documents ++ (docsBytes map { bytes => decoder.decode(bytes) })
+              require(!documents.isEmpty)
+              popEntry()
+            case CursorActor.EOF =>
+              log.trace("Got EOF from the CursorActor")
+              nextEntriesFuture = None
+              Cursor.EOF
+          }
+        case None =>
+          log.trace("Was already at EOF from the CursorActor")
+          Cursor.EOF
+      }
+    } else {
+      log.trace("Popping next doc")
+      popEntry()
     }
   }
 
   // FIXME drop this once we don't need the compat
   def nextBatch(notify: Function0[Unit]) {
-    nextEntryFuture match {
-      case Some(f) =>
-        f.onComplete({ future => notify.apply() })
-      case None =>
-        notify.apply()
+    if (documents.isEmpty) {
+      nextEntriesFuture match {
+        case Some(f) =>
+          f.onComplete({ future => notify.apply() })
+        case None =>
+          notify.apply()
+      }
+    } else {
+      notify.apply()
     }
   }
 

@@ -23,6 +23,7 @@ import com.mongodb.async.wire._
 import org.bson._
 import scala.collection.immutable.Queue
 import org.bson.util.Logging
+import scala.annotation.tailrec
 
 /**
  * This is an internal actor class used to encapsulate asynchronous cursor
@@ -50,51 +51,92 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
   private def validCursor(id: Long) = id == 0
   private var cursorEmpty = validCursor(cursorID)
 
-  private var documents = Queue[Array[Byte]](initialDocuments: _*)
+  private var getMorePending = false // are we waiting on a getMore() request to mongo
+  private var sendersWhoWantMore = Queue[Channel[Any]]() // channels that have asked us for more
+  private var documents = Seq[Array[Byte]](initialDocuments: _*) // documents we've gotten back
 
   log.debug("Initializing a new CursorActor with cursorID: %d, startIndex: %d, docs: %s", cursorID, startIndex, documents)
 
+  private def takeDocuments() = {
+    val oldDocs = documents
+    documents = Seq()
+    Entries(oldDocs)
+  }
+
   override def receive: Receive = {
-    case Next => {
-      if (documents.isEmpty) {
-        if (cursorEmpty) {
-          self.reply(EOF)
-        } else {
-          fetchMore(self.channel)
-          // recursively try again.
-          receive.apply(Next)
-        }
-      } else {
-        val (doc, newQueue) = documents.dequeue
-        documents = newQueue
-        self.reply(Entry(doc))
-      }
+    case GetMore => {
+      log.trace("Someone sent GetMore to CursorActor cursorID %s", cursorID)
+      sendersWhoWantMore = sendersWhoWantMore.enqueue(self.channel)
+      satisfySendersWhoWantMore()
     }
     case SetBatchSize(value) =>
       batchSize = value
+    case ConnectionActor.GetMoreReply(replyID, replyDocs) => {
+      log.trace("CursorActor got a result from 'getMore' command (id: %d).", replyID)
+
+      // Update all our fields
+      getMorePending = false
+      cursorEmpty = validCursor(replyID)
+      documents ++= replyDocs
+
+      log.trace("CursorActor %s now empty=%s num docs %s",
+        cursorID, cursorEmpty, documents.length)
+
+      // maybe we can make the requesters happy now
+      satisfySendersWhoWantMore()
+    }
+    case failure: ConnectionActor.Failure => {
+      log.error("CursorActor got a failure from getMore command %s", failure.exception)
+      cursorEmpty = true // don't try to do anything else
+      throw failure.exception // this will kill the cursor actor by throwing from receive()
+    }
   }
 
-  private def fetchMore(replyTo: Channel[Any]) = {
-    log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, documents.size)
+  private def requestMore() = {
+    require(!cursorEmpty)
+    // we want only one getMore in flight at a time, or we won't know if we've gone off the
+    // end of the cursor
+    if (!getMorePending) {
+      log.trace("CursorActor sending getMore() to connection actor cursorID: %s, queue size: %s",
+        cursorID, documents.size)
+      getMorePending = true
+      connectionActor ! ConnectionActor.SendClientGetMoreMessage(GetMoreMessage(namespace, batchSize, cursorID))
+    }
+  }
 
-    val f: Future[_] = connectionActor !!! ConnectionActor.SendClientGetMoreMessage(GetMoreMessage(namespace, batchSize, cursorID))
-
-    // we just block. we should be in our own thread so it's not a disaster.
-    // if we don't block it's too hard to queue up Next messages while we
-    // wait for the batch... too hard to keep them in order and deal with
-    // maybe having to GetMore *again* while we haven't yet gone through all
-    // the Next
-    f.get match {
-      case ConnectionActor.GetMoreReply(replyID, replyDocs) => {
-        log.trace("Got a result from 'getMore' command (id: %d).", replyID)
-        cursorEmpty = validCursor(replyID)
-        replyDocs foreach { docBytes =>
-          documents = documents.enqueue(docBytes)
+  @tailrec
+  private def satisfySendersWhoWantMore(): Unit = {
+    if (documents.isEmpty) {
+      if (cursorEmpty) {
+        // we have no docs and never will. EOF everyone.
+        log.trace("CursorActor %s sending EOF to all", cursorID)
+        for (sender <- sendersWhoWantMore) {
+          sender ! EOF
         }
+        sendersWhoWantMore = Queue()
+      } else {
+        // we have no docs but could get more from mongo.
+        // refill documents.
+        // (note this will speculatively getMore
+        // before we have someone to send them to)
+        log.trace("CursorActor %s requesting more because documents.isEmpty", cursorID)
+        requestMore()
       }
-      case failure: ConnectionActor.Failure => {
-        log.error("getMore command failed %s", failure.exception)
-        throw failure.exception // this will kill the cursor actor by throwing from receive()
+    } else {
+      if (sendersWhoWantMore.isEmpty) {
+        // nobody to satisfy, and we already have some documents
+        // if someone turns up, so do nothing
+        log.trace("CursorActor %s has %s documents and nobody to give them to", cursorID, documents.length)
+      } else {
+        // give the first sender what we have
+        log.trace("CursorActor %s has %s documents and will give them to first pending sender", cursorID, documents.length)
+        val (replyTo, newQueue) = sendersWhoWantMore.dequeue
+        sendersWhoWantMore = newQueue
+        replyTo ! takeDocuments()
+
+        // we may need a new batch for remaining senders, or may
+        // need to send them EOF, so recurse.
+        satisfySendersWhoWantMore()
       }
     }
   }
@@ -114,11 +156,11 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
 object CursorActor {
   // Messages we can handle
   sealed trait Incoming
-  case object Next extends Incoming
+  case object GetMore extends Incoming
   case class SetBatchSize(value: Int) extends Incoming
 
   // Messages we can send
   sealed trait Outgoing
-  case class Entry(doc: Array[Byte]) extends Outgoing
+  case class Entries(docs: Seq[Array[Byte]]) extends Outgoing
   case object EOF extends Outgoing
 }
