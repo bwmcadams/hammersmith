@@ -68,21 +68,25 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   //override val backoffRate = 0.50
   //override val backoffThreshold = 0.50
 
-  // this dispatcher is work-stealing, so if a connection is stuck others can take its work;
-  // it also has a thread pool with core pool size of upperBound, which means we
-  // won't create threads until upperBound threads are used up.
-  // The thread pool queue has fixed capacity of 1 because otherwise we'd never create
-  // threads above core pool size even if all threads were busy.
-  private val childDispatcher =
-    Dispatchers.newExecutorBasedEventDrivenWorkStealingDispatcher("Hammersmith Connection Dispatcher").
+  // this is our dispatcher and we also pass it to all child actors
+  // and we use it when creating a cursor actor
+  self.dispatcher =
+    // do not work-steal because we'd take messages from one netty channel and give
+    // them to the wrong actor
+    Dispatchers.newExecutorBasedEventDrivenDispatcher("Hammersmith Connection Dispatcher").
+      // synchronous queue because a queue that can hold items keeps us from going above CorePoolSize,
+      // which leads to deadlocks. this can't be set in akka.conf, unfortunately
       withNewThreadPoolWithSynchronousQueueWithFairness(false).
+      // normally we want a thread per connection in the pool
       setCorePoolSize(upperBound).
-      buildThreadPool
+      // unbounded max threads, or we could get deadlocks
+      setMaxPoolSize(Int.MaxValue).
+      build
 
   override def instance = {
     val actorRef = Actor.actorOf(new ConnectionChannelActor(addr))
-    actorRef.dispatcher = childDispatcher
     log.trace("ConnectionPoolActor %s created new pooled instance %s", self.uuid, actorRef.uuid)
+    actorRef.dispatcher = self.dispatcher
     actorRef
   }
 }

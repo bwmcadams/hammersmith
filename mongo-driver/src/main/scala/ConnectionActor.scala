@@ -134,18 +134,21 @@ object ConnectionActor
   })
 
   protected[mongodb] def buildGetMoreReply(reply: ReplyMessage): Outgoing = checkCursorFailure(reply)({
-    log.trace("building Get More reply.")
+    log.trace("building Get More reply, cursor ID %s num documents %s",
+      reply.cursorID, reply.documents.length)
     GetMoreReply(reply.cursorID, reply.documents)
   })
 
   protected[mongodb] def buildCursorReply(connectionActor: ActorRef, namespace: String, reply: ReplyMessage): Outgoing = checkCursorFailure(reply)({
-    log.trace("building Cursor Request reply.")
+    log.trace("building Cursor Request reply, cursor ID %s", reply.cursorID)
     val cursorActor = Actor.actorOf(new CursorActor(connectionActor,
       reply.cursorID,
       namespace,
       reply.startingFrom,
-      reply.documents)).start
-
+      reply.documents))
+    // share dispatcher with the connection actor (which ultimately gets it from the connection pool actor)
+    cursorActor.dispatcher = connectionActor.dispatcher
+    cursorActor.start
     CursorReply(cursorActor)
   })
 
