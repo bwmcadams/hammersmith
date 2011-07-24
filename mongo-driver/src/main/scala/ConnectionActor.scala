@@ -156,8 +156,12 @@ object ConnectionActor
     log.trace("building Single Document reply.")
     // This may actually be better as a disableable assert but for now i want it hard.
     require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocumentReply.")
-    val doc = reply.documents.head
-    SingleDocumentReply(doc)
+    reply.documents.headOption match {
+      case Some(doc) =>
+        SingleDocumentReply(doc)
+      case None =>
+        throw new Exception("No document was returned; one document was expected")
+    }
   })
 
   protected[mongodb] def buildOptionalSingleDocumentReply(reply: ReplyMessage): Outgoing = checkQueryFailure(reply)({
