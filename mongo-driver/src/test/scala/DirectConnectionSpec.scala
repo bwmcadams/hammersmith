@@ -81,7 +81,7 @@ class DirectConnectionSpec extends Specification
 
   object mongo extends mongoConn*/
 
-  object mongo extends AroundOutside[MongoConnection] {
+  object mongo extends AroundOutside[DirectConnection] {
 
     // We're using ".direct" always because many of these tests as currently
     // written will intermittently break on a pool, since they assume commands
@@ -98,10 +98,10 @@ class DirectConnectionSpec extends Specification
       conn.connected_? must eventually(beFalse)*/
     }
 
-    def outside: MongoConnection = conn
+    def outside: DirectConnection = conn
   }
 
-  def connectIsMaster(conn: MongoConnection) = {
+  def connectIsMaster(conn: DirectConnection) = {
     conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.trace("DB: %s", _)) })
 
     conn(integrationTestDBName).collectionNames({ colls: Seq[String] => colls.foreach(log.trace("Collection: %s", _)) })

@@ -59,6 +59,10 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
   private val addressString = addr.toString
 
+  // we cache a DirectConnection so we can send it when someone
+  // needs a single-channel connection from the pool
+  private var directConnection: Option[DirectConnection] = None
+
   private def asyncSend(channel: AkkaChannel[Any], message: Any) = {
     // We have to do this _asynchronously_ because sending a message
     // to an Akka future synchronously invokes app callbacks.
@@ -174,7 +178,10 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
           sendMessageToMongo(self.channel, clientWriteMessage)
         }
         case GetDirect => {
-          self.reply(GetDirectReply(self))
+          if (directConnection.isEmpty) {
+            directConnection = Some(new DirectConnection(addr, self))
+          }
+          self.reply(GetDirectReply(directConnection.get))
         }
       }
       log.trace("Post-send, senders waiting for reply: %s", senders)

@@ -69,7 +69,7 @@ object ConnectionActor
   // Messages we can send
   sealed trait Outgoing
 
-  case class GetDirectReply(actor: ActorRef) extends Outgoing
+  case class GetDirectReply(direct: DirectConnection) extends Outgoing
 
   sealed trait Failure extends Outgoing {
     val exception: Throwable
