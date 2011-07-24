@@ -58,9 +58,9 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
   }
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
-    val buf = e.getMessage.asInstanceOf[ChannelBuffer]
-    log.debug("Incoming Message received on (%s) Length: %s", buf, buf.readableBytes())
-    MongoMessage.unapply(new ChannelBufferInputStream(buf)) match {
+    val message = e.getMessage.asInstanceOf[MongoMessage]
+    log.debug("Incoming Message received type %s", message.getClass.getName)
+    message match {
       case reply: ReplyMessage => {
         log.debug("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
