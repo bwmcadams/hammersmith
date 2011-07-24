@@ -84,7 +84,7 @@ object Dependencies {
   val twitterUtilCore = "com.twitter" % "util-core" % "1.8.15"
 
   // akka-actor
-  val akkaActor = "se.scalablesolutions.akka" % "akka-actor" % "1.1"
+  val akkaActor = "se.scalablesolutions.akka" % "akka-actor" % "1.1.3"
 
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.4" % "test"
