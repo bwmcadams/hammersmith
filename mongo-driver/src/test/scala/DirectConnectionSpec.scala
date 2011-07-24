@@ -17,6 +17,7 @@
 package com.mongodb.async
 package test
 
+import java.net.InetSocketAddress
 import com.mongodb.async._
 import com.mongodb.async.util._
 import com.mongodb.async.futures.RequestFutures
@@ -82,7 +83,12 @@ class DirectConnectionSpec extends Specification
 
   object mongo extends AroundOutside[MongoConnection] {
 
-    val conn = MongoConnection()
+    // We're using ".direct" always because many of these tests as currently
+    // written will intermittently break on a pool, since they assume commands
+    // are sequenced. However in more typical application usage, you'd use
+    // .direct only when necessary, and it might be better if these tests
+    // did that too.
+    val conn = MongoConnection().direct
 
     def around[T <% Result](t: => T) = {
       conn.connected_? must eventually(beTrue)

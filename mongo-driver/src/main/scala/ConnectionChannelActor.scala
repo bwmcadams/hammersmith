@@ -173,6 +173,9 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         case clientWriteMessage: SendClientMessage => {
           sendMessageToMongo(self.channel, clientWriteMessage)
         }
+        case GetDirect => {
+          self.reply(GetDirectReply(self))
+        }
       }
       log.trace("Post-send, senders waiting for reply: %s", senders)
     case netty: IncomingFromNetty =>

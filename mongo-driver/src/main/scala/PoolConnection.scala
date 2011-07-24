@@ -24,17 +24,25 @@ import akka.actor.Actor
 import akka.actor.ActorRef
 
 /**
- * A single socket open to a single MongoDB instance. Normally you would
- * want to use a connection pool, rather than this class. Construct
- * a connection pool with MongoConnection(address).
+ * A pool of sockets open to a single MongoDB instance. Construct
+ * a connection pool with MongoConnection(address) rather than
+ * directly.
  */
-class DirectConnection(val addr: InetSocketAddress, override protected val connectionActor: ActorRef) extends MongoConnection with Logging {
+class PoolConnection(val addr: InetSocketAddress, override protected val connectionActor: ActorRef) extends MongoConnection with Logging {
 
-  log.info("Initializing Direct MongoDB connection on address '%s'", addr)
+  log.info("Initializing Pool MongoDB connection on address '%s'", addr)
 
   def this(addr: InetSocketAddress) = {
-    this(addr, Actor.actorOf(new ConnectionChannelActor(addr)).start)
+    this(addr, Actor.actorOf(new ConnectionPoolActor(addr)).start)
   }
 
-  override def direct: DirectConnection = this
+  override def direct: DirectConnection = {
+    val directActor = (connectionActor !! ConnectionActor.GetDirect) match {
+      case Some(reply: ConnectionActor.GetDirectReply) =>
+        reply.actor
+      case _ =>
+        throw new Exception("Failed to retrieve a direct connection; timeout, or none open? not sure")
+    }
+    new DirectConnection(addr, directActor)
+  }
 }

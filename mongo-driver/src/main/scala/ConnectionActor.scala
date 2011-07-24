@@ -43,6 +43,9 @@ object ConnectionActor
   // Messages we can handle
   sealed trait Incoming
 
+  // get an actor that guarantees ordering (a single socket)
+  case object GetDirect extends Incoming
+
   // client requests sent to us from app
   sealed trait SendClientMessage extends Incoming {
     val message: MongoClientMessage
@@ -65,6 +68,9 @@ object ConnectionActor
 
   // Messages we can send
   sealed trait Outgoing
+
+  case class GetDirectReply(actor: ActorRef) extends Outgoing
+
   sealed trait Failure extends Outgoing {
     val exception: Throwable
   }

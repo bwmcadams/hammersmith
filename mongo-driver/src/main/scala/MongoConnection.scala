@@ -384,6 +384,15 @@ abstract class MongoConnection extends Logging {
    * @see http://www.thebuzzmedia.com/mongodb-single-server-data-durability-guide/
    */
   def writeConcern = _writeConcern
+
+  /**
+   * Returns a connection that wraps a single socket to a single MongoDB instance.
+   * This is needed if you are going to do a series of commands that need to
+   * happen in serial, i.e. one command needs to see the results from the previous,
+   * such as an insert then a count, or a write then a getLastError.
+   * In that case you'd want to use connection.direct in place of plain connection.
+   */
+  def direct: DirectConnection
 }
 
 /**
@@ -399,9 +408,7 @@ object MongoConnection extends Logging {
 
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
-    // For now, only support Direct Connection
-
-    new DirectConnection(new InetSocketAddress(hostname, port))
+    new PoolConnection(new InetSocketAddress(hostname, port))
   }
 
   /**
