@@ -44,13 +44,7 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
   with BasicNoBackoffFilter
   with BasicRampup {
 
-  override def receive = {
-    case m if _route.isDefinedAt(m) => {
-      log.trace("pool %s routing message %s",
-        self.uuid, m)
-      _route.apply(m)
-    }
-  }
+  override def receive = _route
 
   // BoundedCapacitor min and max actors in pool.
   // should probably be configurable.
