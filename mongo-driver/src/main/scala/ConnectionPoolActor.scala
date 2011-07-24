@@ -20,9 +20,6 @@ package com.mongodb.async
 import akka.actor.{ Channel => AkkaChannel, _ }
 import akka.routing._
 import com.mongodb.async.wire._
-import org.jboss.netty.channel._
-import org.jboss.netty.buffer._
-import java.nio.ByteOrder
 import java.net.InetSocketAddress
 import akka.dispatch.Dispatchers
 import akka.dispatch.Future

@@ -17,24 +17,15 @@
 
 package com.mongodb.async
 
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
 import org.bson._
 import org.bson.collection._
-import org.jboss.netty.bootstrap.ClientBootstrap
-import org.jboss.netty.channel._
-import java.nio.ByteOrder
 import com.mongodb.async.wire._
 import scala.collection.JavaConversions._
 import com.mongodb.async.futures._
-import org.jboss.netty.buffer._
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.Executors
 import org.bson.types.ObjectId
 import org.bson.util.Logging
 import com.mongodb.async.util._
-import scala.collection.mutable.WeakHashMap
-import com.mongodb.async.util.ConcurrentQueue
 import akka.actor.{ Channel => _, _ }
 import akka.dispatch._
 

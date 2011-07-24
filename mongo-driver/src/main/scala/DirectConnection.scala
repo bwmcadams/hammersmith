@@ -19,7 +19,6 @@ package com.mongodb.async
 
 import org.bson.util.Logging
 import java.net.InetSocketAddress
-import org.jboss.netty.bootstrap.ClientBootstrap
 import akka.actor.Actor
 import akka.actor.ActorRef
 import java.util.concurrent.atomic.AtomicBoolean
