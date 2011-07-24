@@ -22,6 +22,8 @@ import java.net.InetSocketAddress
 import org.jboss.netty.bootstrap.ClientBootstrap
 import akka.actor.Actor
 import akka.actor.ActorRef
+import java.util.concurrent.atomic.AtomicBoolean
+import akka.dispatch.Future
 
 /**
  * A single socket open to a single MongoDB instance. Normally you would
@@ -29,9 +31,44 @@ import akka.actor.ActorRef
  * a connection pool with MongoConnection(address). Then get a direct
  * connection with "connection.direct"
  */
-class DirectConnection(val addr: InetSocketAddress, override protected val connectionActor: ActorRef) extends MongoConnection with Logging {
+class DirectConnection(val addr: InetSocketAddress,
+  override protected val connectionActor: ActorRef,
+  initiallyConnected: Boolean,
+  initiallyIsMaster: Boolean,
+  initialMaxBSONObjectSize: Int)
+  extends MongoConnection with Logging {
 
   log.info("Initializing Direct MongoDB connection on address '%s'", addr)
+
+  private val _isMaster = new AtomicBoolean(initiallyIsMaster)
+  private val _connected = new AtomicBoolean(initiallyConnected)
+
+  override def connected_? = _connected.get
+
+  override def isMaster = _isMaster.get
+
+  /**
+   * Checks the max object size on the wire for this connection.
+   * FIXME does this ever change post-connect? can it just be constant? If it
+   * does change, it can change at any time so using it may create races.
+   * For now we'll just leave it permanently with the initial value
+   * retrieved at connect time. If it could change we'd handle it
+   * the same way as isMaster
+   */
+  val maxBSONObjectSize = initialMaxBSONObjectSize
+
+  private case class CheckMasterState(isMaster: Boolean, maxBSONObjectSize: Int)
+  private var checkMasterState: Option[CheckMasterState] = None
+
+  // Called by ConnectionChannelActor to maintain our state.
+  // this is sort of a hack, but since ConnectionChannelActor caches
+  // the DirectConnection anyway, it seems dumb to pass this state
+  // via messages, when the actor already has a reference to us
+  // and can just set the state.
+  protected[mongodb] def setState(state: ConnectionChannelActor.State) = {
+    _isMaster.set(state.isMaster)
+    _connected.set(state.connected)
+  }
 
   override def direct: DirectConnection = this
 }

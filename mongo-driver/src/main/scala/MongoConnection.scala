@@ -61,40 +61,6 @@ abstract class MongoConnection extends Logging {
   // lazy to avoid forcing connection actor to be created during construct
   implicit protected lazy val connectionActorHolder = ConnectionActorHolder(connectionActor)
 
-  private case class CheckMasterState(isMaster: Boolean, maxBSONObjectSize: Int)
-  private var checkMasterState: Option[CheckMasterState] = None
-
-  /**
-   * Utility method to pull back a number of pieces of information
-   * including maxBSONObjectSize, and sort of serves as a verification
-   * of a live connection.
-   *
-   * FIXME what does this even mean when we have a pool of channels?
-   * FIXME this blocks, but if it's async the API is messed up,
-   *       since requireMaster can't mean anything.
-   *
-   * @param force Forces the isMaster call to run regardless of cached status
-   * @param requireMaster Requires a master to be found or throws an Exception
-   * @throws MongoException
-   */
-  def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
-    if (!checkMasterState.isDefined || force) {
-      log.info("Checking Master Status... (Force? %s)", force)
-      // FIXME note this is sending CheckMaster to a random actor in the pool...
-      val futureReply: Future[Any] = connectionActor !!! ConnectionActor.SendClientCheckMasterMessage(force)
-      // we block here... maybe not great?
-      futureReply.get match {
-        case ConnectionActor.CheckMasterReply(isMaster, maxBSONObjectSize) =>
-          checkMasterState = Some(CheckMasterState(isMaster, maxBSONObjectSize))
-      }
-    }
-    if (requireMaster) {
-      if (!(checkMasterState.isDefined && checkMasterState.get.isMaster)) {
-        throw new Exception("Connection is required to be master and is not")
-      }
-    }
-  }
-
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    */
@@ -338,20 +304,50 @@ abstract class MongoConnection extends Logging {
     runCommand(db, Document("deleteIndexes" -> (db + "." + collection), "index" -> name))(callback)
   }
 
-  // FIXME this doesn't really mean a whole lot on a connection pool.
-  def connected_? = {
-    if (checkMasterState.isDefined) {
-      true
-    } else {
-      // for some reason blocking in checkMaster times out
-      // right now, probably some kind of deadlock, needs debugging.
-      /*
-      checkMaster()
-      checkMasterState.isDefined
-      */
-      true
+  /**
+   * Asks the server if we are still the master connection,
+   * blocking for a reply. After this returns, the isMaster
+   * field could have a new value.
+   */
+  def checkMaster() = {
+    log.debug("Checking Master Status...")
+    val futureReply: Future[Any] = connectionActor !!! ConnectionActor.SendClientCheckMasterMessage
+    futureReply.get match {
+      case ConnectionActor.CheckMasterReply(isMaster, maxBSONObjectSize) =>
+      // the actor will have already updated isMaster, though it would be
+      // a race to assert that here.
     }
   }
+
+  /**
+   * Throws an exception if we aren't the master.
+   */
+  def throwIfNotMaster() = {
+    if (!isMaster)
+      throw new Exception("Connection is required to be master and is not")
+  }
+
+  /**
+   * Checks if the connection is connected. Almost any conceivable use
+   * of this method will create a race, because the connection can disconnect
+   * between checking this and any operation you perform. So, the main use
+   * of this is probably debugging.
+   *
+   * On direct connections this has much more meaning than on connection pools.
+   * On anything other than a single-socket direct connection, the results
+   * of this method are not well-defined.
+   */
+  def connected_? : Boolean
+
+  /**
+   * Checks if the connection is a master. Can change at any time, so
+   * many if not most uses of this are probably races.
+   *
+   * Also, in theory if the connection is a pool, the sockets in the
+   * pool may not agree or may not all agree simulataneously on this
+   * flag, and isMaster for the pool may not have well-defined behavior.
+   */
+  def isMaster: Boolean
 
   val addr: InetSocketAddress
 
@@ -406,7 +402,7 @@ abstract class MongoConnection extends Logging {
  */
 object MongoConnection extends Logging {
 
-  def apply(hostname: String = "localhost", port: Int = 27017) = {
+  def apply(hostname: String = "localhost", port: Int = 27017): MongoConnection = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     new PoolConnection(new InetSocketAddress(hostname, port))
   }

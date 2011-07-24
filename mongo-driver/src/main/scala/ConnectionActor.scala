@@ -55,7 +55,7 @@ object ConnectionActor
     val concern: WriteConcern
     override val message: MongoClientWriteMessage
   }
-  case class SendClientCheckMasterMessage(force: Boolean, override val overrideLiveCheck: Boolean = false) extends SendClientMessage {
+  case class SendClientCheckMasterMessage(override val overrideLiveCheck: Boolean = false) extends SendClientMessage {
     override val message = ConnectionActor.createCommand("admin", Document("isMaster" -> 1))
   }
   case class SendClientGetMoreMessage(override val message: GetMoreMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage

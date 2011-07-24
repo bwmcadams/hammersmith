@@ -150,6 +150,12 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     })
   }
 
+  private def updateDirectConnection(state: State) = {
+    directConnection foreach { d =>
+      d.setState(state)
+    }
+  }
+
   override def preStart = {
     log.trace("preStart on %s", self.uuid)
     logActorState("preStart", self)
@@ -162,6 +168,9 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
   override def postStop = {
     log.trace("postStop on %s", self.uuid)
+    // since DirectConnection is application-visible we update it before
+    // we send the messages out to the app or update ourselves
+    updateDirectConnection(State(connected = false, isMaster = false))
     failAllPending(ConnectionFailure(new Exception("Connection to %s stopped".format(addressString))))
     maybeChannel foreach { channel =>
       channel.close()
@@ -179,7 +188,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         }
         case GetDirect => {
           if (directConnection.isEmpty) {
-            directConnection = Some(new DirectConnection(addr, self))
+            directConnection = Some(new DirectConnection(addr, self, maybeChannel.isDefined, isMaster, maxBSONObjectSize))
           }
           self.reply(GetDirectReply(directConnection.get))
         }
@@ -240,17 +249,10 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   }
 
   private def sendMessageToMongo(senderChannel: AkkaChannel[Any], clientRequest: SendClientMessage): Unit = {
-    val doNothing = clientRequest match {
-      case r: SendClientCheckMasterMessage =>
-        !r.force
-      case _ =>
-        false
-    }
-    if (doNothing)
-      return
-
     val channel = maybeChannel.get
 
+    // this is kind of a bogus check... it'd be a bug if it were required, because
+    // the channel can close right after we check this.
     if (!channel.isConnected) {
       asyncSend(senderChannel, ConnectionFailure(new Exception("Channel is closed.")))
       return
@@ -260,8 +262,28 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     // if no reply builder, then it's fire-and-forget, no reply
     val maybeReplyBuilder = clientRequest match {
       case r: SendClientCheckMasterMessage => {
-        require(r.force)
-        Some(ConnectionActor.buildCheckMasterReply(_))
+        // we intercept replies to isMaster
+        // and update our own internal state
+        def buildCheckMasterReply(reply: ReplyMessage): ConnectionActor.Outgoing = {
+          val result = ConnectionActor.buildCheckMasterReply(reply)
+          result match {
+            case CheckMasterReply(newIsMaster, newMaxBSONObjectSize) =>
+              if (isMaster != newIsMaster) {
+                log.debug("isMaster changing to %s", newIsMaster)
+                // update our own state
+                isMaster = newIsMaster
+                // update the associated DirectConnection
+                updateDirectConnection(State(isMaster = newIsMaster, connected = maybeChannel.isDefined))
+              }
+              if (maxBSONObjectSize != newMaxBSONObjectSize) {
+                log.warn("maxBSONObjectSize changing %d->%d, this isn't handled yet in Hammersmith",
+                  maxBSONObjectSize, newMaxBSONObjectSize)
+              }
+            case _ => // nothing to do, reply must be an error or something
+          }
+          result
+        }
+        Some(buildCheckMasterReply(_))
       }
       case r: SendClientGetMoreMessage =>
         Some(ConnectionActor.buildGetMoreReply(_))
@@ -347,6 +369,8 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
 private[mongodb] object ConnectionChannelActor
   extends Logging {
+
+  case class State(connected: Boolean, isMaster: Boolean)
 
   // These are some extra messages specific to the netty channel,
   // that plain ConnectionActor doesn't support. We also get all

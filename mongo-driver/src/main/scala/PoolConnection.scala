@@ -44,4 +44,9 @@ class PoolConnection(val addr: InetSocketAddress, override protected val connect
         throw new Exception("Failed to retrieve a direct connection; timeout, or none open? not sure")
     }
   }
+
+  // for now, define "connected" to mean "an arbitrary actor in the pool is connected"
+  override def connected_? = direct.connected_?
+  // for now, define "isMaster" to mean "an arbitrary actor in the pool is master"
+  override def isMaster = direct.isMaster
 }
