@@ -453,24 +453,24 @@ object MongoConnection extends Logging {
    * This whole mess could be deleted in an API-breaking phase 2, in which
    * we'd use Akka futures and eliminate the RequestFuture.
    */
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit connectionActorHolder: ConnectionActorHolder, concern: WriteConcern): Unit = {
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit connectionActorHolder: ConnectionActorHolder, concern: WriteConcern): Unit = {
     val connectionActor = connectionActorHolder.actor
     val actorMessage: ConnectionActor.Incoming =
       (msg, f) match {
         case (m: QueryMessage, rf: CursorQueryRequestFuture) =>
-          ConnectionActor.SendClientCursorMessage(m, _overrideLiveCheck)
+          ConnectionActor.SendClientCursorMessage(m)
         case (m: GetMoreMessage, rf: GetMoreRequestFuture) =>
-          ConnectionActor.SendClientGetMoreMessage(m, _overrideLiveCheck)
+          ConnectionActor.SendClientGetMoreMessage(m)
         case (m: QueryMessage, rf: SingleDocQueryRequestFuture) =>
-          ConnectionActor.SendClientSingleDocumentMessage(m, _overrideLiveCheck)
+          ConnectionActor.SendClientSingleDocumentMessage(m)
         case (m: QueryMessage, rf: FindAndModifyRequestFuture) =>
-          ConnectionActor.SendClientOptionalSingleDocumentMessage(m, _overrideLiveCheck)
+          ConnectionActor.SendClientOptionalSingleDocumentMessage(m)
         case (m: MongoClientWriteMessage, rf: WriteRequestFuture) =>
-          ConnectionActor.SendClientSingleWriteMessage(m, concern, _overrideLiveCheck)
+          ConnectionActor.SendClientSingleWriteMessage(m, concern)
         case (m: MongoClientWriteMessage, rf: BatchWriteRequestFuture) =>
-          ConnectionActor.SendClientBatchWriteMessage(m, concern, _overrideLiveCheck)
+          ConnectionActor.SendClientBatchWriteMessage(m, concern)
         case (m: KillCursorsMessage, NoOpRequestFuture) =>
-          ConnectionActor.SendClientKillCursorsMessage(m, _overrideLiveCheck)
+          ConnectionActor.SendClientKillCursorsMessage(m)
       }
     if (f == NoOpRequestFuture) {
       connectionActor ! actorMessage

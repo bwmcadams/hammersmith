@@ -49,22 +49,21 @@ object ConnectionActor
   // client requests sent to us from app
   sealed trait SendClientMessage extends Incoming {
     val message: MongoClientMessage
-    val overrideLiveCheck: Boolean // FIXME this means nothing now because we don't process messages on non-live actors
   }
   sealed trait SendClientWriteMessage extends SendClientMessage {
     val concern: WriteConcern
     override val message: MongoClientWriteMessage
   }
-  case class SendClientCheckMasterMessage(override val overrideLiveCheck: Boolean = false) extends SendClientMessage {
+  case class SendClientCheckMasterMessage() extends SendClientMessage {
     override val message = ConnectionActor.createCommand("admin", Document("isMaster" -> 1))
   }
-  case class SendClientGetMoreMessage(override val message: GetMoreMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
-  case class SendClientCursorMessage(override val message: QueryMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
-  case class SendClientSingleDocumentMessage(override val message: QueryMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
-  case class SendClientOptionalSingleDocumentMessage(override val message: QueryMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
-  case class SendClientKillCursorsMessage(override val message: KillCursorsMessage, override val overrideLiveCheck: Boolean = false) extends SendClientMessage
-  case class SendClientSingleWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern, override val overrideLiveCheck: Boolean = false) extends SendClientWriteMessage
-  case class SendClientBatchWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern, override val overrideLiveCheck: Boolean = false) extends SendClientWriteMessage
+  case class SendClientGetMoreMessage(override val message: GetMoreMessage) extends SendClientMessage
+  case class SendClientCursorMessage(override val message: QueryMessage) extends SendClientMessage
+  case class SendClientSingleDocumentMessage(override val message: QueryMessage) extends SendClientMessage
+  case class SendClientOptionalSingleDocumentMessage(override val message: QueryMessage) extends SendClientMessage
+  case class SendClientKillCursorsMessage(override val message: KillCursorsMessage) extends SendClientMessage
+  case class SendClientSingleWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern) extends SendClientWriteMessage
+  case class SendClientBatchWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern) extends SendClientWriteMessage
 
   // Messages we can send
   sealed trait Outgoing
