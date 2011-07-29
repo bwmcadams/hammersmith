@@ -91,7 +91,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    */
   def batchInsert[T](docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.trace("Batch Inserting: %s to %s.%s with WriteConcern: %s", docs, db, name, concern)
-    val checked = docs.map(x => {
+    val checked = docs.map(x ⇒ {
       m.checkObject(x)
       m.checkID(x)
     })
@@ -156,17 +156,17 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.command(Document("deleteIndexes" -> (nameWithDB), "index" -> idxName))(callback)
   }
 
-  def dropAllIndexes()(callback: (Boolean) => Unit) {
+  def dropAllIndexes()(callback: (Boolean) ⇒ Unit) {
     dropAllIndexesRequestFuture(boolCmdResultCallback(callback))
   }
 
-  def dropIndex(idxName: String)(callback: (Boolean) => Unit) {
+  def dropIndex(idxName: String)(callback: (Boolean) ⇒ Unit) {
     dropIndexRequestFuture(idxName)(boolCmdResultCallback(callback))
   }
 
   // TODO - dropIndex(keys)
 
-  def dropCollection()(callback: (Boolean) => Unit) {
+  def dropCollection()(callback: (Boolean) ⇒ Unit) {
     // TODO - Reset Index Cache
     db.command(Document("drop" -> name))(boolCmdResultCallback(callback))
   }
@@ -176,9 +176,9 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * -1 indicates an error, for now
    */
   def count[Qry: SerializableBSONObject, Flds: SerializableBSONObject](query: Qry = Document.empty,
-    fields: Flds = Document.empty,
-    limit: Long = 0,
-    skip: Long = 0)(callback: Int => Unit) = {
+                                                                       fields: Flds = Document.empty,
+                                                                       limit: Long = 0,
+                                                                       skip: Long = 0)(callback: Int ⇒ Unit) = {
     val builder = OrderedDocument.newBuilder
     builder += ("count" -> name)
     builder += ("query" -> query)
@@ -187,7 +187,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
       builder += ("limit" -> limit)
     if (skip > 0)
       builder += ("skip" -> skip)
-    db.command(builder.result)(SimpleRequestFutures.command((doc: Document) => {
+    db.command(builder.result)(SimpleRequestFutures.command((doc: Document) ⇒ {
       log.trace("Got a result from 'count' command: %s", doc)
       callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
     }))
@@ -242,7 +242,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
       cmd += "remove" -> true
     } else {
       log.debug("FindAndModify 'modify' mode.  GetNew? %s Upsert? %s", getNew, upsert)
-      update.foreach(_up => {
+      update.foreach(_up ⇒ {
         log.trace("Update spec set. %s", _up)
         // If first key does not start with a $, then the object must be inserted as is and should be checked.
         // TODO - FIX AND UNCOMMENT ME
@@ -257,15 +257,15 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     implicit val valM = callback.m
     implicit val valDec = new SerializableFindAndModifyResult[callback.T]()(callback.decoder, valM)
 
-    db.command(cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) => {
+    db.command(cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) ⇒ {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
       val doc = reply.value
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
         callback(reply.getAs[String]("errmsg") match {
-          case Some("No matching object found") => new NoMatchingDocumentError()
-          case default => {
+          case Some("No matching object found") ⇒ new NoMatchingDocumentError()
+          case default ⇒ {
             log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
             new MongoException("FindAndModifyError: %s".format(default))
           }
@@ -277,8 +277,8 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   /**
    *
    */
-  def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] => Unit) {
-    db.command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
+  def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] ⇒ Unit) {
+    db.command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) ⇒ callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
   }
 
   /**

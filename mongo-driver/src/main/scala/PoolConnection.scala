@@ -37,9 +37,9 @@ class PoolConnection(val addr: InetSocketAddress, override protected val connect
 
   override def direct: DirectConnection = {
     (connectionActor !! ConnectionActor.GetDirect) match {
-      case Some(reply: ConnectionActor.GetDirectReply) =>
+      case Some(reply: ConnectionActor.GetDirectReply) ⇒
         reply.direct
-      case _ =>
+      case _ ⇒
         throw new Exception("Failed to retrieve a direct connection; timeout, or none open? not sure")
     }
   }

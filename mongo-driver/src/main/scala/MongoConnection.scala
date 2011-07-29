@@ -26,7 +26,7 @@ import com.mongodb.async.futures._
 import org.bson.types.ObjectId
 import org.bson.util.Logging
 import com.mongodb.async.util._
-import akka.actor.{ Channel => _, _ }
+import akka.actor.{ Channel ⇒ _, _ }
 import akka.dispatch._
 
 // this is needed because "implicit ActorRef" is too dangerous, need a dedicated type
@@ -74,8 +74,8 @@ abstract class MongoConnection extends Logging {
    */
   def database(dbName: String): DB = new DB(dbName)(this)
 
-  def databaseNames(callback: Seq[String] => Unit) {
-    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) => {
+  def databaseNames(callback: Seq[String] ⇒ Unit) {
+    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) ⇒ {
       log.trace("Got a result from 'listDatabases' command: %s", doc)
       if (!doc.isEmpty) {
         val dbs = {
@@ -99,7 +99,7 @@ abstract class MongoConnection extends Logging {
     log.debug("Checking Master Status...")
     val futureReply: Future[Any] = connectionActor !!! ConnectionActor.SendClientCheckMasterMessage
     futureReply.get match {
-      case ConnectionActor.CheckMasterReply(isMaster, maxBSONObjectSize) =>
+      case ConnectionActor.CheckMasterReply(isMaster, maxBSONObjectSize) ⇒
       // the actor will have already updated isMaster, though it would be
       // a race to assert that here.
     }
@@ -204,22 +204,22 @@ object MongoConnection extends Logging {
    * @see http://www.mongodb.org/display/DOCS/Connections
    */
   def fromURI(uri: String): (MongoConnection, Option[DB], Option[Collection]) = uri match {
-    case MongoURI(hosts, db, collection, username, password, options) => {
+    case MongoURI(hosts, db, collection, username, password, options) ⇒ {
       require(hosts.size > 0, "No valid hosts found in parsed host list")
       if (hosts.size == 1) {
         val _conn = MongoConnection(hosts.head._1, hosts.head._2)
         // TODO - Authentication!
         val _db = db match {
-          case Some(dbName) => Some(_conn(dbName))
-          case None => None
+          case Some(dbName) ⇒ Some(_conn(dbName))
+          case None ⇒ None
         }
 
         val _coll = collection match {
-          case Some(collName) => {
+          case Some(collName) ⇒ {
             assume(_db.isDefined, "Cannot specify a collection name with no DB Name")
             Some(_db.get.apply(collName))
           }
-          case None => None
+          case None ⇒ None
         }
         (_conn, _db, _coll)
       } else throw new UnsupportedOperationException("No current support for multiple hosts in this driver")
@@ -228,19 +228,19 @@ object MongoConnection extends Logging {
 
   private def completeRequestFuture(f: RequestFuture, reply: ConnectionActor.Outgoing) = {
     (reply, f) match {
-      case (ConnectionActor.CursorReply(cursorActor), rf: CursorQueryRequestFuture) =>
+      case (ConnectionActor.CursorReply(cursorActor), rf: CursorQueryRequestFuture) ⇒
         rf(Cursor[rf.DocType](cursorActor)(rf.decoder).asInstanceOf[rf.T])
-      case (ConnectionActor.GetMoreReply(cursorId, docs), rf: GetMoreRequestFuture) =>
-        rf(cursorId, docs map { doc => rf.decoder.decode(doc) })
-      case (ConnectionActor.SingleDocumentReply(doc), rf: SingleDocQueryRequestFuture) =>
+      case (ConnectionActor.GetMoreReply(cursorId, docs), rf: GetMoreRequestFuture) ⇒
+        rf(cursorId, docs map { doc ⇒ rf.decoder.decode(doc) })
+      case (ConnectionActor.SingleDocumentReply(doc), rf: SingleDocQueryRequestFuture) ⇒
         rf(rf.decoder.decode(doc))
-      case (ConnectionActor.OptionalSingleDocumentReply(maybeDoc), rf: FindAndModifyRequestFuture) =>
+      case (ConnectionActor.OptionalSingleDocumentReply(maybeDoc), rf: FindAndModifyRequestFuture) ⇒
         rf(rf.decoder.decode(maybeDoc.get)) // FIXME the FindAndModifyRequestFuture should take an Option?
-      case (ConnectionActor.WriteReply(maybeId, result), rf: WriteRequestFuture) =>
+      case (ConnectionActor.WriteReply(maybeId, result), rf: WriteRequestFuture) ⇒
         rf((maybeId, result).asInstanceOf[rf.T]) // something is busted that we need this cast
-      case (ConnectionActor.BatchWriteReply(maybeIds, result), rf: BatchWriteRequestFuture) =>
+      case (ConnectionActor.BatchWriteReply(maybeIds, result), rf: BatchWriteRequestFuture) ⇒
         rf((maybeIds, result).asInstanceOf[rf.T]) // something is busted that we need this cast
-      case (_, NoOpRequestFuture) => // silence compiler, can't happen
+      case (_, NoOpRequestFuture) ⇒ // silence compiler, can't happen
     }
   }
 
@@ -252,33 +252,33 @@ object MongoConnection extends Logging {
     val connectionActor = connectionActorHolder.actor
     val actorMessage: ConnectionActor.Incoming =
       (msg, f) match {
-        case (m: QueryMessage, rf: CursorQueryRequestFuture) =>
+        case (m: QueryMessage, rf: CursorQueryRequestFuture) ⇒
           ConnectionActor.SendClientCursorMessage(m)
-        case (m: GetMoreMessage, rf: GetMoreRequestFuture) =>
+        case (m: GetMoreMessage, rf: GetMoreRequestFuture) ⇒
           ConnectionActor.SendClientGetMoreMessage(m)
-        case (m: QueryMessage, rf: SingleDocQueryRequestFuture) =>
+        case (m: QueryMessage, rf: SingleDocQueryRequestFuture) ⇒
           ConnectionActor.SendClientSingleDocumentMessage(m)
-        case (m: QueryMessage, rf: FindAndModifyRequestFuture) =>
+        case (m: QueryMessage, rf: FindAndModifyRequestFuture) ⇒
           ConnectionActor.SendClientOptionalSingleDocumentMessage(m)
-        case (m: MongoClientWriteMessage, rf: WriteRequestFuture) =>
+        case (m: MongoClientWriteMessage, rf: WriteRequestFuture) ⇒
           ConnectionActor.SendClientSingleWriteMessage(m, concern)
-        case (m: MongoClientWriteMessage, rf: BatchWriteRequestFuture) =>
+        case (m: MongoClientWriteMessage, rf: BatchWriteRequestFuture) ⇒
           ConnectionActor.SendClientBatchWriteMessage(m, concern)
-        case (m: KillCursorsMessage, NoOpRequestFuture) =>
+        case (m: KillCursorsMessage, NoOpRequestFuture) ⇒
           ConnectionActor.SendClientKillCursorsMessage(m)
       }
     if (f == NoOpRequestFuture) {
       connectionActor ! actorMessage
     } else {
       val replyFuture: Future[Any] = connectionActor !!! actorMessage
-      replyFuture.onComplete({ replyFuture =>
+      replyFuture.onComplete({ replyFuture ⇒
         try {
           replyFuture.get match {
-            case o: ConnectionActor.Outgoing =>
+            case o: ConnectionActor.Outgoing ⇒
               completeRequestFuture(f, o)
           }
         } catch {
-          case e: Throwable =>
+          case e: Throwable ⇒
             f(e)
         }
       })

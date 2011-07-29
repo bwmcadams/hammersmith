@@ -30,17 +30,14 @@ import org.specs2.Specification
 import org.specs2.specification._
 import org.specs2.matcher._
 
-
-
 trait HammersmithDefaultDBNames {
-  val integrationTestDBName= "hammersmithIntegration"
-   
+  val integrationTestDBName = "hammersmithIntegration"
+
 }
 class DirectConnectionSpec extends Specification
-  with Logging 
-  with HammersmithDefaultDBNames{
-  
- 
+    with Logging
+    with HammersmithDefaultDBNames {
+
   def is =
     "The MongoDB Direct Connection" ^
       "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster) ^
@@ -90,7 +87,7 @@ class DirectConnectionSpec extends Specification
     // did that too.
     val conn = MongoConnection().direct
 
-    def around[T <% Result](t: => T) = {
+    def around[T <% Result](t: ⇒ T) = {
       conn.connected_? must eventually(beTrue)
       t
       // TODO - make sure this works (We are reusing)
@@ -102,9 +99,9 @@ class DirectConnectionSpec extends Specification
   }
 
   def connectIsMaster(conn: DirectConnection) = {
-    conn.databaseNames({ dbs: Seq[String] => dbs.foreach(log.trace("DB: %s", _)) })
+    conn.databaseNames({ dbs: Seq[String] ⇒ dbs.foreach(log.trace("DB: %s", _)) })
 
-    conn(integrationTestDBName).collectionNames({ colls: Seq[String] => colls.foreach(log.trace("Collection: %s", _)) })
+    conn(integrationTestDBName).collectionNames({ colls: Seq[String] ⇒ colls.foreach(log.trace("Collection: %s", _)) })
 
     conn.connected_? must eventually(beTrue)
 
@@ -113,8 +110,8 @@ class DirectConnectionSpec extends Specification
   // todo - this relies heavily on whats on my local workstation; needs to be generic
   def iterateSimpleCursor(conn: MongoConnection) = {
     var x = 0
-    conn(integrationTestDBName)("books").find(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
-      for (doc <- cursor) {
+    conn(integrationTestDBName)("books").find(Document.empty, Document.empty)((cursor: Cursor[Document]) ⇒ {
+      for (doc ← cursor) {
         x += 1
       }
     })
@@ -124,19 +121,19 @@ class DirectConnectionSpec extends Specification
 
   def iterateComplexCursor(conn: MongoConnection) = {
     var x = 0
-    conn(integrationTestDBName)("books").find(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
-      def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-        case Cursor.Entry(doc) => {
-          x += 1
-          if (x < 100) Cursor.Next(next) else Cursor.Done
+    conn(integrationTestDBName)("books").find(Document.empty, Document.empty)((cursor: Cursor[Document]) ⇒ {
+        def next(op: Cursor.IterState): Cursor.IterCmd = op match {
+          case Cursor.Entry(doc) ⇒ {
+            x += 1
+            if (x < 100) Cursor.Next(next) else Cursor.Done
+          }
+          case Cursor.Empty ⇒ {
+            if (x < 100) Cursor.NextBatch(next) else Cursor.Done
+          }
+          case Cursor.EOF ⇒ {
+            Cursor.Done
+          }
         }
-        case Cursor.Empty => {
-          if (x < 100) Cursor.NextBatch(next) else Cursor.Done
-        }
-        case Cursor.EOF => {
-          Cursor.Done
-        }
-      }
       Cursor.iterate(cursor)(next)
     })
 
@@ -144,8 +141,8 @@ class DirectConnectionSpec extends Specification
   }
 
   def distinctValue(conn: MongoConnection) = {
-    conn(integrationTestDBName)("books").distinct("author")((values: Seq[Any]) => {
-      for (item <- values) {
+    conn(integrationTestDBName)("books").distinct("author")((values: Seq[Any]) ⇒ {
+      for (item ← values) {
         log.trace("Got a value: %s", item.asInstanceOf[String])
       }
     })
@@ -155,13 +152,13 @@ class DirectConnectionSpec extends Specification
 
   def noopInsert(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("test_insert")
-    mongo.dropCollection()(success => {
+    mongo.dropCollection()(success ⇒ {
       log.debug("Dropped collection... Success? " + success)
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz")) {}
     // TODO - Implement 'count'
     var doc = Document.empty
-    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) => {
+    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) ⇒ {
       doc = _doc
     })
     doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
@@ -169,16 +166,16 @@ class DirectConnectionSpec extends Specification
 
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("test_insert")
-    mongo.dropCollection()(success => {
+    mongo.dropCollection()(success ⇒ {
       log.debug("Dropped collection... Success? " + success)
     })
     var id: AnyRef = null
-    mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))((oid: Option[AnyRef], res: WriteResult) => {
+    mongo.insert(Document("foo" -> "bar", "bar" -> "baz"))((oid: Option[AnyRef], res: WriteResult) ⇒ {
       id = oid.getOrElse(null)
     })
     // TODO - Implement 'count'
     var doc: Document = Document.empty
-    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) => {
+    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) ⇒ {
       doc = _doc
     })
     doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
@@ -187,19 +184,19 @@ class DirectConnectionSpec extends Specification
   def insertWithSafeImplicitWriteConcern(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("test_insert")
     implicit val safeWrite = WriteConcern.Safe
-    mongo.dropCollection()(success => {
+    mongo.dropCollection()(success ⇒ {
       log.debug("Dropped collection... Success? " + success)
     })
     var id: Option[AnyRef] = null
     var ok: Option[Boolean] = None
 
-    val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) => {
+    val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) ⇒ {
       result match {
-        case Right((oid, wr)) => {
+        case Right((oid, wr)) ⇒ {
           ok = Some(true)
           id = oid
         }
-        case Left(t) => {
+        case Left(t) ⇒ {
           ok = Some(false)
           log.error(t, "Command Failed.")
         }
@@ -210,7 +207,7 @@ class DirectConnectionSpec extends Specification
     id must not(beNull.eventually)
     // TODO - Implement 'count'
     var doc: Document = null
-    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) => {
+    mongo.findOne(Document("foo" -> "bar"))((_doc: Document) ⇒ {
       doc = _doc
     })
     doc must not(beNull.eventually)
@@ -219,21 +216,21 @@ class DirectConnectionSpec extends Specification
 
   def idDebug(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("idGen")
-    mongo.dropCollection()(success => {
+    mongo.dropCollection()(success ⇒ {
       log.debug("Dropped collection... Success? " + success)
     })
     val id = new ObjectId()
     var ok: Option[Boolean] = None
     log.debug("Generated a new _id : %s", id)
     var insertedID: Option[AnyRef] = None
-    val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) => {
+    val handler = RequestFutures.write((result: Either[Throwable, (Option[AnyRef], WriteResult)]) ⇒ {
       result match {
-        case Right((oid, wr)) => {
+        case Right((oid, wr)) ⇒ {
           ok = Some(true)
           insertedID = oid
           log.debug("*** Insert Success.  ID: %s", insertedID)
         }
-        case Left(t) => {
+        case Left(t) ⇒ {
           ok = Some(false)
           log.error(t, "*** Insert Failed.")
         }
@@ -246,7 +243,7 @@ class DirectConnectionSpec extends Specification
 
     var savedID: Option[ObjectId] = None
     //TODO - test findOneByID
-    mongo.findOne()((_doc: Document) => {
+    mongo.findOne()((_doc: Document) ⇒ {
       savedID = _doc.getAs[ObjectId]("_id")
     })
     savedID must eventually(beSome(id))
@@ -254,31 +251,31 @@ class DirectConnectionSpec extends Specification
 
   def countCmd(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("countCmd")
-    mongo.dropCollection() { success => }
+    mongo.dropCollection() { success ⇒ }
     var n: Int = -10
-    mongo.count()((_n: Int) => n = _n)
+    mongo.count()((_n: Int) ⇒ n = _n)
     n must eventually(beEqualTo(0))
 
     // Now stuff some crap in there to test again
-    for (i <- 0 until 10)
+    for (i ← 0 until 10)
       mongo.insert(Document("foo" -> "y", "bar" -> "x")) {}
 
-    mongo.count()((_n: Int) => n = _n)
+    mongo.count()((_n: Int) ⇒ n = _n)
 
     n must eventually(beEqualTo(10))
   }
 
   def batchInsert(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("batchInsert")
-    mongo.dropCollection() { success => }
-    mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*) {}
+    mongo.dropCollection() { success ⇒ }
+    mongo.batchInsert((0 until 100).map(x ⇒ Document("x" -> x)): _*) {}
     var n: Int = -10
-    mongo.count()((_n: Int) => n = _n)
+    mongo.count()((_n: Int) ⇒ n = _n)
     n must eventually(beEqualTo(100))
   }
   def simpleFindAndModify(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("findModify")
-    mongo.dropCollection() { success => }
+    mongo.dropCollection() { success ⇒ }
     mongo.insert(Document("name" -> "Next promo", "inprogress" -> false, "priority" -> 0, "tasks" -> Seq("select product", "add inventory", "do placement"))) {}
     mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 1, "tasks" -> Seq("run sales report", "email report"))) {}
     mongo.insert(Document("name" -> "Biz report", "inprogress" -> false, "priority" -> 2, "tasks" -> Seq("run marketing report", "email report"))) {}
@@ -288,7 +285,7 @@ class DirectConnectionSpec extends Specification
     mongo.findAndModify(query = Document("inprogress" -> false, "name" -> "Biz report"),
       sort = Document("priority" -> -1),
       update = Some(Document("$set" -> Document("inprogress" -> true, "started" -> startDate))),
-      getNew = true) { doc: Option[Document] =>
+      getNew = true) { doc: Option[Document] ⇒
         log.trace("FAM Doc: %s", doc)
         doc.foreach(found = _)
       }
@@ -297,27 +294,27 @@ class DirectConnectionSpec extends Specification
 
   def findAndRemoveTest(conn: MongoConnection) = {
     val mongo = conn(integrationTestDBName)("findRemove")
-    mongo.dropCollection() { success => }
-    mongo.batchInsert((0 until 100).map(x => Document("x" -> x)): _*) {}
+    mongo.dropCollection() { success ⇒ }
+    mongo.batchInsert((0 until 100).map(x ⇒ Document("x" -> x)): _*) {}
     var n: Int = -10
-    mongo.count()((_n: Int) => n = _n)
+    mongo.count()((_n: Int) ⇒ n = _n)
     n must eventually(beEqualTo(100))
     var x: Int = -1
-    mongo.findAndRemove(Document.empty) { result: Option[Document] =>
+    mongo.findAndRemove(Document.empty) { result: Option[Document] ⇒
       result match {
-        case Some(doc) => x = doc.as[Int]("x")
+        case Some(doc) ⇒ x = doc.as[Int]("x")
       }
     }
     x must eventually(beEqualTo(0))
-    mongo.findAndRemove(Document.empty) { result: Option[Document] =>
+    mongo.findAndRemove(Document.empty) { result: Option[Document] ⇒
       result match {
-        case Some(doc) => x = doc.as[Int]("x")
+        case Some(doc) ⇒ x = doc.as[Int]("x")
       }
     }
     x must eventually(beEqualTo(1))
-    mongo.findAndRemove(Document.empty) { result: Option[Document] =>
+    mongo.findAndRemove(Document.empty) { result: Option[Document] ⇒
       result match {
-        case Some(doc) => x = doc.as[Int]("x")
+        case Some(doc) ⇒ x = doc.as[Int]("x")
       }
     }
     x must eventually(beEqualTo(2))

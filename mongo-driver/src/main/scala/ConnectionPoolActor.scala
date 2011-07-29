@@ -17,7 +17,7 @@
 
 package com.mongodb.async
 
-import akka.actor.{ Channel => AkkaChannel, _ }
+import akka.actor.{ Channel ⇒ AkkaChannel, _ }
 import akka.routing._
 import com.mongodb.async.wire._
 import java.net.InetSocketAddress
@@ -25,21 +25,21 @@ import akka.dispatch.Dispatchers
 import akka.dispatch.Future
 
 protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress)
-  extends ConnectionActor
-  with Actor
-  with DefaultActorPool
-  with BoundedCapacityStrategy
-  // there's an NPE in Akka with this capacitor right now.
-  //with MailboxPressureCapacitor // overrides pressureThreshold based on mailboxes
-  with ActiveFuturesPressureCapacitor // mailbox makes way more sense, but this isn't broken for now
-  with SmallestMailboxSelector
-  //with RunningMeanBackoff
-  // With a backoff filter, ActorPool kills connections immediately
-  // even with pending replies, while we need to first stop sending them
-  // stuff and then leave them for a timeout, I guess.
-  // FIXME For now, just never stop connections.
-  with BasicNoBackoffFilter
-  with BasicRampup {
+    extends ConnectionActor
+    with Actor
+    with DefaultActorPool
+    with BoundedCapacityStrategy
+    // there's an NPE in Akka with this capacitor right now.
+    //with MailboxPressureCapacitor // overrides pressureThreshold based on mailboxes
+    with ActiveFuturesPressureCapacitor // mailbox makes way more sense, but this isn't broken for now
+    with SmallestMailboxSelector
+    //with RunningMeanBackoff
+    // With a backoff filter, ActorPool kills connections immediately
+    // even with pending replies, while we need to first stop sending them
+    // stuff and then leave them for a timeout, I guess.
+    // FIXME For now, just never stop connections.
+    with BasicNoBackoffFilter
+    with BasicRampup {
 
   override def receive = _route
 

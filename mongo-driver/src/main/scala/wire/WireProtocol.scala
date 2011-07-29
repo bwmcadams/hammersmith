@@ -137,35 +137,35 @@ object MongoMessage extends Logging {
     }
 
     OpCode(header.opCode) match {
-      case OpCode.OpReply => {
+      case OpCode.OpReply ⇒ {
         log.debug("[Incoming Message] OpCode is 'OP_REPLY'")
         ReplyMessage(header, in)
       }
-      case OpCode.OpMsg => {
+      case OpCode.OpMsg ⇒ {
         log.warn("[Incoming Message] Deprecated message type 'OP_MSG' received.")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
-      case OpCode.OpUpdate => {
+      case OpCode.OpUpdate ⇒ {
         log.debug("[Incoming Message] OpCode is 'OP_UPDATE'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
-      case OpCode.OpInsert => {
+      case OpCode.OpInsert ⇒ {
         log.debug("[Incoming Message] OpCode is 'OP_INSERT'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
-      case OpCode.OpGetMore => {
+      case OpCode.OpGetMore ⇒ {
         log.debug("[Incoming Message] OpCode is 'OP_GET_MORE'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
-      case OpCode.OpDelete => {
+      case OpCode.OpDelete ⇒ {
         log.debug("[Incoming Message] OpCode is 'OP_DELETE'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
-      case OpCode.OpKillCursors => {
+      case OpCode.OpKillCursors ⇒ {
         log.debug("[Incoming Message] OpCode is 'OP_KILL_CURSORS'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
       }
-      case unknown => {
+      case unknown ⇒ {
         log.error("Unknown Message OpCode '%d'", unknown)
         throw new UnsupportedOperationException("Invalid Message Type with OpCode '%d'".format(unknown))
       }

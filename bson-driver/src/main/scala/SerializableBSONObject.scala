@@ -31,7 +31,7 @@ trait SerializableBSONObject[T] {
 
   def decode(in: InputStream): T
 
-  def decode(bytes: Seq[Array[Byte]]): Seq[T] = for (b <- bytes) yield decode(b)
+  def decode(bytes: Seq[Array[Byte]]): Seq[T] = for (b ← bytes) yield decode(b)
 
   def decode(b: Array[Byte]): T = decode(new ByteArrayInputStream(b))
 

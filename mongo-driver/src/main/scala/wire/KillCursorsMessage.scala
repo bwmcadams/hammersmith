@@ -40,7 +40,7 @@ trait KillCursorsMessage extends MongoClientMessage {
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeInt(numCursors)
-    for (_id <- cursorIDs) enc.writeLong(_id)
+    for (_id ← cursorIDs) enc.writeLong(_id)
   }
 }
 

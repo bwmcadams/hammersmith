@@ -30,13 +30,13 @@ import scala.annotation.tailrec
  * traversal. It's wrapped by a public Cursor class.
  */
 private[mongodb] class CursorActor(private val connectionActor: ActorRef,
-  private val cursorID: Long,
-  private val namespace: String,
-  private var startIndex: Int,
-  initialDocuments: Seq[Array[Byte]], // note, not a val - don't want to keep it around, might be huge
-  private var batchSize: Int = 0)
-  extends Actor
-  with Logging {
+                                   private val cursorID: Long,
+                                   private val namespace: String,
+                                   private var startIndex: Int,
+                                   initialDocuments: Seq[Array[Byte]], // note, not a val - don't want to keep it around, might be huge
+                                   private var batchSize: Int = 0)
+    extends Actor
+    with Logging {
 
   import CursorActor._
 
@@ -74,14 +74,14 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
   }
 
   override def receive: Receive = {
-    case GetMore => {
+    case GetMore ⇒ {
       log.trace("Someone sent GetMore to CursorActor cursorID %s", cursorID)
       sendersWhoWantMore = sendersWhoWantMore.enqueue(self.channel)
       satisfySendersWhoWantMore()
     }
-    case SetBatchSize(value) =>
+    case SetBatchSize(value) ⇒
       batchSize = value
-    case ConnectionActor.GetMoreReply(replyID, replyDocs) => {
+    case ConnectionActor.GetMoreReply(replyID, replyDocs) ⇒ {
       log.trace("CursorActor got a result from 'getMore' command (id: %d).", replyID)
 
       // Update all our fields
@@ -95,7 +95,7 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
       // maybe we can make the requesters happy now
       satisfySendersWhoWantMore()
     }
-    case failure: ConnectionActor.Failure => {
+    case failure: ConnectionActor.Failure ⇒ {
       log.error("CursorActor got a failure from getMore command %s", failure.exception)
       // TDOO - This is bad and needs fixing.  We need to make sure we kill this cursor, unless we got an id of 0
       cursorEmpty = true // don't try to do anything else
@@ -121,7 +121,7 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
       if (cursorEmpty) {
         // we have no docs and never will. EOF everyone.
         log.trace("CursorActor %s sending EOF to all", cursorID)
-        for (sender <- sendersWhoWantMore) {
+        for (sender ← sendersWhoWantMore) {
           log.trace("CursorActor %s sending EOF to %s", cursorID, sender)
           asyncSend(sender, EOF)
         }

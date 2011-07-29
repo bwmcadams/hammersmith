@@ -32,14 +32,14 @@ import org.bson.collection._
  * and an actor derived from ActorPool.
  */
 class ConnectionActor
-  extends Logging {
-  self => Actor
+    extends Logging {
+  self ⇒ Actor
 
   import ConnectionActor._
 }
 
 object ConnectionActor
-  extends Logging {
+    extends Logging {
   // Messages we can handle
   sealed trait Incoming
 
@@ -95,19 +95,19 @@ object ConnectionActor
     log.trace("Query Failure")
     // Attempt to grab the $err document
     reply.documents.headOption match {
-      case Some(b) => {
+      case Some(b) ⇒ {
         val errDoc = SerializableDocument.decode(b) // TODO - Extractors!
         log.trace("Error Document found: %s", errDoc)
         QueryFailure(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
       }
-      case None => {
+      case None ⇒ {
         log.warn("No Error Document Found.")
         QueryFailure(new Exception("Unknown error."))
       }
     }
   }
 
-  protected[mongodb] def checkQueryFailure(reply: ReplyMessage)(buildPotentialSuccess: => Outgoing): Outgoing = {
+  protected[mongodb] def checkQueryFailure(reply: ReplyMessage)(buildPotentialSuccess: ⇒ Outgoing): Outgoing = {
     if (reply.queryFailure) {
       buildQueryFailure(reply)
     } else {
@@ -115,7 +115,7 @@ object ConnectionActor
     }
   }
 
-  protected[mongodb] def checkCursorFailure(reply: ReplyMessage)(buildPotentialSuccess: => Outgoing): Outgoing = checkQueryFailure(reply)({
+  protected[mongodb] def checkCursorFailure(reply: ReplyMessage)(buildPotentialSuccess: ⇒ Outgoing): Outgoing = checkQueryFailure(reply)({
     if (reply.cursorNotFound) {
       log.warn("Cursor Not Found.")
       QueryFailure(new Exception("Cursor Not Found"))
@@ -162,9 +162,9 @@ object ConnectionActor
     // This may actually be better as a disableable assert but for now i want it hard.
     require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocumentReply.")
     reply.documents.headOption match {
-      case Some(doc) =>
+      case Some(doc) ⇒
         SingleDocumentReply(doc)
-      case None =>
+      case None ⇒
         throw new Exception("No document was returned; one document was expected")
     }
   })
@@ -179,11 +179,11 @@ object ConnectionActor
   protected[mongodb] def buildWriteReply(reply: ReplyMessage): Outgoing = checkQueryFailure(reply)({
     log.trace("building WriteReply.")
     buildBatchWriteReply(reply) match {
-      case BatchWriteReply(maybeIds, result) =>
+      case BatchWriteReply(maybeIds, result) ⇒
         WriteReply(maybeIds flatMap { _.headOption }, result)
-      case f: Failure =>
+      case f: Failure ⇒
         f
-      case _ =>
+      case _ ⇒
         throw new Error("This is not supposed to happen, buildBatchWriteReply returned something weird.")
     }
   })
@@ -193,7 +193,7 @@ object ConnectionActor
     require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete this write reply.")
     // Attempt to grab the document
     reply.documents.headOption match {
-      case Some(b) => {
+      case Some(b) ⇒ {
         val doc = SerializableDocument.decode(b) // TODO - Extractors!
         log.debug("Document found: %s", doc)
         val ok = boolCmdResult(doc, false)
@@ -218,7 +218,7 @@ object ConnectionActor
           BatchWriteReply(Some(Seq(w.upsertID)), w)
         }
       }
-      case None => {
+      case None ⇒ {
         log.warn("No Document Found.")
         QueryFailure(new Exception("Unknown error; no document returned.."))
       }

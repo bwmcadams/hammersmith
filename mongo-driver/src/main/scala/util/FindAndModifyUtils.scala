@@ -61,14 +61,14 @@ class FindAndModifyBSONDeserializer[V: SerializableBSONObject: Manifest] extends
   override val callback = new FindAndModifyBSONCallback
 
   override def decodeField(name: String, t: Byte) = name match {
-    case "value" => {
+    case "value" ⇒ {
       require(t == org.bson.BSON.OBJECT, "findAndModify value field is not a BSONObject; decoding fails.")
       val _raw = _rawObject()
       // This trick of course only works if it's an object.
       val _value = valueDecoder.decode(_raw)
       callback.gotCustomObject(name, _value.asInstanceOf[AnyRef])
     }
-    case default => super.decodeField(name, t)
+    case default ⇒ super.decodeField(name, t)
   }
 
   def decodeResult(in: InputStream): FindAndModifyResult[V] = {
@@ -78,7 +78,7 @@ class FindAndModifyBSONDeserializer[V: SerializableBSONObject: Manifest] extends
     try {
       decode(in, callback)
     } catch {
-      case t: Throwable => log.error(t, "Failed to decode message with callback.")
+      case t: Throwable ⇒ log.error(t, "Failed to decode message with callback.")
     }
     val obj = get
     get.asInstanceOf[FindAndModifyResult[V]]

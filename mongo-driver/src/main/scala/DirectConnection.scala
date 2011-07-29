@@ -31,11 +31,11 @@ import akka.dispatch.Future
  * connection with "connection.direct"
  */
 class DirectConnection(val addr: InetSocketAddress,
-  override protected val connectionActor: ActorRef,
-  initiallyConnected: Boolean,
-  initiallyIsMaster: Boolean,
-  initialMaxBSONObjectSize: Int)
-  extends MongoConnection with Logging {
+                       override protected val connectionActor: ActorRef,
+                       initiallyConnected: Boolean,
+                       initiallyIsMaster: Boolean,
+                       initialMaxBSONObjectSize: Int)
+    extends MongoConnection with Logging {
 
   log.info("Initializing Direct MongoDB connection on address '%s'", addr)
 

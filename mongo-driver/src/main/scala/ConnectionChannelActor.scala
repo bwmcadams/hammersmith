@@ -17,7 +17,7 @@
 
 package com.mongodb.async
 
-import akka.actor.{ Channel => AkkaChannel, _ }
+import akka.actor.{ Channel ⇒ AkkaChannel, _ }
 import akka.dispatch.Future
 import com.mongodb.async.wire._
 import com.mongodb.async.util._
@@ -37,8 +37,8 @@ import java.util.concurrent._
  * These then go in an actor pool.
  */
 private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddress)
-  extends ConnectionActor
-  with Actor {
+    extends ConnectionActor
+    with Actor {
   import ConnectionActor._
   import ConnectionChannelActor._
 
@@ -46,7 +46,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
   self.timeout = 60 * 1000 // 60 seconds (timeout in millis)
 
-  private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) => Outgoing)
+  private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) ⇒ Outgoing)
 
   // remember, no need for any of this to be thread-safe since
   // actor runs in only one thread at a time.
@@ -151,7 +151,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
   }
 
   private def updateDirectConnection(state: State) = {
-    directConnection foreach { d =>
+    directConnection foreach { d ⇒
       d.setState(state)
     }
   }
@@ -172,21 +172,21 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     // we send the messages out to the app or update ourselves
     updateDirectConnection(State(connected = false, isMaster = false))
     failAllPending(ConnectionFailure(new Exception("Connection to %s stopped".format(addressString))))
-    maybeChannel foreach { channel =>
+    maybeChannel foreach { channel ⇒
       channel.close()
     }
     maybeChannel = None
   }
 
   override def receive = {
-    case incoming: Incoming =>
+    case incoming: Incoming ⇒
       log.trace("%s incoming message %s", self.uuid, incoming)
       incoming match {
         // message is from the app
-        case clientWriteMessage: SendClientMessage => {
+        case clientWriteMessage: SendClientMessage ⇒ {
           sendMessageToMongo(self.channel, clientWriteMessage)
         }
-        case GetDirect => {
+        case GetDirect ⇒ {
           if (directConnection.isEmpty) {
             directConnection = Some(new DirectConnection(addr, self, maybeChannel.isDefined, isMaster, maxBSONObjectSize))
           }
@@ -194,24 +194,24 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         }
       }
       log.trace("Post-send, senders waiting for reply: %s", senders)
-    case netty: IncomingFromNetty =>
+    case netty: IncomingFromNetty ⇒
       log.trace("%s incoming netty %s", self.uuid, netty)
       netty match {
-        case ServerMessageReceived(message) => {
+        case ServerMessageReceived(message) ⇒ {
           message match {
-            case reply: ReplyMessage =>
+            case reply: ReplyMessage ⇒
               handleReplyMessage(reply)
           }
           log.trace("Post-handle-reply, waiting for reply: %s", senders)
         }
-        case ChannelError(exception) => {
+        case ChannelError(exception) ⇒ {
           log.trace("channel error on %s: %s %s", self.uuid, exception.getClass.getName, exception.getMessage)
           val failMessage = ConnectionFailure(exception)
           failAllPending(failMessage)
           // can no longer handle messages
           self.stop
         }
-        case ChannelClosed => {
+        case ChannelClosed ⇒ {
           log.trace("channel close on %s", self.uuid)
           val failMessage = ConnectionFailure(new Exception("Channel %s is closed".format(addressString)))
           failAllPending(failMessage)
@@ -225,14 +225,14 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     log.trace("Failing all pending senders: %s", senders)
     val oldSenders = senders
     senders = Map()
-    oldSenders foreach { kv =>
+    oldSenders foreach { kv ⇒
       asyncSend(kv._2.channel, failMessage)
     }
   }
 
   private def handleReplyMessage(message: ReplyMessage) = {
     senders.get(message.header.responseTo) match {
-      case Some(client) => {
+      case Some(client) ⇒ {
         senders = senders - message.header.responseTo
         val actorReply = client.outgoingReplyBuilder(message)
         log.trace("matched response to %s and sending reply %s",
@@ -241,7 +241,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         log.trace("matched response to %s and removed from senders: %s",
           message.header.responseTo, senders)
       }
-      case None => {
+      case None ⇒ {
         log.trace("nobody was interested in response %s", message.header.responseTo)
         log.trace("interested senders are: %s", senders)
       }
@@ -261,58 +261,58 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
     // if no reply builder, then it's fire-and-forget, no reply
     val maybeReplyBuilder = clientRequest match {
-      case r: SendClientCheckMasterMessage => {
-        // we intercept replies to isMaster
-        // and update our own internal state
-        def buildCheckMasterReply(reply: ReplyMessage): ConnectionActor.Outgoing = {
-          val result = ConnectionActor.buildCheckMasterReply(reply)
-          result match {
-            case CheckMasterReply(newIsMaster, newMaxBSONObjectSize) =>
-              if (isMaster != newIsMaster) {
-                log.debug("isMaster changing to %s", newIsMaster)
-                // update our own state
-                isMaster = newIsMaster
-                // update the associated DirectConnection
-                updateDirectConnection(State(isMaster = newIsMaster, connected = maybeChannel.isDefined))
-              }
-              if (maxBSONObjectSize != newMaxBSONObjectSize) {
-                log.warn("maxBSONObjectSize changing %d->%d, this isn't handled yet in Hammersmith",
-                  maxBSONObjectSize, newMaxBSONObjectSize)
-              }
-            case _ => // nothing to do, reply must be an error or something
+      case r: SendClientCheckMasterMessage ⇒ {
+          // we intercept replies to isMaster
+          // and update our own internal state
+          def buildCheckMasterReply(reply: ReplyMessage): ConnectionActor.Outgoing = {
+            val result = ConnectionActor.buildCheckMasterReply(reply)
+            result match {
+              case CheckMasterReply(newIsMaster, newMaxBSONObjectSize) ⇒
+                if (isMaster != newIsMaster) {
+                  log.debug("isMaster changing to %s", newIsMaster)
+                  // update our own state
+                  isMaster = newIsMaster
+                  // update the associated DirectConnection
+                  updateDirectConnection(State(isMaster = newIsMaster, connected = maybeChannel.isDefined))
+                }
+                if (maxBSONObjectSize != newMaxBSONObjectSize) {
+                  log.warn("maxBSONObjectSize changing %d->%d, this isn't handled yet in Hammersmith",
+                    maxBSONObjectSize, newMaxBSONObjectSize)
+                }
+              case _ ⇒ // nothing to do, reply must be an error or something
+            }
+            result
           }
-          result
-        }
         Some(buildCheckMasterReply(_))
       }
-      case r: SendClientGetMoreMessage =>
+      case r: SendClientGetMoreMessage ⇒
         Some(ConnectionActor.buildGetMoreReply(_))
-      case r: SendClientCursorMessage =>
-        Some({ reply: ReplyMessage =>
+      case r: SendClientCursorMessage ⇒
+        Some({ reply: ReplyMessage ⇒
           ConnectionActor.buildCursorReply(self, r.message.namespace, reply)
         })
-      case r: SendClientSingleDocumentMessage =>
+      case r: SendClientSingleDocumentMessage ⇒
         Some(ConnectionActor.buildSingleDocumentReply(_))
-      case r: SendClientOptionalSingleDocumentMessage =>
+      case r: SendClientOptionalSingleDocumentMessage ⇒
         Some(ConnectionActor.buildOptionalSingleDocumentReply(_))
-      case r: SendClientKillCursorsMessage =>
+      case r: SendClientKillCursorsMessage ⇒
         None // fire and forget,  no reply to this one
-      case r: SendClientSingleWriteMessage =>
+      case r: SendClientSingleWriteMessage ⇒
         Some(ConnectionActor.buildWriteReply(_))
-      case r: SendClientBatchWriteMessage =>
+      case r: SendClientBatchWriteMessage ⇒
         Some(ConnectionActor.buildBatchWriteReply(_))
     }
 
     val maybeWriteMessage = clientRequest match {
-      case r: SendClientWriteMessage =>
+      case r: SendClientWriteMessage ⇒
         Some(r.message)
-      case _ =>
+      case _ ⇒
         None
     }
     val concern = clientRequest match {
-      case r: SendClientWriteMessage =>
+      case r: SendClientWriteMessage ⇒
         r.concern
-      case _ =>
+      case _ ⇒
         WriteConcern.Normal
     }
 
@@ -338,11 +338,11 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
         // if unsafe, we can just generate a reply here and now saying it "succeeded"
         // and go ahead and send the reply, no need to add to "senders"
         val writeReply = clientRequest match {
-          case r: SendClientSingleWriteMessage =>
+          case r: SendClientSingleWriteMessage ⇒
             WriteReply(r.message.ids.headOption, WriteResult(true))
-          case r: SendClientBatchWriteMessage =>
+          case r: SendClientBatchWriteMessage ⇒
             BatchWriteReply(Some(r.message.ids), WriteResult(true))
-          case _ =>
+          case _ ⇒
             throw new Exception("this should not be possible, write message was not one")
         }
         log.trace("Sending immediate reply %s to unsafe write request ID %s",
@@ -352,10 +352,10 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     } else {
       // for non-writes, if there's a reply builder we save it in "senders"
       maybeReplyBuilder match {
-        case Some(builder) => {
+        case Some(builder) ⇒ {
           senders = senders + Pair(clientRequest.message.requestID, ClientSender(senderChannel, builder))
         }
-        case None => {
+        case None ⇒ {
           log.trace("No reply builder for request %s, not saving in senders",
             clientRequest.message.requestID)
         }
@@ -368,7 +368,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 }
 
 private[mongodb] object ConnectionChannelActor
-  extends Logging {
+    extends Logging {
 
   case class State(connected: Boolean, isMaster: Boolean)
 
@@ -397,7 +397,7 @@ private[mongodb] object ConnectionChannelActor
 
   /* Pipeline factory generates a pipeline with our decoder and handler */
   class ConnectionActorPipelineFactory(val connectionActor: ActorRef,
-    val addressString: String) extends ChannelPipelineFactory {
+                                       val addressString: String) extends ChannelPipelineFactory {
 
     private val actorHandler = new ConnectionActorHandler(connectionActor, addressString)
     private val setupHandler = new ConnectionSetupHandler(addressString)
@@ -429,7 +429,7 @@ private[mongodb] object ConnectionChannelActor
    * being the only thread touching the actor.
    */
   class ConnectionSetupHandler(val addressString: String)
-    extends SimpleChannelHandler with Logging {
+      extends SimpleChannelHandler with Logging {
 
     private val readyLatch = new CountDownLatch(1)
 
@@ -520,8 +520,8 @@ private[mongodb] object ConnectionChannelActor
    * setup.
    */
   class ConnectionActorHandler(val connectionActor: ActorRef,
-    val addressString: String)
-    extends SimpleChannelHandler with Logging {
+                               val addressString: String)
+      extends SimpleChannelHandler with Logging {
 
     logActorState("HandlerConstruct", connectionActor)
 
@@ -533,10 +533,10 @@ private[mongodb] object ConnectionChannelActor
         connectionActor ! message
       } else {
         message match {
-          case ChannelClosed =>
+          case ChannelClosed ⇒
             log.debug("Actor %s shutdown=%s unstarted=%s, dropping pointless closed message", connectionActor.uuid,
               connectionActor.isShutdown, connectionActor.isUnstarted)
-          case _ =>
+          case _ ⇒
             log.warn("Actor %s shutdown=%s unstarted=%s, dropping message %s", connectionActor.uuid,
               connectionActor.isShutdown, connectionActor.isUnstarted, message)
         }
@@ -553,9 +553,9 @@ private[mongodb] object ConnectionChannelActor
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
       logActorState("exceptionCaught", connectionActor)
       e.getCause match {
-        case alreadyClosed: java.nio.channels.ClosedChannelException =>
+        case alreadyClosed: java.nio.channels.ClosedChannelException ⇒
           log.trace("Ignoring already-closed exception in ConnectionHandler")
-        case _ =>
+        case _ ⇒
           log.error(e.getCause, "Exception caught in ConnectionHandler: %s", e.getCause)
           sendIfAlive(ConnectionChannelActor.ChannelError(e.getCause))
           sendClosed()

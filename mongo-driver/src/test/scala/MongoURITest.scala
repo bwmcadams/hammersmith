@@ -46,8 +46,8 @@ class MongoURISpec extends Specification with ThrownExpectations with Logging {
 
   abstract class URITest(uri: String) {
     val (hosts, db, collection, login, password) = uri match {
-      case MongoURI(h, d, c, l, p, o) => (h, d, c, l, p)
-      case default => {
+      case MongoURI(h, d, c, l, p, o) ⇒ (h, d, c, l, p)
+      case default ⇒ {
         log.error("Parsing failed.")
         throw new Exception
       }
@@ -80,18 +80,18 @@ class MongoURISpec extends Specification with ThrownExpectations with Logging {
 
         connSet._1 must haveSuperclass[MongoConnection]
         testDB match {
-          case Some(dbName) => connSet._2 must beSome.which(_.name == dbName)
-          case None => connSet._2 must beNone
+          case Some(dbName) ⇒ connSet._2 must beSome.which(_.name == dbName)
+          case None ⇒ connSet._2 must beNone
         }
         testColl match {
-          case Some(collName) => connSet._3 must beSome.which(_.name == collName)
-          case None => connSet._3 must beNone
+          case Some(collName) ⇒ connSet._3 must beSome.which(_.name == collName)
+          case None ⇒ connSet._3 must beNone
         }
       } catch {
-        case use: UnsupportedOperationException => if (hosts.size > 1) {
+        case use: UnsupportedOperationException ⇒ if (hosts.size > 1) {
           success
         } else throw use
-        case e => throw e
+        case e ⇒ throw e
       }
       success
 
@@ -99,7 +99,7 @@ class MongoURISpec extends Specification with ThrownExpectations with Logging {
   }
 
   val defaultHost = "127.0.0.1"
-    
+
   case class basicURI1() extends URITest("mongodb://" + defaultHost + "/bar") {
     override val testHost = List((defaultHost, 27017))
     override val testDB = Some("bar")
@@ -125,7 +125,7 @@ class MongoURISpec extends Specification with ThrownExpectations with Logging {
     override val testPass = Some("pass")
   }
 
-  case class userPassAndMultiHostWithPort() extends URITest("mongodb://user:pass@" + defaultHost+ ":27011,localhost:27012," + defaultHost + ":27013/bar") {
+  case class userPassAndMultiHostWithPort() extends URITest("mongodb://user:pass@" + defaultHost + ":27011,localhost:27012," + defaultHost + ":27013/bar") {
     override val testHost = List((defaultHost, 27011), ("localhost", 27012), (defaultHost, 27013))
     override val testDB = Some("bar")
     override val testLogin = Some("user")

@@ -37,17 +37,17 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   // def addUser(username: String, password: String)(f: )
   // def removeUser
 
-  def authenticate(username: String, password: String)(callback: DB => Unit) {
+  def authenticate(username: String, password: String)(callback: DB ⇒ Unit) {
     require(username != null, "Username cannot be null.")
     require(password != null, "Password cannot be null.")
     assume(!authenticated_?, "Already authenticated.")
     val hash = hashPassword(username, password)
     log.debug("Hashed Password: '%s'", hash)
-    command("getnonce")(RequestFutures.findOne((result: Either[Throwable, Document]) => result match {
+    command("getnonce")(RequestFutures.findOne((result: Either[Throwable, Document]) ⇒ result match {
       // TODO - Callback on failure
-      case Right(doc) =>
+      case Right(doc) ⇒
         doc.getAsOrElse[Int]("ok", 0) match {
-          case 1 => {
+          case 1 ⇒ {
             val nonce = doc.as[String]("nonce")
             log.debug("Got Nonce: '%s'", nonce)
             val authCmd = OrderedDocument("authenticate" -> 1,
@@ -56,26 +56,26 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
               "key" -> hexMD5(nonce + username + hash))
             log.debug("Auth Command: %s", authCmd)
 
-            command(authCmd)(RequestFutures.findOne((result: Either[Throwable, Document]) => {
+            command(authCmd)(RequestFutures.findOne((result: Either[Throwable, Document]) ⇒ {
               result match {
-                case Right(_doc) =>
+                case Right(_doc) ⇒
                   _doc.getAsOrElse[Int]("ok", 0) match {
-                    case 1 => {
+                    case 1 ⇒ {
                       log.debug("Authenticate succeeded.")
                       login = Some(username)
                       authHash = Some(hash)
                     }
-                    case other => log.error("Authentication Failed. '%d' OK status. %s", other, _doc)
+                    case other ⇒ log.error("Authentication Failed. '%d' OK status. %s", other, _doc)
                   }
-                case Left(e) =>
+                case Left(e) ⇒
                   log.error(e, "Authentication Failed.")
                   callback(this)
               }
             }))
           }
-          case other => log.error("Failed to get nonce: %s (OK: %s)", doc, other)
+          case other ⇒ log.error("Failed to get nonce: %s (OK: %s)", doc, other)
         }
-      case Left(e) => log.error(e, "Failed to get nonce.")
+      case Left(e) ⇒ log.error(e, "Failed to get nonce.")
     }))
   }
 
@@ -84,14 +84,14 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     try {
       b.write(username.getBytes)
       b.write(":mongo:".getBytes)
-      for (i <- 1 to password.length) {
+      for (i ← 1 to password.length) {
         // todo there has to be a more efficient way to check this
         assume(password(i) < 128, "Cannot currently support non-ascii passwords.")
         b.write(password(i))
       }
 
     } catch {
-      case ioE: IOException => throw new Exception("Unable to hash Password.", ioE)
+      case ioE: IOException ⇒ throw new Exception("Unable to hash Password.", ioE)
     }
 
     hexMD5(b.toByteArray)
@@ -107,14 +107,14 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   // TODO Fix me
   def authenticated_? = login.isDefined && authHash.isDefined
 
-  def collectionNames(callback: Seq[String] => Unit) {
+  def collectionNames(callback: Seq[String] ⇒ Unit) {
     val qMsg = QueryMessage("%s.system.namespaces".format(name), 0, 0, Document.empty)
     log.debug("[%s] Querying for Collection Names with: %s", name, qMsg)
-    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor[Document]) => {
+    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor[Document]) ⇒ {
       log.debug("Got a result from listing collections: %s", cursor)
       val b = Seq.newBuilder[String]
 
-      Cursor.basicIter(cursor) { doc =>
+      Cursor.basicIter(cursor) { doc ⇒
         val n = doc.as[String]("name")
         if (!n.contains("$")) b += n.split(name + "\\.")(1)
       }
@@ -139,7 +139,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    *
    * The callback will be invoked, when the collection is created, with an instance of the new collection.
    */
-  def createCollection[Opts: SerializableBSONObject](name: String, options: Opts)(callback: Collection => Unit) = {
+  def createCollection[Opts: SerializableBSONObject](name: String, options: Opts)(callback: Collection ⇒ Unit) = {
     // TODO - Implement me
     throw new UnsupportedOperationException("Not implemented.")
   }
@@ -157,7 +157,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     connection.runCommand(name, cmd)(f)
   }
 
-  def command(cmd: String): SingleDocQueryRequestFuture => Unit =
+  def command(cmd: String): SingleDocQueryRequestFuture ⇒ Unit =
     command(Document(cmd -> 1))_
 
   /**
@@ -167,7 +167,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * TODO - Ensure getLastError on this?
    * TODO - Remove from any cached db listings
    */
-  def dropDatabase()(callback: (Boolean) => Unit) = command("dropDatabase")(boolCmdResultCallback(callback))
+  def dropDatabase()(callback: (Boolean) ⇒ Unit) = command("dropDatabase")(boolCmdResultCallback(callback))
 
   /**
    * invokes the 'dbStats' command
@@ -178,7 +178,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
    * TODO - This is done the same way as the Java Driver's but rather inefficient
    * in that it iterates all of system.namespaces... might be better to findOne
    */
-  def collectionExists(name: String)(callback: Boolean => Unit) = collectionNames({ colls: Seq[String] =>
+  def collectionExists(name: String)(callback: Boolean ⇒ Unit) = collectionNames({ colls: Seq[String] ⇒
     callback(colls.contains(name))
   })
 

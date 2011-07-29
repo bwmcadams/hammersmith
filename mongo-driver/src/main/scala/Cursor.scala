@@ -31,15 +31,15 @@ object Cursor extends Logging {
   case object EOF extends IterState
   trait IterCmd
   case object Done extends IterCmd
-  case class Next(op: (IterState) => IterCmd) extends IterCmd
-  case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
+  case class Next(op: (IterState) ⇒ IterCmd) extends IterCmd
+  case class NextBatch(op: (IterState) ⇒ IterCmd) extends IterCmd
 
   def apply[T: SerializableBSONObject](cursorActor: ActorRef): Cursor[T] = {
     log.debug("Instantiate new Cursor[%s]", implicitly[SerializableBSONObject[T]])
     try {
       new Cursor[T](cursorActor)
     } catch {
-      case e => {
+      case e ⇒ {
         log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
         throw e
       }
@@ -50,21 +50,21 @@ object Cursor extends Logging {
    * Internal helper, more or less a "default" iterator for internal usage
    * Not exposed publicly but useful as an example.
    */
-  protected[mongodb] def basicIter[T: SerializableBSONObject](cursor: Cursor[T])(f: T => Unit) = {
-    def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-      case Cursor.Entry(doc: T) => {
-        f(doc)
-        Cursor.Next(next)
+  protected[mongodb] def basicIter[T: SerializableBSONObject](cursor: Cursor[T])(f: T ⇒ Unit) = {
+      def next(op: Cursor.IterState): Cursor.IterCmd = op match {
+        case Cursor.Entry(doc: T) ⇒ {
+          f(doc)
+          Cursor.Next(next)
+        }
+        case Cursor.Empty ⇒ {
+          log.trace("Empty... Next batch.")
+          Cursor.NextBatch(next)
+        }
+        case Cursor.EOF ⇒ {
+          log.trace("EOF... Cursor done.")
+          Cursor.Done
+        }
       }
-      case Cursor.Empty => {
-        log.trace("Empty... Next batch.")
-        Cursor.NextBatch(next)
-      }
-      case Cursor.EOF => {
-        log.trace("EOF... Cursor done.")
-        Cursor.Done
-      }
-    }
     iterate(cursor)(next)
   }
 
@@ -86,23 +86,23 @@ object Cursor extends Logging {
    *      The standard response to this should be Cursor.Done which tells the control loop to stop and shut down the Cursor.
    *      I suppose if you want to be special you could respond with something else but it probably won't work right.
    */
-  def iterate[T: SerializableBSONObject](cursor: Cursor[T])(op: (IterState) => IterCmd) {
+  def iterate[T: SerializableBSONObject](cursor: Cursor[T])(op: (IterState) ⇒ IterCmd) {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
-    def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
-      case Done => {
-        log.trace("Closing Cursor.")
-        cursor.close()
+      def next(f: (IterState) ⇒ IterCmd): Unit = op(cursor.next()) match {
+        case Done ⇒ {
+          log.trace("Closing Cursor.")
+          cursor.close()
+        }
+        case Next(tOp) ⇒ {
+          log.trace("Next!")
+          next(tOp)
+        }
+        // FIXME NextBatch is just a leftover now
+        case NextBatch(tOp) ⇒ {
+          log.trace("NextBatch (just treating the same as Next)")
+          next(tOp)
+        }
       }
-      case Next(tOp) => {
-        log.trace("Next!")
-        next(tOp)
-      }
-      // FIXME NextBatch is just a leftover now
-      case NextBatch(tOp) => {
-        log.trace("NextBatch (just treating the same as Next)")
-        next(tOp)
-      }
-    }
     next(op)
   }
 }
@@ -145,23 +145,23 @@ class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) exten
 
     if (documents.isEmpty) {
       nextEntriesFuture match {
-        case Some(f) =>
+        case Some(f) ⇒
           log.trace("blocking on future to get next entries from CursorActor")
           f.get match {
-            case CursorActor.Entries(docsBytes) =>
+            case CursorActor.Entries(docsBytes) ⇒
               // kick off request for next one
               log.trace("Sending a GetMore to the CursorActor, have %s docs from previous GetMore", docsBytes.length)
               nextEntriesFuture = Some(cursorActor !!! CursorActor.GetMore)
               // save the results from this future
-              documents = documents ++ (docsBytes map { bytes => decoder.decode(bytes) })
+              documents = documents ++ (docsBytes map { bytes ⇒ decoder.decode(bytes) })
               require(!documents.isEmpty)
               popEntry()
-            case CursorActor.EOF =>
+            case CursorActor.EOF ⇒
               log.trace("Got EOF from the CursorActor")
               nextEntriesFuture = None
               Cursor.EOF
           }
-        case None =>
+        case None ⇒
           log.trace("Was already at EOF from the CursorActor")
           Cursor.EOF
       }
@@ -175,9 +175,9 @@ class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) exten
   def nextBatch(notify: Function0[Unit]) {
     if (documents.isEmpty) {
       nextEntriesFuture match {
-        case Some(f) =>
-          f.onComplete({ future => notify.apply() })
-        case None =>
+        case Some(f) ⇒
+          f.onComplete({ future ⇒ notify.apply() })
+        case None ⇒
           notify.apply()
       }
     } else {
@@ -195,7 +195,7 @@ class Cursor[T: SerializableBSONObject](private val cursorActor: ActorRef) exten
    * AKA - If you want to stick your finger in this electrical socket, you'll have
    * to build your own fork first.
    */
-  protected[mongodb] def foreach(f: T => Unit) = {
+  protected[mongodb] def foreach(f: T ⇒ Unit) = {
     log.trace("Foreach: %s | empty? %s", f, isEmpty)
     Cursor.basicIter(this)(f)
   }

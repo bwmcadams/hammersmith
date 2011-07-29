@@ -44,20 +44,20 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
         // casting to an Any such as Int, we need boxed types to unpack,
         // which asInstanceOf does but Class.cast does not
         val asAnyVal = manifest[A] match {
-          case m if m == manifest[Byte] => value.asInstanceOf[Byte]
-          case m if m == manifest[Short] => value.asInstanceOf[Short]
-          case m if m == manifest[Int] => value.asInstanceOf[Int]
-          case m if m == manifest[Long] => value.asInstanceOf[Long]
-          case m if m == manifest[Float] => value.asInstanceOf[Float]
-          case m if m == manifest[Double] => value.asInstanceOf[Double]
-          case m if m == manifest[Boolean] => value.asInstanceOf[Boolean]
-          case m if m == manifest[Char] => value.asInstanceOf[Char]
-          case m => throw new UnsupportedOperationException("Type " + manifest[A] + " not supported by getAs, value is: " + value)
+          case m if m == manifest[Byte] ⇒ value.asInstanceOf[Byte]
+          case m if m == manifest[Short] ⇒ value.asInstanceOf[Short]
+          case m if m == manifest[Int] ⇒ value.asInstanceOf[Int]
+          case m if m == manifest[Long] ⇒ value.asInstanceOf[Long]
+          case m if m == manifest[Float] ⇒ value.asInstanceOf[Float]
+          case m if m == manifest[Double] ⇒ value.asInstanceOf[Double]
+          case m if m == manifest[Boolean] ⇒ value.asInstanceOf[Boolean]
+          case m if m == manifest[Char] ⇒ value.asInstanceOf[Char]
+          case m ⇒ throw new UnsupportedOperationException("Type " + manifest[A] + " not supported by getAs, value is: " + value)
         }
         asAnyVal.asInstanceOf[A]
       }
     } catch {
-      case cc: ClassCastException =>
+      case cc: ClassCastException ⇒
         log.debug("Error casting " +
           value.asInstanceOf[AnyRef].getClass.getName +
           " to " +
@@ -87,8 +87,8 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
         "(e.g. document.as[<ReturnType>](\"someKey\") ) to function correctly.")
 
     get(key) match {
-      case None => checkedCast[A](default(key))
-      case Some(value) => checkedCast[A](value)
+      case None ⇒ checkedCast[A](default(key))
+      case Some(value) ⇒ checkedCast[A](value)
     }
   }
 
@@ -99,16 +99,16 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
         "(e.g. document.getAs[<ReturnType>](\"somegetAKey\") ) to function correctly.")
 
     get(key) match {
-      case None => None
-      case Some(value) => Some(checkedCast[A](value))
+      case None ⇒ None
+      case Some(value) ⇒ Some(checkedCast[A](value))
     }
   }
 
-  def getAsOrElse[A <: Any: Manifest](key: String, default: => A): A = getAs[A](key) match {
-    case Some(v) => {
+  def getAsOrElse[A <: Any: Manifest](key: String, default: ⇒ A): A = getAs[A](key) match {
+    case Some(v) ⇒ {
       v
     }
-    case None => {
+    case None ⇒ {
       default
     }
   }
@@ -122,21 +122,21 @@ trait BSONDocument extends MapProxy[String, Any] with Logging {
   def expand[A <: Any: Manifest](key: String): Option[A] = {
     require(manifest[A] != manifest[scala.Nothing], "Type inference failed; expand[A]() requires an explicit type argument " +
       " (e.g. document[<ReturnType](\"someKey\") ) to function correctly.")
-    @tailrec
-    def _dot(dbObj: BSONDocument, key: String): Option[_] =
-      if (key.indexOf('.') < 0) {
-        dbObj.getAs[AnyRef](key)
-      } else {
-        val (pfx, sfx) = key.splitAt(key.indexOf('.'))
-        dbObj.getAs[BSONDocument](pfx) match {
-          case Some(base) => _dot(base, sfx.stripPrefix("."))
-          case None => None
+      @tailrec
+      def _dot(dbObj: BSONDocument, key: String): Option[_] =
+        if (key.indexOf('.') < 0) {
+          dbObj.getAs[AnyRef](key)
+        } else {
+          val (pfx, sfx) = key.splitAt(key.indexOf('.'))
+          dbObj.getAs[BSONDocument](pfx) match {
+            case Some(base) ⇒ _dot(base, sfx.stripPrefix("."))
+            case None ⇒ None
+          }
         }
-      }
 
     _dot(this, key) match {
-      case None => None
-      case Some(value) => Some(checkedCast[A](value))
+      case None ⇒ None
+      case Some(value) ⇒ Some(checkedCast[A](value))
     }
   }
 
@@ -212,14 +212,14 @@ class BSONList extends BSONDocument {
 
   override def apply(key: String): Any = apply(asInt(key))
 
-  override def getOrElse[B1 >: Any](key: String, default: => B1): B1 = getOrElse(asInt(key), default)
+  override def getOrElse[B1 >: Any](key: String, default: ⇒ B1): B1 = getOrElse(asInt(key), default)
 
   override def get(key: String): Option[Any] = get(asInt(key))
 
   def asInt(key: String, err: Boolean = true): Int = try {
     Integer.parseInt(key)
   } catch {
-    case e: Exception =>
+    case e: Exception ⇒
       if (err)
         throw new IllegalArgumentException("BSONLists can only work with Integer representable keys, failed parsing '%s'".format(key))
       else -1
@@ -231,7 +231,7 @@ class BSONList extends BSONDocument {
 
   def apply(key: Int): Any = super.apply(key.toString)
 
-  def getOrElse[B1 >: Any](key: Int, default: => B1): B1 = super.getOrElse(key.toString, default)
+  def getOrElse[B1 >: Any](key: Int, default: ⇒ B1): B1 = super.getOrElse(key.toString, default)
 
   def get(key: Int): Option[Any] = super.get(key.toString)
 
@@ -263,7 +263,7 @@ object BSONList extends BSONDocumentFactory[BSONList] {
  * as we decode them?
  */
 abstract class LazyBSONDocument[+A](val raw: Array[Byte],
-  val decoder: BSONDecoder,
-  val callback: BSONCallback = new BasicBSONCallback) extends BSONDocument {
+                                    val decoder: BSONDecoder,
+                                    val callback: BSONCallback = new BasicBSONCallback) extends BSONDocument {
 
 }
