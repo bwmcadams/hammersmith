@@ -31,7 +31,7 @@ import scala.collection.mutable.{ WeakHashMap, HashSet }
 protected[mongodb] class CursorCleaningTimer(val period: Duration = 5.seconds) extends Logging {
   private[this] val connections = WeakHashMap.empty[MongoConnection, Boolean]
   private[this] var underlying: Timer = null
-  private[this] val factory = () => new JavaTimer(true)
+  private[this] val factory = () ⇒ new JavaTimer(true)
 
   def acquire(conn: MongoConnection) = synchronized {
     connections += conn -> true

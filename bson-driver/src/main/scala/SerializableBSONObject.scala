@@ -18,14 +18,14 @@
 package org.bson
 
 import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
-import scala.annotation.implicitNotFound 
+import scala.annotation.implicitNotFound
 
 import java.io.{ InputStream, ByteArrayInputStream }
 
 /**
  * Type class base for anything you want to be serialized or deserialized
  */
-@implicitNotFound(msg = "Cannot find SerializableBSONObject type class for ${T}") 
+@implicitNotFound(msg = "Cannot find SerializableBSONObject type class for ${T}")
 trait SerializableBSONObject[T] {
 
   def encode(doc: T, out: OutputBuffer)
@@ -34,7 +34,7 @@ trait SerializableBSONObject[T] {
 
   def decode(in: InputStream): T
 
-  def decode(bytes: Seq[Array[Byte]]): Seq[T] = for (b <- bytes) yield decode(b)
+  def decode(bytes: Seq[Array[Byte]]): Seq[T] = for (b ← bytes) yield decode(b)
 
   def decode(b: Array[Byte]): T = decode(new ByteArrayInputStream(b))
 

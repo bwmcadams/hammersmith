@@ -52,11 +52,11 @@ object MongoURI extends Logging {
         Some(auth.substring(ai + 1)))
     } else (svr, None, None)
 
-    def _createHost(data: Array[String]) = if (data.length > 1)
-      (data(0), data(1).toInt)
-    else (data(0), 27017)
+      def _createHost(data: Array[String]) = if (data.length > 1)
+        (data(0), data(1).toInt)
+      else (data(0), 27017)
 
-    (s.split(",").toSet.map { x: String => _createHost(x.split(":")) },
+    (s.split(",").toSet.map { x: String ⇒ _createHost(x.split(":")) },
       username, password)
   }
 
@@ -89,36 +89,36 @@ class MongoURI(uri: String) extends Logging {
   log.info("Hosts: %s, Username: %s, Password: %s", hosts, username, password)
 
   val (_db, _coll) = ns match {
-    case Some(_ns) => {
+    case Some(_ns) ⇒ {
       val ni = _ns.indexOf(".")
       if (ni < 0) (Some(_ns), None) else (Some(_ns.substring(0, ni)), Some(_ns.substring(ni + 1)))
     }
-    case None => (None, None)
+    case None ⇒ (None, None)
   }
 
   log.info("DB: %s Coll: %s", _db, _coll)
 
   opts.foreach {
-    _.split("&|;").foreach { o =>
+    _.split("&|;").foreach { o ⇒
       val _i = o.indexOf("=")
       if (_i >= 0) {
         val key = o.substring(0, _i).toLowerCase
         val value = o.substring(_i + 1)
         key match {
-          case "maxpoolsize" => options.maxPoolSize = value.toInt
-          case "minpoolsize" => options.minPoolSize = value.toInt
-          case "waitqueuemultiple" => options.waitQueueMultiple = value.toInt
-          case "waitqueuetimeoutms" => options.waitQueueTimeout = value.toInt
-          case "connecttimeoutms" => options.connectTimeoutMS = value.toInt
-          case "sockettimeoutms" => options.socketTimeoutMS = value.toInt
-          case "autoconnectretry" => options.autoConnectRetry = _parseBool(value)
-          case "socketkeepalive" => options.socketKeepAlive = _parseBool(value)
-          case "slaveok" => options.slaveOK = _parseBool(value)
-          case "safe" => options.safe = _parseBool(value)
-          case "w" => options.w = value.toInt
-          case "wtimeout" => options.wtimeout = value.toInt
-          case "fsync" => options.fsync = _parseBool(value)
-          case unknown => log.warn("Unknown or unsupported option '%s'", value)
+          case "maxpoolsize" ⇒ options.maxPoolSize = value.toInt
+          case "minpoolsize" ⇒ options.minPoolSize = value.toInt
+          case "waitqueuemultiple" ⇒ options.waitQueueMultiple = value.toInt
+          case "waitqueuetimeoutms" ⇒ options.waitQueueTimeout = value.toInt
+          case "connecttimeoutms" ⇒ options.connectTimeoutMS = value.toInt
+          case "sockettimeoutms" ⇒ options.socketTimeoutMS = value.toInt
+          case "autoconnectretry" ⇒ options.autoConnectRetry = _parseBool(value)
+          case "socketkeepalive" ⇒ options.socketKeepAlive = _parseBool(value)
+          case "slaveok" ⇒ options.slaveOK = _parseBool(value)
+          case "safe" ⇒ options.safe = _parseBool(value)
+          case "w" ⇒ options.w = value.toInt
+          case "wtimeout" ⇒ options.wtimeout = value.toInt
+          case "fsync" ⇒ options.fsync = _parseBool(value)
+          case unknown ⇒ log.warn("Unknown or unsupported option '%s'", value)
         }
       }
     }

@@ -160,7 +160,7 @@ abstract class MongoConnection extends Logging {
       log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
       val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
-      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) => {
+      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) ⇒ {
         log.debug("Got a result from command: %s", doc)
         isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
         maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
@@ -196,8 +196,8 @@ abstract class MongoConnection extends Logging {
    */
   def database(dbName: String): DB = new DB(dbName)(this)
 
-  def databaseNames(callback: Seq[String] => Unit) {
-    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) => {
+  def databaseNames(callback: Seq[String] ⇒ Unit) {
+    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) ⇒ {
       log.trace("Got a result from 'listDatabases' command: %s", doc)
       if (!doc.isEmpty) {
         val dbs = {
@@ -251,7 +251,7 @@ abstract class MongoConnection extends Logging {
    */
   def batchInsert[T](db: String)(collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.trace("Batch Inserting: %s to %s.%s with WriteConcern: %s", docs, db, collection, concern)
-    val checked = docs.map(x => {
+    val checked = docs.map(x ⇒ {
       m.checkObject(x)
       m.checkID(x)
     })
@@ -263,9 +263,9 @@ abstract class MongoConnection extends Logging {
    * -1 indicates an error, for now
    */
   def count[Qry: SerializableBSONObject, Flds: SerializableBSONObject](db: String)(collection: String)(query: Qry = Document.empty,
-    fields: Flds = Document.empty,
-    limit: Long = 0,
-    skip: Long = 0)(callback: Int => Unit) = {
+                                                                                                       fields: Flds = Document.empty,
+                                                                                                       limit: Long = 0,
+                                                                                                       skip: Long = 0)(callback: Int ⇒ Unit) = {
     val builder = OrderedDocument.newBuilder
     builder += ("count" -> collection)
     builder += ("query" -> query)
@@ -274,7 +274,7 @@ abstract class MongoConnection extends Logging {
       builder += ("limit" -> limit)
     if (skip > 0)
       builder += ("skip" -> skip)
-    runCommand(db, builder.result)(SimpleRequestFutures.command((doc: Document) => {
+    runCommand(db, builder.result)(SimpleRequestFutures.command((doc: Document) ⇒ {
       log.trace("Got a result from 'count' command: %s", doc)
       callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
     }))
@@ -320,7 +320,7 @@ abstract class MongoConnection extends Logging {
       cmd += "remove" -> true
     } else {
       log.debug("FindAndModify 'modify' mode.  GetNew? %s Upsert? %s", getNew, upsert)
-      update.foreach(_up => {
+      update.foreach(_up ⇒ {
         log.trace("Update spec set. %s", _up)
         // If first key does not start with a $, then the object must be inserted as is and should be checked.
         // TODO - FIX AND UNCOMMENT ME
@@ -335,15 +335,15 @@ abstract class MongoConnection extends Logging {
     implicit val valM = callback.m
     implicit val valDec = new SerializableFindAndModifyResult[callback.T]()(callback.decoder, valM)
 
-    runCommand(db, cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) => {
+    runCommand(db, cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) ⇒ {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
       val doc = reply.value
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
         callback(doc.get.asInstanceOf[callback.T])
       } else {
         callback(reply.getAs[String]("errmsg") match {
-          case Some("No matching object found") => new NoMatchingDocumentError()
-          case default => {
+          case Some("No matching object found") ⇒ new NoMatchingDocumentError()
+          case default ⇒ {
             log.warning("Command 'findAndModify' may have failed. Bad Reply: %s", reply)
             new MongoException("FindAndModifyError: %s".format(default))
           }
@@ -499,7 +499,7 @@ object MongoConnection extends Logging {
   /**
    * Operation queue for channels which aren't connected yet.
    */
-  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) => Unit]]
+  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) ⇒ Unit]]
 
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
@@ -519,22 +519,22 @@ object MongoConnection extends Logging {
    * @see http://www.mongodb.org/display/DOCS/Connections
    */
   def fromURI(uri: String): (MongoConnection, Option[DB], Option[Collection]) = uri match {
-    case MongoURI(hosts, db, collection, username, password, options) => {
+    case MongoURI(hosts, db, collection, username, password, options) ⇒ {
       require(hosts.size > 0, "No valid hosts found in parsed host list")
       if (hosts.size == 1) {
         val _conn = MongoConnection(hosts.head._1, hosts.head._2)
         // TODO - Authentication!
         val _db = db match {
-          case Some(dbName) => Some(_conn(dbName))
-          case None => None
+          case Some(dbName) ⇒ Some(_conn(dbName))
+          case None ⇒ None
         }
 
         val _coll = collection match {
-          case Some(collName) => {
+          case Some(collName) ⇒ {
             assume(_db.isDefined, "Cannot specify a collection name with no DB Name")
             Some(_db.get.apply(collName))
           }
-          case None => None
+          case None ⇒ None
         }
         (_conn, _db, _coll)
       } else throw new UnsupportedOperationException("No current support for multiple hosts in this driver")
@@ -546,21 +546,21 @@ object MongoConnection extends Logging {
     log.info("Setting a channel state up to '%s' for '%s'", connected, channel)
     val oldState = channelState.getOrElseUpdate(channel, new AtomicBoolean(false)).getAndSet(connected)
     if (oldState) connected match {
-      case true => {
+      case true ⇒ {
         log.trace("Connection state was already connected, set to connected again.  NOOP")
       }
-      case false => {
+      case false ⇒ {
         log.trace("Connection state was connected, set to disconnected. Otherwise, NOOP.")
       }
     }
     else connected match {
-      case true => {
+      case true ⇒ {
         log.info("Connection state was disconnected, set to connected.  Dequeueing any backed up operations.")
-        channelOpQueue.get(channel).foreach { queue =>
-          queue.dequeueAll.foreach { op => op(maxBSONObjectSize) }
+        channelOpQueue.get(channel).foreach { queue ⇒
+          queue.dequeueAll.foreach { op ⇒ op(maxBSONObjectSize) }
         }
       }
-      case false => {
+      case false ⇒ {
         log.trace("Connection state was disconnected, set to disconnected again.  NOOP.")
       }
     }
@@ -586,9 +586,9 @@ object MongoConnection extends Logging {
      * or execute a non-GLEed immediate callback against write requests.
      */
     // Quick callback when needed to be invoked immediately after write
-    val writeCB: () => Unit = if (isWrite) {
+    val writeCB: () ⇒ Unit = if (isWrite) {
       msg match {
-        case wMsg: MongoClientWriteMessage => if (concern.safe_?) {
+        case wMsg: MongoClientWriteMessage ⇒ if (concern.safe_?) {
           val gle = createCommand(wMsg.namespace.split("\\.")(0), Document("getlasterror" -> 1))
           log.trace("Created a GetLastError Message: %s", gle)
           /**
@@ -598,18 +598,18 @@ object MongoConnection extends Logging {
           dispatcher.put(gle.requestID, CompletableRequest(msg, f))
           gle.write(outStream)
           log.debug("Wrote a getLastError to the tail end of the output buffer.")
-          () => {}
-        } else () => { wMsg.ids.foreach(x => f((x, WriteResult(true)).asInstanceOf[f.T])) }
-        case unknown => {
+          () ⇒ {}
+        } else () ⇒ { wMsg.ids.foreach(x ⇒ f((x, WriteResult(true)).asInstanceOf[f.T])) }
+        case unknown ⇒ {
           val e = new IllegalArgumentException("Invalid type of message passed; WriteRequestFutures expect a MongoClientWriteMessage underneath them. Got " + unknown)
           log.error(e, "Error in write.")
-          () => { f(e) }
+          () ⇒ { f(e) }
         }
       }
-    } else () => {}
+    } else () ⇒ {}
     // todo - clean this up to be more automatic like the writeCB is
 
-    val exec = (_maxBSON: Int) => {
+    val exec = (_maxBSON: Int) ⇒ {
       channel.write(outStream.buffer())
       outStream.close()
       /** If no write Concern and it's a write, kick the callback now.*/
@@ -645,7 +645,7 @@ object MongoConnection extends Logging {
     if (deadCursors.isEmpty) {
       log.debug("No Dead Cursors.")
     } else {
-      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) => if (!entry._2.isEmpty) {
+      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) ⇒ if (!entry._2.isEmpty) {
         // TODO - ensure no concurrency issues / blockages here.
         log.trace("Pre DeQueue: %s", entry._2.length)
         val msg = KillCursorsMessage(entry._2.dequeueAll())

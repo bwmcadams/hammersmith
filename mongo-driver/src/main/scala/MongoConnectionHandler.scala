@@ -44,12 +44,12 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     log.trace("Query Failure")
     // Attempt to grab the $err document
     val err = reply.documents.headOption match {
-      case Some(b) => {
+      case Some(b) ⇒ {
         val errDoc = SerializableDocument.decode(b) // TODO - Extractors!
         log.trace("Error Document found: %s", errDoc)
         result(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
       }
-      case None => {
+      case None ⇒ {
         log.warn("No Error Document Found.")
         "Unknown Error."
         result(new Exception("Unknown error."))
@@ -61,7 +61,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     val message = e.getMessage.asInstanceOf[MongoMessage]
     log.debug("Incoming Message received type %s", message.getClass.getName)
     message match {
-      case reply: ReplyMessage => {
+      case reply: ReplyMessage ⇒ {
         log.debug("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
         /**
@@ -76,8 +76,8 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
          */
         if (req.isEmpty) log.warn("No registered callback for request ID '%d'.  This may or may not be a bug.", reply.header.responseTo)
         req.foreach(_ match {
-          case _r: CompletableReadRequest => _r match {
-            case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) => {
+          case _r: CompletableReadRequest ⇒ _r match {
+            case CompletableSingleDocRequest(msg: QueryMessage, singleResult: SingleDocQueryRequestFuture) ⇒ {
               log.debug("Single Document Request Future. Decoder: %s.", _r.decoder)
               // This may actually be better as a disableable assert but for now i want it hard.
               require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a SingleDocQueryRequestFuture.")
@@ -93,7 +93,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                 singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T]) // TODO - Fix me!
               }
             }
-            case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) => {
+            case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) ⇒ {
               log.trace("Cursor Request Future.")
               if (reply.cursorNotFound) {
                 log.trace("Cursor Not Found.")
@@ -104,7 +104,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                 cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
               }
             }
-            case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) => {
+            case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) ⇒ {
               log.trace("Get More Request Future.")
               if (reply.cursorNotFound) {
                 log.warn("Cursor Not Found.")
@@ -117,13 +117,13 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
             }
           }
           // TODO - Handle any errors in a "non completable" // TODO - Capture generated ID? the _ids thing on insert is not quite ... defined.
-          case CompletableWriteRequest(msg, writeResult: WriteRequestFuture) => {
+          case CompletableWriteRequest(msg, writeResult: WriteRequestFuture) ⇒ {
             log.trace("Write Request Future.")
             require(reply.numReturned <= 1, "Found more than 1 returned document; cannot complete a WriteRequestFuture.")
             // Check error state
             // Attempt to grab the document
             reply.documents.headOption match {
-              case Some(b) => {
+              case Some(b) ⇒ {
                 val doc = SerializableDocument.decode(b) // TODO - Extractors!
                 log.debug("Document found: %s", doc)
                 val ok = boolCmdResult(doc, false)
@@ -146,7 +146,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
                   writeResult((None, w).asInstanceOf[writeResult.T])
                 }
               }
-              case None => {
+              case None ⇒ {
                 log.warn("No Document Found.")
                 "Unknown Error."
                 writeResult(new Exception("Unknown error; no document returned.."))
@@ -154,10 +154,10 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
             }
           }
 
-          case unknown => log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
+          case unknown ⇒ log.error("Unknown or unexpected value in dispatcher map: %s", unknown)
         })
       }
-      case default => {
+      case default ⇒ {
         log.warn("Unknown message type '%s'; ignoring.", default)
       }
     }
