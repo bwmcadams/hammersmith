@@ -183,7 +183,11 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   })
 
   /**
-   * Gets another database on the same server (without having to go up to connection)
+   * Gets another database on the same server (without having to go up to connection).
+   * The only reason to do this (at the moment) would be to have two database objects
+   * with different write concerns, since the write concern is the only modifiable
+   * field on a DB object.
+   *
    * @param name Name of the database
    * No serverside op needed so doesn't have to callback
    */
