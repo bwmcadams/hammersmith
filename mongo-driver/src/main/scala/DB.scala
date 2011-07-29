@@ -21,6 +21,7 @@ import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
 import com.mongodb.async.futures._
+import com.mongodb.async.wire._
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
 import com.mongodb.async.wire.{ InsertMessage, QueryMessage }
@@ -29,6 +30,9 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
 
   // TODO - Implement as well as supporting "getCollectionFromString" from the Java driver
   def apply(collection: String) = new Collection(collection)(this)
+
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
+    connection.send(msg, f)
 
   // def addUser(username: String, password: String)(f: )
   // def removeUser

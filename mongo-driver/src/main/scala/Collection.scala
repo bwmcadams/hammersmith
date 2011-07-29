@@ -18,6 +18,7 @@ package com.mongodb.async
 
 import org.bson.util.Logging
 import com.mongodb.async.futures._
+import com.mongodb.async.wire._
 import org.bson._
 import org.bson.collection._
 
@@ -26,6 +27,9 @@ object Collection extends Logging {
 }
 
 class Collection(val name: String)(implicit val db: DB) extends Logging {
+
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
+    db.send(msg, f)
 
   /**
    * WARNING: You *must* use an ordered list or commands won't work
