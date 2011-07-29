@@ -31,6 +31,8 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
     db.send(msg, f)
 
+  private val nameWithDB = db.name + "." + name
+
   /**
    * WARNING: You *must* use an ordered list or commands won't work
    * TODO - Would this perform faster partially applied?
@@ -60,9 +62,9 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * TODO - SCALADOC
    * for (i <- 1 to 5000) println("TODO - SCALADOC")
    */
-  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
   def find[Qry <: BSONDocument, Flds <: BSONDocument](query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    db.find(name)(query, fields, numToSkip, batchSize)(callback)
+    val qMsg = QueryMessage(nameWithDB, numToSkip, batchSize, query, fieldSpec(fields))
+    send(qMsg, callback)
   }
 
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */

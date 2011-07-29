@@ -160,28 +160,6 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def command(cmd: String): SingleDocQueryRequestFuture => Unit =
     command(Document(cmd -> 1))_
 
-  /**
-   * Repeated deliberately enough times that i'll notice it later.
-   * Document all methods esp. find/findOne and special ns versions
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * for (i <- 1 to 5000) println("TODO - SCALADOC")
-   */
-  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
-  def find[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.find(name)(collection)(query, fields, numToSkip, batchSize)(callback)
-  }
-
   /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
   def findOne[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
     connection.findOne(name)(collection)(query, fields)(callback)
