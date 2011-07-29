@@ -19,7 +19,7 @@ package com.mongodb.async
 package wire
 
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder
-import com.mongodb.casbah.commons.Logging
+import org.bson.util.Logging
 import org.jboss.netty.buffer.ChannelBuffer
 import org.jboss.netty.channel.ChannelHandlerContext
 import org.jboss.netty.channel.Channel
