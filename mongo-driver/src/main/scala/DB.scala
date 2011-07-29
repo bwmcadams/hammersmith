@@ -21,6 +21,7 @@ import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
 import com.mongodb.async.futures._
+import com.mongodb.async.wire._
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
 import com.mongodb.async.wire.{ InsertMessage, QueryMessage }
@@ -29,6 +30,9 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
 
   // TODO - Implement as well as supporting "getCollectionFromString" from the Java driver
   def apply(collection: String) = new Collection(collection)(this)
+
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
+    connection.send(msg, f)
 
   // def addUser(username: String, password: String)(f: )
   // def removeUser
@@ -157,83 +161,6 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     command(Document(cmd -> 1))_
 
   /**
-   * Repeated deliberately enough times that i'll notice it later.
-   * Document all methods esp. find/findOne and special ns versions
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * TODO - SCALADOC
-   * for (i <- 1 to 5000) println("TODO - SCALADOC")
-   */
-  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM */
-  def find[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty, numToSkip: Int = 0, batchSize: Int = 0)(callback: CursorQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.find(name)(collection)(query, fields, numToSkip, batchSize)(callback)
-  }
-
-  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
-  def findOne[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.findOne(name)(collection)(query, fields)(callback)
-  }
-
-  def findOneByID[A <: AnyRef, Flds <: BSONDocument](collection: String)(id: A, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.findOneByID(name)(collection)(id, fields)(callback)
-  }
-
-  def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
-    connection.insert(name)(collection)(doc, validate)(callback)
-  }
-
-  /**
-   * Insert multiple documents at once.
-   * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
-   * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
-   * on your batch ---- not the first, or all of them.
-   *
-   * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
-   */
-  def batchInsert[T](collection: String)(docs: T*)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
-    connection.batchInsert(name)(collection)(docs: _*)(callback)
-  }
-
-  def update[Upd](collection: String)(query: BSONDocument, update: Upd, upsert: Boolean = false, multi: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, uM: SerializableBSONObject[Upd]) {
-    connection.update(name)(collection)(query, update, upsert, multi)(callback)
-  }
-
-  def save[T](collection: String)(obj: T)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
-    connection.save(name)(collection)(obj)(callback)
-  }
-
-  def remove[T](collection: String)(obj: T, removeSingle: Boolean = false)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
-    connection.remove(name)(collection)(obj, removeSingle)(callback)
-  }
-
-  // TODO - FindAndModify / FindAndRemove
-
-  def createIndex[Kys <% BSONDocument, Opts <% BSONDocument](collection: String)(keys: Kys, options: Opts = Document.empty)(callback: WriteRequestFuture) {
-    connection.createIndex(name)(collection)(keys, options)(callback)
-  }
-
-  def createUniqueIndex[Idx <% BSONDocument](collection: String)(keys: Idx)(callback: WriteRequestFuture) {
-    connection.createUniqueIndex(name)(collection)(keys)(callback)
-  }
-
-  def dropAllIndexes(collection: String)(callback: (Boolean) => Unit) {
-    connection.dropAllIndexes(name)(collection)(boolCmdResultCallback(callback))
-  }
-
-  def dropIndex(collection: String)(idxName: String)(callback: (Boolean) => Unit) {
-    connection.dropIndex(name)(collection)(idxName)(boolCmdResultCallback(callback))
-  }
-
-  /**
    * Drops the database completely, removing all data from disk.
    * *** USE WITH CAUTION ***
    * Not called drop() as that would conflict with an existing expected Scala method
@@ -255,45 +182,12 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
     callback(colls.contains(name))
   })
 
-  def count[Qry: SerializableBSONObject, Flds: SerializableBSONObject](collection: String)(query: Qry = Document.empty,
-    fields: Flds = Document.empty,
-    limit: Long = 0,
-    skip: Long = 0)(callback: Int => Unit) =
-    connection.count(name)(collection)(query, fields, limit, skip)(callback)
-
-  // TODO - We can't allow free form getLastError due to the async nature.. it must be locked to the call
-
   /**
-   * Calls findAndModify in remove only mode with
-   * fields={}, sort={}, remove=true, getNew=false, upsert=false
-   * @param query
-   * @return the removed document
-   */
-  def findAndRemove[Qry: SerializableBSONObject](collection: String)(query: Qry = Document.empty)(callback: FindAndModifyRequestFuture) = connection.findAndRemove(name)(collection)(query)(callback)
-
-  /**
-   * Finds the first document in the query and updates it.
-   * @param query query to match
-   * @param fields fields to be returned
-   * @param sort sort to apply before picking first document
-   * @param remove if true, document found will be removed
-   * @param update update to apply
-   * @param getNew if true, the updated document is returned, otherwise the old document is returned (or it would be lost forever) [ignored in remove]
-   * @param upsert do upsert (insert if document not present)
-   * @return the document
-   */
-  def findAndModify[Qry: SerializableBSONObject, Srt: SerializableBSONObject, Upd: SerializableBSONObject, Flds: SerializableBSONObject](collection: String)(
-    query: Qry = Document.empty,
-    sort: Srt = Document.empty,
-    remove: Boolean = false,
-    update: Option[Upd] = None,
-    getNew: Boolean = false,
-    fields: Flds = Document.empty,
-    upsert: Boolean = false)(callback: FindAndModifyRequestFuture) =
-    connection.findAndModify(name)(collection)(query, sort, remove, update, getNew, fields, upsert)(callback)
-
-  /**
-   * Gets another database on the same server (without having to go up to connection)
+   * Gets another database on the same server (without having to go up to connection).
+   * The only reason to do this (at the moment) would be to have two database objects
+   * with different write concerns, since the write concern is the only modifiable
+   * field on a DB object.
+   *
    * @param name Name of the database
    * No serverside op needed so doesn't have to callback
    */

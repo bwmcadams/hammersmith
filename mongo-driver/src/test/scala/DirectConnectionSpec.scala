@@ -113,7 +113,7 @@ class DirectConnectionSpec extends Specification
   // todo - this relies heavily on whats on my local workstation; needs to be generic
   def iterateSimpleCursor(conn: MongoConnection) = {
     var x = 0
-    conn(integrationTestDBName).find("books")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
+    conn(integrationTestDBName)("books").find(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
       for (doc <- cursor) {
         x += 1
       }
@@ -124,7 +124,7 @@ class DirectConnectionSpec extends Specification
 
   def iterateComplexCursor(conn: MongoConnection) = {
     var x = 0
-    conn(integrationTestDBName).find("books")(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
+    conn(integrationTestDBName)("books").find(Document.empty, Document.empty)((cursor: Cursor[Document]) => {
       def next(op: Cursor.IterState): Cursor.IterCmd = op match {
         case Cursor.Entry(doc) => {
           x += 1
