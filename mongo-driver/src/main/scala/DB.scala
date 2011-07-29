@@ -160,15 +160,6 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def command(cmd: String): SingleDocQueryRequestFuture => Unit =
     command(Document(cmd -> 1))_
 
-  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
-  def findOne[Qry <: BSONDocument, Flds <: BSONDocument](collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.findOne(name)(collection)(query, fields)(callback)
-  }
-
-  def findOneByID[A <: AnyRef, Flds <: BSONDocument](collection: String)(id: A, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    connection.findOneByID(name)(collection)(id, fields)(callback)
-  }
-
   def insert[T](collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     connection.insert(name)(collection)(doc, validate)(callback)
   }

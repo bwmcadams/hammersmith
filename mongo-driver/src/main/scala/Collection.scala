@@ -67,13 +67,15 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     send(qMsg, callback)
   }
 
-  /** Note - I tried doing this as a partially applied but the type signature is VERY Unclear to the user - BWM  */
   def findOne[Qry <: BSONDocument, Flds <: BSONDocument](query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    db.findOne(name)(query, fields)(callback)
+    val qMsg = QueryMessage(nameWithDB, 0, -1, query, fieldSpec(fields))
+    send(qMsg, callback)
   }
 
+  // TODO - should we allow any and do boxing elsewhere?
+  // TODO - FindOne is Option[] returning, ensure!
   def findOneByID[Id <: AnyRef, Flds <: BSONDocument](id: Id, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    db.findOneByID(name)(id, fields)(callback)
+    findOne(Document("_id" -> id), fields)(callback)
   }
 
   def insert[T](doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {

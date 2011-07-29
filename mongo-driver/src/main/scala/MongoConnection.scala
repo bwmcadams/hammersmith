@@ -90,16 +90,6 @@ abstract class MongoConnection extends Logging {
     }))
   }
 
-  def findOne[Qry <: BSONDocument, Flds <: BSONDocument](db: String)(collection: String)(query: Qry = Document.empty, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture)(implicit concern: WriteConcern = this.writeConcern) {
-    val qMsg = QueryMessage(db + "." + collection, 0, -1, query, fieldSpec(fields))
-    send(qMsg, callback)
-  }
-
-  // TODO - should we allow any and do boxing elsewhere?
-  // TODO - FindOne is Option[] returning, ensure!
-  def findOneByID[A <: AnyRef, Flds <: BSONDocument](db: String)(collection: String)(id: A, fields: Flds = Document.empty)(callback: SingleDocQueryRequestFuture) =
-    findOne(db)(collection)(Document("_id" -> id), fields)(callback)
-
   // TODO - Immutable mode / support immutable objects
   def insert[T](db: String)(collection: String)(doc: T, validate: Boolean = true)(callback: WriteRequestFuture)(implicit concern: WriteConcern = this.writeConcern, m: SerializableBSONObject[T]) {
     log.trace("Inserting: %s to %s.%s with WriteConcern: %s", doc, db, collection, concern)
