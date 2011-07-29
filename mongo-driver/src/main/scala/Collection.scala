@@ -32,28 +32,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
     db.send(msg, f)
 
-  /**
-   * WARNING: You *must* use an ordered list or commands won't work
-   */
-  protected[mongodb] def runCommand[Cmd <% BSONDocument](ns: String, cmd: Cmd)(f: SingleDocQueryRequestFuture) {
-    val qMsg = MongoConnection.createCommand(ns, cmd)
-    log.trace("Created Query Message: %s, id: %d", qMsg, qMsg.requestID)
-    send(qMsg, f)
-  }
-
   private val nameWithDB = db.name + "." + name
-
-  /**
-   * WARNING: You *must* use an ordered list or commands won't work
-   * TODO - Would this perform faster partially applied?
-   * TODO - Support Options here
-   */
-  def command[Cmd <% BSONDocument](cmd: Cmd)(f: SingleDocQueryRequestFuture) {
-    db.command(cmd)(f)
-  }
-
-  def command(cmd: String): SingleDocQueryRequestFuture => Unit =
-    command(Document(cmd -> 1))_
 
   /**
    * Repeated deliberately enough times that i'll notice it later.
@@ -174,7 +153,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
 
   private def dropIndexRequestFuture(idxName: String)(callback: SingleDocQueryRequestFuture) {
     // TODO index cache
-    runCommand(db.name, Document("deleteIndexes" -> (nameWithDB), "index" -> idxName))(callback)
+    db.command(Document("deleteIndexes" -> (nameWithDB), "index" -> idxName))(callback)
   }
 
   def dropAllIndexes()(callback: (Boolean) => Unit) {
@@ -189,7 +168,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
 
   def dropCollection()(callback: (Boolean) => Unit) {
     // TODO - Reset Index Cache
-    command(Document("drop" -> name))(boolCmdResultCallback(callback))
+    db.command(Document("drop" -> name))(boolCmdResultCallback(callback))
   }
 
   /**
@@ -208,7 +187,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
       builder += ("limit" -> limit)
     if (skip > 0)
       builder += ("skip" -> skip)
-    runCommand(db.name, builder.result)(SimpleRequestFutures.command((doc: Document) => {
+    db.command(builder.result)(SimpleRequestFutures.command((doc: Document) => {
       log.trace("Got a result from 'count' command: %s", doc)
       callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
     }))
@@ -278,7 +257,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     implicit val valM = callback.m
     implicit val valDec = new SerializableFindAndModifyResult[callback.T]()(callback.decoder, valM)
 
-    runCommand(db.name, cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) => {
+    db.command(cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) => {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
       val doc = reply.value
       if (boolCmdResult(reply, false) && !doc.isEmpty) {
@@ -299,7 +278,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    *
    */
   def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] => Unit) {
-    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
+    db.command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
   }
 
   /**
