@@ -97,6 +97,7 @@ private[mongodb] class CursorActor(private val connectionActor: ActorRef,
     }
     case failure: ConnectionActor.Failure => {
       log.error("CursorActor got a failure from getMore command %s", failure.exception)
+      // TDOO - This is bad and needs fixing.  We need to make sure we kill this cursor, unless we got an id of 0
       cursorEmpty = true // don't try to do anything else
       throw failure.exception // this will kill the cursor actor by throwing from receive()
     }
