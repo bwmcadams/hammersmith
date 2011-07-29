@@ -1,5 +1,6 @@
 import sbt._
 import Keys._
+import ScalariformPlugin.{ format, formatPreferences }
 
 object HammersmithBuild extends Build {
   import Dependencies._
@@ -20,9 +21,24 @@ object HammersmithBuild extends Build {
 
   override lazy val settings = super.settings ++ buildSettings
 
-  lazy val baseSettings = Defaults.defaultSettings 
+  lazy val baseSettings = Defaults.defaultSettings  ++ formatSettings
 
   lazy val parentSettings = baseSettings ++ Publish.settings
+
+  lazy val formatSettings = ScalariformPlugin.settings ++ Seq(
+    formatPreferences in Compile := formattingPreferences,
+    formatPreferences in Test    := formattingPreferences
+  )
+
+  def formattingPreferences = {
+    import scalariform.formatter.preferences._
+    FormattingPreferences().setPreference(AlignParameters, true).
+                            setPreference(DoubleIndentClassDeclaration, true).
+                            setPreference(IndentLocalDefs, true).
+                            setPreference(PreserveDanglingCloseParenthesis, true).
+                            setPreference(RewriteArrowSymbols, true)
+  }
+
 
   lazy val defaultSettings = baseSettings ++ Seq(
     libraryDependencies ++= Seq(casbah, commonsPool, scalaj_collection, netty, twitterUtilCore, slf4j, specs2),
@@ -30,8 +46,7 @@ object HammersmithBuild extends Build {
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
     testFrameworks += TestFrameworks.Specs2
-
-  )
+  ) 
 
   lazy val hammersmith = Project(
     id = "hammersmith",
@@ -55,6 +70,8 @@ object HammersmithBuild extends Build {
       libraryDependencies += slf4jJCL
     )
   ) dependsOn(bson)
+
+
 }
 
 object Publish {
