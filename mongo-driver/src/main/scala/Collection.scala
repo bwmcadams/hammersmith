@@ -337,6 +337,6 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    */
   def writeConcern = _writeConcern.getOrElse(db.writeConcern)
 
-  def ns = "%s.%s".format(db.name, name)
+  def ns = nameWithDB
 
 }
