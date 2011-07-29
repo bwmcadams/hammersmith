@@ -18,10 +18,10 @@
 package org.bson
 package util
 
-class ThreadLocal[T](init: => T) extends java.lang.ThreadLocal[T] with Function0[T] {
+class ThreadLocal[T](init: ⇒ T) extends java.lang.ThreadLocal[T] with Function0[T] {
   override def initialValue: T = init
   def apply = get
-  def withValue[S](thunk: (T => S)): S = thunk(get)
+  def withValue[S](thunk: (T ⇒ S)): S = thunk(get)
 }
 
 // vim: set ts=2 sw=2 sts=2 et:

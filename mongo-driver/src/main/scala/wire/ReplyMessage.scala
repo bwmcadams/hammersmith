@@ -95,7 +95,7 @@ object ReplyMessage extends Logging {
         b
       }
 
-      val documents = for (i <- 0 until numReturned) yield _dec
+      val documents = for (i ← 0 until numReturned) yield _dec
 
       assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
         "Wanted: %d Got: %d".format(numReturned, documents.length))

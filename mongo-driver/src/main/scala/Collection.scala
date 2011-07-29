@@ -36,7 +36,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.command(cmd)(f)
   }
 
-  def command(cmd: String): SingleDocQueryRequestFuture => Unit =
+  def command(cmd: String): SingleDocQueryRequestFuture ⇒ Unit =
     command(Document(cmd -> 1))_
 
   /**
@@ -106,17 +106,17 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
     db.createUniqueIndex(name)(keys)(callback)
   }
 
-  def dropAllIndexes()(callback: (Boolean) => Unit) {
+  def dropAllIndexes()(callback: (Boolean) ⇒ Unit) {
     db.dropAllIndexes(name)(callback)
   }
 
-  def dropIndex(idxName: String)(callback: (Boolean) => Unit) {
+  def dropIndex(idxName: String)(callback: (Boolean) ⇒ Unit) {
     db.dropIndex(name)(idxName)(callback)
   }
 
   // TODO - dropIndex(keys)
 
-  def dropCollection()(callback: (Boolean) => Unit) {
+  def dropCollection()(callback: (Boolean) ⇒ Unit) {
     // TODO - Reset Index Cache
     command(Document("drop" -> name))(boolCmdResultCallback(callback))
   }
@@ -126,9 +126,9 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    * -1 indicates an error, for now
    */
   def count[Qry: SerializableBSONObject, Flds: SerializableBSONObject](query: Qry = Document.empty,
-    fields: Flds = Document.empty,
-    limit: Long = 0,
-    skip: Long = 0)(callback: Int => Unit) =
+                                                                       fields: Flds = Document.empty,
+                                                                       limit: Long = 0,
+                                                                       skip: Long = 0)(callback: Int ⇒ Unit) =
     db.count(name)(query, fields, limit, skip)(callback)
 
   // TODO - Rename
@@ -171,8 +171,8 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
   /**
    *
    */
-  def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] => Unit) {
-    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) => callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
+  def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] ⇒ Unit) {
+    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) ⇒ callback(doc.getAsOrElse[BSONList]("values", BSONList.empty).asList)))
   }
 
   /**

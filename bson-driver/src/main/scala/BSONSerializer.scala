@@ -25,7 +25,7 @@ import org.bson.types.ObjectId
 import java.util.regex.Pattern
 import scala.util.matching.Regex
 import scalaj.collection.Imports._
-import java.util.{ UUID, Date => JDKDate }
+import java.util.{ UUID, Date ⇒ JDKDate }
 import org.bson.collection.BSONList
 import scala.collection.Map
 
@@ -95,7 +95,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     _buf.writeInt(0) // placeholder for document length
 
     // TODO - Support for transient fields like in the Java driver? Or should the user handle these?
-    for ((k, v) <- o) {
+    for ((k, v) ← o) {
       log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k, v.asInstanceOf[AnyRef]) // force boxing
     }
@@ -117,12 +117,12 @@ trait BSONSerializer extends BSONEncoder with Logging {
     log.trace("\t Put Field '%s' - '%s'", name, value)
 
     value match {
-      case "$where" => {
+      case "$where" ⇒ {
         log.trace("Where clause.")
         _put(CODE, name)
         _putValueString(value.toString)
       }
-      case other => {
+      case other ⇒ {
         log.trace("Applying Encoding Hooks")
         // Apply encoding hooks and then write whatever comes out
         _putHandle(BSON.applyEncodingHooks(value))(name)
@@ -139,102 +139,102 @@ trait BSONSerializer extends BSONEncoder with Logging {
    * TODO - Hardwire common Scala types here rather than using slower Encoding Hooks like in Casbah
    */
   protected val _putHandle: PartialFunction[AnyRef, Function1[String, Unit]] = {
-    case null => {
+    case null ⇒ {
       log.trace("null value.")
       putNull(_: String)
     }
-    case dt: JDKDate => {
+    case dt: JDKDate ⇒ {
       log.trace("(JDK) Date value.")
       putDate(_: String, dt)
     }
-    case num: Number => {
+    case num: Number ⇒ {
       log.trace("Number value.")
       putNumber(_: String, num)
     }
-    case str: String => {
+    case str: String ⇒ {
       log.trace("String value.")
       putString(_: String, str)
     }
-    case oid: ObjectId => {
+    case oid: ObjectId ⇒ {
       log.trace("ObjectId value: %s", oid)
       putObjectId(_: String, oid)
     }
-    case bsonObj: BSONObject => {
+    case bsonObj: BSONObject ⇒ {
       log.trace("BSONObject (the Java kind) value.")
       putObject(_: String, bsonObj)
     }
-    case serBson: Map[String, Any] => {
+    case serBson: Map[String, Any] ⇒ {
       log.trace("Serializable BSON Object value.")
       putObject(_: String, serBson)
     }
-    case bool: java.lang.Boolean => {
+    case bool: java.lang.Boolean ⇒ {
       log.trace("Boolean value.")
       putBoolean(_: String, bool)
     }
-    case pattern: Pattern => {
+    case pattern: Pattern ⇒ {
       log.trace("RegEx Pattern.")
       putPattern(_: String, pattern)
     }
-    case jdkMap: java.util.Map[_, _] => {
+    case jdkMap: java.util.Map[_, _] ⇒ {
       log.trace("jDK Map value.")
       putMap(_: String, jdkMap.asScala)
     }
-    case sMap: Map[_, _] => {
+    case sMap: Map[_, _] ⇒ {
       log.trace("Scala Map value.")
       putMap(_: String, sMap)
     }
-    case jdkIter: java.lang.Iterable[_] => {
+    case jdkIter: java.lang.Iterable[_] ⇒ {
       log.trace("JDK Iterable value.")
       putIterable(_: String, jdkIter.asScala)
     }
-    case lst: scala.collection.Seq[_] => {
+    case lst: scala.collection.Seq[_] ⇒ {
       log.trace("List (Seq) value.")
       putList(_: String, lst)
     }
-    case sIter: Iterable[_] => {
+    case sIter: Iterable[_] ⇒ {
       log.trace("Scala Iterable value.")
       putIterable(_: String, sIter)
     }
-    case bArr: Array[Byte] => {
+    case bArr: Array[Byte] ⇒ {
       log.trace("Byte Array value.")
       putBinary(_: String, bArr)
     }
-    case bin: types.Binary => {
+    case bin: types.Binary ⇒ {
       log.trace("BSON Binary value.")
       putBinary(_: String, bin)
     }
-    case uuid: UUID => {
+    case uuid: UUID ⇒ {
       log.trace("UUID value.")
       putUUID(_: String, uuid)
     }
-    case arr: Array[_] => {
+    case arr: Array[_] ⇒ {
       log.trace("Array (not of Bytes) value.")
       putArray(_: String, arr)
     }
 
-    case sym: types.Symbol => {
+    case sym: types.Symbol ⇒ {
       log.trace("BSON Symbol value.")
       putSymbol(_: String, sym)
     }
-    case sym: Symbol => {
+    case sym: Symbol ⇒ {
       log.trace("Scala Symbol value.")
       putSymbol(_: String, new types.Symbol(sym.name))
     }
-    case tsp: types.BSONTimestamp => {
+    case tsp: types.BSONTimestamp ⇒ {
       log.trace("BSON Timestamp value.")
       putTimestamp(_: String, tsp)
     }
-    case scopedCode: types.CodeWScope => {
+    case scopedCode: types.CodeWScope ⇒ {
       log.trace("BSON Code w/ Scope value.")
       putCodeWScope(_: String, scopedCode)
     }
-    case code: types.Code => {
+    case code: types.Code ⇒ {
       log.trace("BSON Code (unscoped) value.")
       putCode(_: String, code)
     }
-    case default => {
+    case default ⇒ {
       // Weird case, attempt to push specials... delegate "match failed" up a level
-      { name: String =>
+      { name: String ⇒
         if (!putSpecial(name, default))
           throw new IllegalArgumentException("Cannot serialize '%s'".format(default.getClass))
       }
@@ -245,7 +245,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     _put(ARRAY, name)
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for length
-    for (i <- 0 until arr.length) _putObjectField(i.toString, arr(i).asInstanceOf[AnyRef]) //stupid JVM boxing
+    for (i ← 0 until arr.length) _putObjectField(i.toString, arr(i).asInstanceOf[AnyRef]) //stupid JVM boxing
     _buf.write(EOO)
 
     val sz = _buf.getPosition - sizePos
@@ -256,7 +256,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     _put(ARRAY, name)
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for length
-    for (i <- 0 until lst.length) _putObjectField(i.toString, lst(i).asInstanceOf[AnyRef]) // stupid JVM Boxing
+    for (i ← 0 until lst.length) _putObjectField(i.toString, lst(i).asInstanceOf[AnyRef]) // stupid JVM Boxing
     _buf.write(EOO)
 
     val sz = _buf.getPosition - sizePos
@@ -269,7 +269,7 @@ trait BSONSerializer extends BSONEncoder with Logging {
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for length
 
-    for ((k, v) <- m) {
+    for ((k, v) ← m) {
       log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k.toString, v.asInstanceOf[AnyRef]) // force boxing
     }

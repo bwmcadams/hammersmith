@@ -18,8 +18,8 @@
 package com.mongodb.async
 
 case class WriteResult(ok: Boolean,
-  error: Option[String] = None,
-  n: Int = 0,
-  code: Option[Int] = None,
-  upsertID: Option[AnyRef] = None,
-  updatedExisting: Option[Boolean] = None)
+                       error: Option[String] = None,
+                       n: Int = 0,
+                       code: Option[Int] = None,
+                       upsertID: Option[AnyRef] = None,
+                       updatedExisting: Option[Boolean] = None)

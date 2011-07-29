@@ -52,7 +52,7 @@ abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWrite
     log.debug("Docs Length: %s", documents.length)
     val q = Queue(documents: _*)
     // TODO - test recursion
-    for (doc <- q) {
+    for (doc ← q) {
       val total = enc.size
       val n = enc.encodeObject(implicitly[SerializableBSONObject[T]].encode(doc))
       log.debug("Total: %d, Last Doc Size: %d", total, n)

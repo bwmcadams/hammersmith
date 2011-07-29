@@ -21,7 +21,7 @@ import BSON._
 import org.bson.io.Bits
 import java.io._
 import org.bson.types._
-import java.util.{ UUID, Date => JDKDate }
+import java.util.{ UUID, Date ⇒ JDKDate }
 import org.bson.util.{ Logging }
 import scala.collection.mutable.Stack
 import org.bson.collection._
@@ -70,7 +70,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     try {
       decode(in, callback)
     } catch {
-      case t: Throwable => log.error(t, "Failed to decode message with callback.")
+      case t: Throwable ⇒ log.error(t, "Failed to decode message with callback.")
     }
     log.trace("Decoded, getting.")
     val obj = get
@@ -81,18 +81,18 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   def decode(in: InputStream, callback: Callback): Int = try {
     _decode(new Input(in), callback)
   } catch {
-    case ioe: IOException => {
+    case ioe: IOException ⇒ {
       log.error(ioe, "OMG! PONIES!")
       throw new BSONException("Failed to decode input data.", ioe)
     }
-    case t: Throwable => log.error(t, "Unexpected exception in decode"); throw t
+    case t: Throwable ⇒ log.error(t, "Unexpected exception in decode"); throw t
   }
 
   def decode(b: Array[Byte], callback: Callback): Int = try {
     _decode(new Input(new ByteArrayInputStream(b)), callback)
   } catch {
-    case ioe: IOException => throw new BSONException("Failed to decode input data.", ioe)
-    case t: Throwable => log.error(t, "Unexpected exception in decode"); throw t
+    case ioe: IOException ⇒ throw new BSONException("Failed to decode input data.", ioe)
+    case t: Throwable ⇒ log.error(t, "Unexpected exception in decode"); throw t
   }
 
   protected def _decode(in: Input, callback: Callback) = {
@@ -147,59 +147,59 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   }
 
   protected val _getHandle: PartialFunction[Byte, Function1[String, Unit]] = {
-    case NULL => {
+    case NULL ⇒ {
       log.trace("[Get Handle] Null value.")
       _callback.gotNull _
     }
-    case UNDEFINED => {
+    case UNDEFINED ⇒ {
       log.trace("[Get Handle] Undefined value.")
       _callback.gotUndefined _
     }
-    case BOOLEAN => {
+    case BOOLEAN ⇒ {
       log.trace("[Get Handle] Boolean value.")
       _callback.gotBoolean(_: String, _in.read() > 0)
     }
-    case NUMBER => {
+    case NUMBER ⇒ {
       log.trace("[Get Handle] Double Number value.")
       _callback.gotDouble(_: String, _in.readDouble)
     }
-    case NUMBER_INT => {
+    case NUMBER_INT ⇒ {
       log.trace("[Get Handle] Integer Number value.")
       _callback.gotInt(_: String, _in.readInt)
     }
-    case NUMBER_LONG => {
+    case NUMBER_LONG ⇒ {
       log.trace("[Get Handle] Long Number value.")
       _callback.gotLong(_: String, _in.readLong)
     }
-    case SYMBOL => {
+    case SYMBOL ⇒ {
       log.trace("[Get Handle] Symbol value.")
       _callback.gotSymbol(_: String, _in.readUTF8String)
     }
-    case STRING => {
+    case STRING ⇒ {
       log.trace("[Get Handle] String value.")
       _callback.gotString(_: String, _in.readUTF8String)
     }
-    case OID => {
+    case OID ⇒ {
       log.trace("[Get Handle] ObjectId value.")
       // ObjectIds are stored Big endian, just to make things confusing for people.
       _callback.gotObjectId(_: String, new ObjectId(_in.readIntBE, _in.readIntBE, _in.readIntBE))
     }
-    case REF => {
+    case REF ⇒ {
       log.trace("[Get Handle] DBRef value.")
       _in.readInt // length of cString that follows
       val ns = _in.readCStr
       val oid = new ObjectId(_in.readInt, _in.readInt, _in.readInt)
       _callback.gotDBRef(_: String, ns, oid)
     }
-    case DATE => {
+    case DATE ⇒ {
       log.trace("[Get Handle] Date value.")
       _callback.gotDate(_: String, _in.readLong)
     }
-    case REGEX => {
+    case REGEX ⇒ {
       log.trace("[Get Handle] Regular Expression value.")
       _callback.gotRegex(_: String, _in.readCStr, _in.readCStr)
     }
-    case BINARY => {
+    case BINARY ⇒ {
       log.debug("[Get Handle] Binary value.")
       /*_binary(_: String)*/
       val totalLen = _in.readInt
@@ -210,48 +210,48 @@ trait BSONDeserializer extends BSONDecoder with Logging {
       _in.fill(data)
       _callback.gotBinary(_: String, binType, data)
     }
-    case CODE => {
+    case CODE ⇒ {
       log.trace("[Get Handle] Code value.")
       _callback.gotCode(_: String, _in.readUTF8String)
     }
-    case CODE_W_SCOPE => {
+    case CODE_W_SCOPE ⇒ {
       log.trace("[Get Handle] Code w/ scope value.")
       _in.readInt
       _callback.gotCodeWScope(_: String, _in.readUTF8String, _readBasicObject())
     }
-    case ARRAY => {
+    case ARRAY ⇒ {
       log.trace("[Get Handle] Array value.")
       _in.readInt() // total size, ignorable
-      (name: String) => {
+      (name: String) ⇒ {
         _callback.arrayStart(name)
         while (decodeElement()) {}
         _callback.arrayDone()
       }
     }
-    case OBJECT => {
+    case OBJECT ⇒ {
       log.trace("[Get Handle] Object value.")
       _in.readInt() // total size, ignorable
-      (name: String) => {
+      (name: String) ⇒ {
         _callback.objectStart(name)
         while (decodeElement()) {}
         _callback.objectDone()
       }
     }
-    case TIMESTAMP => {
+    case TIMESTAMP ⇒ {
       log.trace("[Get Handle] Timestamp value.")
       val i = _in.readInt
       val time = _in.readInt
       _callback.gotTimestamp(_: String, time, i)
     }
-    case MINKEY => {
+    case MINKEY ⇒ {
       log.trace("[Get Handle] Min Key value.")
       _callback.gotMinKey(_)
     }
-    case MAXKEY => {
+    case MAXKEY ⇒ {
       log.trace("[Get Handle] Max Key value.")
       _callback.gotMaxKey(_)
     }
-    case default => { name: String =>
+    case default ⇒ { name: String ⇒
       throw new UnsupportedOperationException("No support for type '%s', name: '%s'".format(default, name))
     }
 

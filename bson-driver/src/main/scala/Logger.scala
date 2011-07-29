@@ -17,7 +17,7 @@
 package org.bson
 package util
 
-import org.slf4j.{ Logger => SLFLogger, LoggerFactory => SLFLoggerFactory }
+import org.slf4j.{ Logger ⇒ SLFLogger, LoggerFactory ⇒ SLFLoggerFactory }
 
 /**
  * Base trait for all classes that wants to be able use the logging infrastructure.
@@ -54,95 +54,95 @@ class Logger(val logger: SLFLogger) {
   def error_? = logger.isErrorEnabled
 
   //Trace
-  def trace(t: Throwable, fmt: => String, arg: Any, argN: Any*) {
+  def trace(t: Throwable, fmt: ⇒ String, arg: Any, argN: Any*) {
     trace(t, message(fmt, arg, argN: _*))
   }
 
-  def trace(t: Throwable, msg: => String) {
+  def trace(t: Throwable, msg: ⇒ String) {
     if (trace_?) logger.trace(msg, t)
   }
 
-  def trace(fmt: => String, arg: Any, argN: Any*) {
+  def trace(fmt: ⇒ String, arg: Any, argN: Any*) {
     trace(message(fmt, arg, argN: _*))
   }
 
-  def trace(msg: => String) {
+  def trace(msg: ⇒ String) {
     if (trace_?) logger trace msg
   }
 
   //Debug
-  def debug(t: Throwable, fmt: => String, arg: Any, argN: Any*) {
+  def debug(t: Throwable, fmt: ⇒ String, arg: Any, argN: Any*) {
     debug(t, message(fmt, arg, argN: _*))
   }
 
-  def debug(t: Throwable, msg: => String) {
+  def debug(t: Throwable, msg: ⇒ String) {
     if (debug_?) logger.debug(msg, t)
   }
 
-  def debug(fmt: => String, arg: Any, argN: Any*) {
+  def debug(fmt: ⇒ String, arg: Any, argN: Any*) {
     debug(message(fmt, arg, argN: _*))
   }
 
-  def debug(msg: => String) {
+  def debug(msg: ⇒ String) {
     if (debug_?) logger debug msg
   }
 
   //Info
-  def info(t: Throwable, fmt: => String, arg: Any, argN: Any*) {
+  def info(t: Throwable, fmt: ⇒ String, arg: Any, argN: Any*) {
     info(t, message(fmt, arg, argN: _*))
   }
 
-  def info(t: Throwable, msg: => String) {
+  def info(t: Throwable, msg: ⇒ String) {
     if (info_?) logger.info(msg, t)
   }
 
-  def info(fmt: => String, arg: Any, argN: Any*) {
+  def info(fmt: ⇒ String, arg: Any, argN: Any*) {
     info(message(fmt, arg, argN: _*))
   }
 
-  def info(msg: => String) {
+  def info(msg: ⇒ String) {
     if (info_?) logger info msg
   }
 
   //Warning
-  def warning(t: Throwable, fmt: => String, arg: Any, argN: Any*) {
+  def warning(t: Throwable, fmt: ⇒ String, arg: Any, argN: Any*) {
     warning(t, message(fmt, arg, argN: _*))
   }
 
-  def warn(t: Throwable, fmt: => String, arg: Any, argN: Any*) = warning(t, fmt, arg, argN)
+  def warn(t: Throwable, fmt: ⇒ String, arg: Any, argN: Any*) = warning(t, fmt, arg, argN)
 
-  def warning(t: Throwable, msg: => String) {
+  def warning(t: Throwable, msg: ⇒ String) {
     if (warning_?) logger.warn(msg, t)
   }
 
-  def warn(t: Throwable, msg: => String) = warning(t, msg)
+  def warn(t: Throwable, msg: ⇒ String) = warning(t, msg)
 
-  def warning(fmt: => String, arg: Any, argN: Any*) {
+  def warning(fmt: ⇒ String, arg: Any, argN: Any*) {
     warning(message(fmt, arg, argN: _*))
   }
 
-  def warn(fmt: => String, arg: Any, argN: Any*) = warning(fmt, arg, argN: _*)
+  def warn(fmt: ⇒ String, arg: Any, argN: Any*) = warning(fmt, arg, argN: _*)
 
-  def warning(msg: => String) {
+  def warning(msg: ⇒ String) {
     if (warning_?) logger warn msg
   }
 
-  def warn(msg: => String) = warning(msg)
+  def warn(msg: ⇒ String) = warning(msg)
 
   //Error
-  def error(t: Throwable, fmt: => String, arg: Any, argN: Any*) {
+  def error(t: Throwable, fmt: ⇒ String, arg: Any, argN: Any*) {
     error(t, message(fmt, arg, argN: _*))
   }
 
-  def error(t: Throwable, msg: => String) {
+  def error(t: Throwable, msg: ⇒ String) {
     if (error_?) logger.error(msg, t)
   }
 
-  def error(fmt: => String, arg: Any, argN: Any*) {
+  def error(fmt: ⇒ String, arg: Any, argN: Any*) {
     error(message(fmt, arg, argN: _*))
   }
 
-  def error(msg: => String) {
+  def error(msg: ⇒ String) {
     if (error_?) logger error msg
   }
 

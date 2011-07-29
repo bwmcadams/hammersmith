@@ -40,9 +40,9 @@ protected[mongodb] class ReplyMessageDecoder extends LengthFieldBasedFrameDecode
     } else {
       // we have one message (and nothing else) in the "frame" buffer
       MongoMessage.unapply(new ChannelBufferInputStream(frame)) match {
-        case reply: ReplyMessage =>
+        case reply: ReplyMessage ⇒
           reply
-        case default =>
+        case default ⇒
           // this should not happen;
           throw new Exception("Unknown message type '%s' incoming from MongoDB; ignoring.".format(default))
       }

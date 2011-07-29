@@ -6,7 +6,7 @@ import java.util.concurrent.ThreadFactory
 object ThreadFactories {
 
   private class NamedThreadFactory(val name: String)
-    extends ThreadFactory {
+      extends ThreadFactory {
 
     private val nextSerial = new AtomicInteger(1)
 

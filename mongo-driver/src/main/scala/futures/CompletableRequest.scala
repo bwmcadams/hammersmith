@@ -31,12 +31,12 @@ object CompletableRequest {
   def apply(m: MongoClientMessage, f: RequestFuture): CompletableRequest = apply((m, f))
 
   def apply: PartialFunction[(MongoClientMessage, RequestFuture), CompletableRequest] = {
-    case (q: QueryMessage, f: SingleDocQueryRequestFuture) => CompletableSingleDocRequest(q, f)
-    case (q: QueryMessage, f: CursorQueryRequestFuture) => CompletableCursorRequest(q, f)
-    case (gm: GetMoreMessage, f: GetMoreRequestFuture) => CompletableGetMoreRequest(gm, f)
-    case (w: MongoClientWriteMessage, f: WriteRequestFuture) => CompletableWriteRequest(w, f)
-    case (k: KillCursorsMessage, f: NoOpRequestFuture.type) => NonCompletableWriteRequest(k, f)
-    case default => throw new IllegalArgumentException("Cannot handle a CompletableRequest of '%s'".format(default))
+    case (q: QueryMessage, f: SingleDocQueryRequestFuture) ⇒ CompletableSingleDocRequest(q, f)
+    case (q: QueryMessage, f: CursorQueryRequestFuture) ⇒ CompletableCursorRequest(q, f)
+    case (gm: GetMoreMessage, f: GetMoreRequestFuture) ⇒ CompletableGetMoreRequest(gm, f)
+    case (w: MongoClientWriteMessage, f: WriteRequestFuture) ⇒ CompletableWriteRequest(w, f)
+    case (k: KillCursorsMessage, f: NoOpRequestFuture.type) ⇒ NonCompletableWriteRequest(k, f)
+    case default ⇒ throw new IllegalArgumentException("Cannot handle a CompletableRequest of '%s'".format(default))
   }
 }
 

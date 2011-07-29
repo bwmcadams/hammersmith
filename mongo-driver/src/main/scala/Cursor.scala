@@ -33,36 +33,36 @@ object Cursor extends Logging {
   case object EOF extends IterState
   trait IterCmd
   case object Done extends IterCmd
-  case class Next(op: (IterState) => IterCmd) extends IterCmd
-  case class NextBatch(op: (IterState) => IterCmd) extends IterCmd
+  case class Next(op: (IterState) ⇒ IterCmd) extends IterCmd
+  case class NextBatch(op: (IterState) ⇒ IterCmd) extends IterCmd
 
   def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
     log.debug("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
     try {
       new Cursor[T](namespace, reply)(ctx, decoder)
     } catch {
-      case e => log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
+      case e ⇒ log.error(e, "*****EXCEPTION IN CURSOR INSTANTIATE: %s ****", e.getMessage)
     }
   }
   /**
    * Internal helper, more or less a "default" iterator for internal usage
    * Not exposed publicly but useful as an example.
    */
-  protected[mongodb] def basicIter[T: SerializableBSONObject](cursor: Cursor[T])(f: T => Unit) = {
-    def next(op: Cursor.IterState): Cursor.IterCmd = op match {
-      case Cursor.Entry(doc: T) => {
-        f(doc)
-        Cursor.Next(next)
+  protected[mongodb] def basicIter[T: SerializableBSONObject](cursor: Cursor[T])(f: T ⇒ Unit) = {
+      def next(op: Cursor.IterState): Cursor.IterCmd = op match {
+        case Cursor.Entry(doc: T) ⇒ {
+          f(doc)
+          Cursor.Next(next)
+        }
+        case Cursor.Empty ⇒ {
+          log.trace("Empty... Next batch.")
+          Cursor.NextBatch(next)
+        }
+        case Cursor.EOF ⇒ {
+          log.trace("EOF... Cursor done.")
+          Cursor.Done
+        }
       }
-      case Cursor.Empty => {
-        log.trace("Empty... Next batch.")
-        Cursor.NextBatch(next)
-      }
-      case Cursor.EOF => {
-        log.trace("EOF... Cursor done.")
-        Cursor.Done
-      }
-    }
     iterate(cursor)(next)
   }
 
@@ -84,22 +84,22 @@ object Cursor extends Logging {
    *      The standard response to this should be Cursor.Done which tells the control loop to stop and shut down the Cursor.
    *      I suppose if you want to be special you could respond with something else but it probably won't work right.
    */
-  def iterate[T: SerializableBSONObject](cursor: Cursor[T])(op: (IterState) => IterCmd) {
+  def iterate[T: SerializableBSONObject](cursor: Cursor[T])(op: (IterState) ⇒ IterCmd) {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
-    def next(f: (IterState) => IterCmd): Unit = op(cursor.next()) match {
-      case Done => {
-        log.trace("Closing Cursor.")
-        cursor.close()
+      def next(f: (IterState) ⇒ IterCmd): Unit = op(cursor.next()) match {
+        case Done ⇒ {
+          log.trace("Closing Cursor.")
+          cursor.close()
+        }
+        case Next(tOp) ⇒ {
+          log.trace("Next!")
+          next(tOp)
+        }
+        case NextBatch(tOp) ⇒ cursor.nextBatch(() ⇒ {
+          log.debug("Next Batch Loaded.")
+          next(tOp)
+        })
       }
-      case Next(tOp) => {
-        log.trace("Next!")
-        next(tOp)
-      }
-      case NextBatch(tOp) => cursor.nextBatch(() => {
-        log.debug("Next Batch Loaded.")
-        next(tOp)
-      })
-    }
     next(op)
   }
 }
@@ -138,21 +138,21 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   log.trace("Decode %s docs.", reply.documents.length)
   try {
     val _d = Seq.newBuilder[T]
-    for (doc <- reply.documents) {
+    for (doc ← reply.documents) {
       log.trace("Decoding: %s", doc)
       try {
         val x = decoder.decode(doc)
         log.trace("Decoded: %s", x)
         _d += x
       } catch {
-        case e => log.warn("ERROR!!!!!!!!! %s", e)
+        case e ⇒ log.warn("ERROR!!!!!!!!! %s", e)
       }
     }
     val _decoded = _d.result
     // reply.documents.map(decoder.decode)
     log.debug("Decoded %s docs: %s", _decoded.length, _decoded)
   } catch {
-    case e => log.error(e, "Document decode failure: %s", e)
+    case e ⇒ log.error(e, "Document decode failure: %s", e)
   }
 
   // TODO - Move to lazy decoding model
@@ -178,14 +178,14 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
       log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
       MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) => {
+        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) ⇒ {
           reply match {
-            case Right((id, batch)) => {
+            case Right((id, batch)) ⇒ {
               log.trace("Got a result from 'getMore' command (id: %d).", id)
               cursorEmpty = validCursor(id)
               docs.enqueue(batch: _*)
             }
-            case Left(t) => {
+            case Left(t) ⇒ {
               // TODO - should we have some way of signalling an error to the callback?
               log.error(t, "Command 'getMore' failed.")
               cursorEmpty = true // assume a server issue
@@ -205,7 +205,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
     else
       Cursor.EOF
   } catch { // just in case
-    case nse: java.util.NoSuchElementException => {
+    case nse: java.util.NoSuchElementException ⇒ {
       log.debug("No Such Element Exception")
       if (hasMore) {
         log.debug("Has More.")
@@ -227,7 +227,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    * AKA - If you want to stick your finger in this electrical socket, you'll have
    * to build your own fork first.
    */
-  protected[mongodb] def foreach(f: T => Unit) = {
+  protected[mongodb] def foreach(f: T ⇒ Unit) = {
     log.trace("Foreach: %s | empty? %s", f, isEmpty)
     Cursor.basicIter(this)(f)
   }

@@ -26,7 +26,7 @@ import org.bson.SerializableBSONObject
 sealed trait RequestFuture {
   type T
 
-  val body: Either[Throwable, T] => Unit
+  val body: Either[Throwable, T] ⇒ Unit
 
   def apply(error: Throwable) = body(Left(error))
 
@@ -93,9 +93,9 @@ trait BatchWriteRequestFuture extends RequestFuture {
  */
 case object NoOpRequestFuture extends RequestFuture with Logging {
   type T = Unit
-  val body = (result: Either[Throwable, Unit]) => result match {
-    case Right(()) => {}
-    case Left(t) => log.error(t, "NoOp Command Failed.")
+  val body = (result: Either[Throwable, Unit]) ⇒ result match {
+    case Right(()) ⇒ {}
+    case Left(t) ⇒ log.error(t, "NoOp Command Failed.")
   }
 
   override def toString = "{NoopWriteRequestFuture}"
@@ -103,7 +103,7 @@ case object NoOpRequestFuture extends RequestFuture with Logging {
 }
 
 object RequestFutures extends Logging {
-  def getMore[A: SerializableBSONObject](f: Either[Throwable, (Long, Seq[A])] => Unit) =
+  def getMore[A: SerializableBSONObject](f: Either[Throwable, (Long, Seq[A])] ⇒ Unit) =
     new GetMoreRequestFuture {
       type DocType = A
       val body = f
@@ -111,7 +111,7 @@ object RequestFutures extends Logging {
       override def toString = "{GetMoreRequestFuture}"
     }
 
-  def query[A: SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) =
+  def query[A: SerializableBSONObject](f: Either[Throwable, Cursor[A]] ⇒ Unit) =
     new CursorQueryRequestFuture {
       type DocType = A
       type T = Cursor[A]
@@ -120,9 +120,9 @@ object RequestFutures extends Logging {
       override def toString = "{CursorQueryRequestFuture}"
     }
 
-  def find[A: SerializableBSONObject](f: Either[Throwable, Cursor[A]] => Unit) = query(f)
+  def find[A: SerializableBSONObject](f: Either[Throwable, Cursor[A]] ⇒ Unit) = query(f)
 
-  def command[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] => Unit) =
+  def command[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] ⇒ Unit) =
     new SingleDocQueryRequestFuture {
       type DocType = A
       val m = manifest[A]
@@ -131,22 +131,22 @@ object RequestFutures extends Logging {
       override def toString = "{SingleDocQueryRequestFuture}"
     }
 
-  def findOne[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] => Unit) = command(f)
+  def findOne[A: SerializableBSONObject: Manifest](f: Either[Throwable, A] ⇒ Unit) = command(f)
 
   /**
    * version of Command which expects Option[A] ...
    */
-  def findAndModify[A: SerializableBSONObject: Manifest](f: Either[Throwable, Option[A]] => Unit) =
+  def findAndModify[A: SerializableBSONObject: Manifest](f: Either[Throwable, Option[A]] ⇒ Unit) =
     new FindAndModifyRequestFuture {
       type DocType = A
       val m = manifest[A]
-      val body = (result: Either[Throwable, A]) => {
+      val body = (result: Either[Throwable, A]) ⇒ {
         log.debug("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
         result match {
-          case Right(doc) => f(Right(Option(doc)))
-          case Left(t) => t match {
-            case nme: NoMatchingDocumentError => f(Right(None))
-            case e => f(Left(e))
+          case Right(doc) ⇒ f(Right(Option(doc)))
+          case Left(t) ⇒ t match {
+            case nme: NoMatchingDocumentError ⇒ f(Right(None))
+            case e ⇒ f(Left(e))
           }
         }
       }
@@ -154,13 +154,13 @@ object RequestFutures extends Logging {
       override def toString = "{SingleDocQueryRequestFuture}"
     }
 
-  def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] => Unit) =
+  def write(f: Either[Throwable, (Option[AnyRef], WriteResult)] ⇒ Unit) =
     new WriteRequestFuture {
       val body = f
       override def toString = "{WriteRequestFuture}"
     }
 
-  def batchWrite(f: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)] => Unit) =
+  def batchWrite(f: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)] ⇒ Unit) =
     new BatchWriteRequestFuture {
       val body = f
       override def toString = "{WriteRequestFuture}"
@@ -171,17 +171,17 @@ object RequestFutures extends Logging {
  * "Simpler" request futures which swallow any errors.
  */
 object SimpleRequestFutures extends Logging {
-  def findOne[A: SerializableBSONObject: Manifest](f: A => Unit) = command(f)
+  def findOne[A: SerializableBSONObject: Manifest](f: A ⇒ Unit) = command(f)
 
-  def command[A: SerializableBSONObject: Manifest](f: A => Unit) =
+  def command[A: SerializableBSONObject: Manifest](f: A ⇒ Unit) =
     new SingleDocQueryRequestFuture {
       type DocType = A
       val m = manifest[A]
-      val body = (result: Either[Throwable, A]) => {
+      val body = (result: Either[Throwable, A]) ⇒ {
         log.debug("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
         result match {
-          case Right(doc) => f(doc)
-          case Left(t) => log.error(t, "Command Failed.")
+          case Right(doc) ⇒ f(doc)
+          case Left(t) ⇒ log.error(t, "Command Failed.")
         }
       }
       val decoder = implicitly[SerializableBSONObject[A]]
@@ -191,17 +191,17 @@ object SimpleRequestFutures extends Logging {
   /**
    * version of Command which expects Option[A] ...
    */
-  def findAndModify[A: SerializableBSONObject: Manifest](f: Option[A] => Unit) =
+  def findAndModify[A: SerializableBSONObject: Manifest](f: Option[A] ⇒ Unit) =
     new FindAndModifyRequestFuture {
       type DocType = A
       val m = manifest[A]
-      val body = (result: Either[Throwable, A]) => {
+      val body = (result: Either[Throwable, A]) ⇒ {
         log.debug("Decoding SingleDocQueryRequestFuture: %s / %s", toString, decoder)
         result match {
-          case Right(doc) => f(Option(doc))
-          case Left(t) => t match {
-            case nme: NoMatchingDocumentError => f(None)
-            case e => log.error(e, "Command Failed.")
+          case Right(doc) ⇒ f(Option(doc))
+          case Left(t) ⇒ t match {
+            case nme: NoMatchingDocumentError ⇒ f(None)
+            case e ⇒ log.error(e, "Command Failed.")
           }
         }
       }
@@ -209,45 +209,45 @@ object SimpleRequestFutures extends Logging {
       override def toString = "{SimpleSingleDocQueryRequestFuture}"
     }
 
-  def getMore[A: SerializableBSONObject](f: (Long, Seq[A]) => Unit) =
+  def getMore[A: SerializableBSONObject](f: (Long, Seq[A]) ⇒ Unit) =
     new GetMoreRequestFuture {
       type DocType = A
-      val body = (result: Either[Throwable, (Long, Seq[A])]) => result match {
-        case Right((cid, docs)) => f(cid, docs)
-        case Left(t) => log.error(t, "GetMore Failed."); throw t
+      val body = (result: Either[Throwable, (Long, Seq[A])]) ⇒ result match {
+        case Right((cid, docs)) ⇒ f(cid, docs)
+        case Left(t) ⇒ log.error(t, "GetMore Failed."); throw t
       }
       val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SimpleGetMoreRequestFuture}"
     }
 
-  def find[T: SerializableBSONObject](f: Cursor[T] => Unit) = query(f)
+  def find[T: SerializableBSONObject](f: Cursor[T] ⇒ Unit) = query(f)
 
-  def query[A: SerializableBSONObject](f: Cursor[A] => Unit) =
+  def query[A: SerializableBSONObject](f: Cursor[A] ⇒ Unit) =
     new CursorQueryRequestFuture {
       type DocType = A
       type T = Cursor[A]
-      val body = (result: Either[Throwable, Cursor[A]]) => result match {
-        case Right(cursor) => f(cursor)
-        case Left(t) => log.error(t, "Query Failed."); throw t
+      val body = (result: Either[Throwable, Cursor[A]]) ⇒ result match {
+        case Right(cursor) ⇒ f(cursor)
+        case Left(t) ⇒ log.error(t, "Query Failed."); throw t
       }
       val decoder = implicitly[SerializableBSONObject[A]]
       override def toString = "{SimpleCursorQueryRequestFuture}"
     }
 
-  def write(f: (Option[AnyRef], WriteResult) => Unit) =
+  def write(f: (Option[AnyRef], WriteResult) ⇒ Unit) =
     new WriteRequestFuture {
-      val body = (result: Either[Throwable, (Option[AnyRef], WriteResult)]) => result match {
-        case Right((oid, wr)) => f(oid, wr)
-        case Left(t) => log.error(t, "Command Failed.")
+      val body = (result: Either[Throwable, (Option[AnyRef], WriteResult)]) ⇒ result match {
+        case Right((oid, wr)) ⇒ f(oid, wr)
+        case Left(t) ⇒ log.error(t, "Command Failed.")
       }
       override def toString = "{SimpleWriteRequestFuture}"
     }
 
-  def batchWrite(f: (Option[Seq[AnyRef]], WriteResult) => Unit) =
+  def batchWrite(f: (Option[Seq[AnyRef]], WriteResult) ⇒ Unit) =
     new BatchWriteRequestFuture {
-      val body = (result: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)]) => result match {
-        case Right((oids, wr)) => f(oids, wr)
-        case Left(t) => log.error(t, "Command Failed.")
+      val body = (result: Either[Throwable, (Option[Seq[AnyRef]], WriteResult)]) ⇒ result match {
+        case Right((oids, wr)) ⇒ f(oids, wr)
+        case Left(t) ⇒ log.error(t, "Command Failed.")
       }
       override def toString = "{SimpleWriteRequestFuture}"
     }
