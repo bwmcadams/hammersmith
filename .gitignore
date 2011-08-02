@@ -20,3 +20,6 @@ mongo-driver/.project
 *.swo
 *.class
 log4j.properties
+*.iml
+*.ipr
+
