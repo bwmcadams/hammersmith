@@ -50,17 +50,28 @@ object ConnectionActor
   sealed trait SendClientMessage extends Incoming {
     val message: MongoClientMessage
   }
+
+  sealed trait SendClientReadMessage extends SendClientMessage {
+    val readPreference: ReadPreference = ReadPreference.PrimaryPreferred // TODO - Wire in ReadPreference to rest of  code
+    override val message: MongoClientReadMessage // GetMore isn't considered a ReadMessage as readPref doesn't apply to it.
+  }
+
   sealed trait SendClientWriteMessage extends SendClientMessage {
     val concern: WriteConcern
     override val message: MongoClientWriteMessage
   }
+
   case class SendClientCheckMasterMessage() extends SendClientMessage {
     override val message = ConnectionActor.createCommand("admin", Document("isMaster" -> 1))
   }
+
   case class SendClientGetMoreMessage(override val message: GetMoreMessage) extends SendClientMessage
-  case class SendClientCursorMessage(override val message: QueryMessage) extends SendClientMessage
-  case class SendClientSingleDocumentMessage(override val message: QueryMessage) extends SendClientMessage
-  case class SendClientOptionalSingleDocumentMessage(override val message: QueryMessage) extends SendClientMessage
+  case class SendClientCursorMessage(override val message: QueryMessage,
+                                     override val readPreference: ReadPreference = ReadPreference.PrimaryPreferred) extends SendClientReadMessage
+  case class SendClientSingleDocumentMessage(override val message: QueryMessage,
+                                             override val readPreference: ReadPreference = ReadPreference.PrimaryPreferred) extends SendClientReadMessage
+  case class SendClientOptionalSingleDocumentMessage(override val message: QueryMessage,
+                                                     override val readPreference: ReadPreference = ReadPreference.PrimaryPreferred) extends SendClientReadMessage
   case class SendClientKillCursorsMessage(override val message: KillCursorsMessage) extends SendClientMessage
   case class SendClientSingleWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern) extends SendClientWriteMessage
   case class SendClientBatchWriteMessage(override val message: MongoClientWriteMessage, override val concern: WriteConcern) extends SendClientWriteMessage

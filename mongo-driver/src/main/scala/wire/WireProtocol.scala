@@ -228,6 +228,13 @@ abstract class MongoClientWriteMessage extends MongoClientMessage {
 }
 
 /**
+ * Client messages which read from the server.
+ * Because GetMore is "special" and needs connection affinity,
+ * only Query is curently considered part of this hierarchy.
+ */
+abstract class MongoClientReadMessage extends MongoClientMessage
+
+/**
  * A message sent from a mongodb server to a client
  */
 abstract class MongoServerMessage extends MongoMessage
