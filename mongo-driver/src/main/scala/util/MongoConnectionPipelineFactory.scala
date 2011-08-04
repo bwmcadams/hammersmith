@@ -34,10 +34,10 @@ abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory wit
   protected lazy val pipeline = Channels.pipeline(new ReplyMessageDecoder(), setupHandler)
   override def getPipeline = pipeline
 
-  protected var setup = false
+  protected var setup = new AtomicBoolean(false)
 
   def awaitSetup() {
-    assume(!setup)
+    assume(!setup.get())
     setupHandler.await()
     /**
      * If one is defined, swap in the real handler
@@ -46,7 +46,7 @@ abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory wit
      */
     log.info("Swapping out Pipeline with ActorHandler: %s", actorHandler)
     actorHandler.foreach(pipeline.replace(setupHandler, "actorHandler", _))
-    setup = true
+    setup.set(true)
   }
 
   // can only call these after awaitSetup
