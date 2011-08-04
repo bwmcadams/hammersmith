@@ -36,7 +36,7 @@ import java.util.concurrent._
  * A ConnectionChannelActor is a ConnectionActor wrapping a single netty channel.
  * These then go in an actor pool.
  */
-private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddress)
+private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddress)
     extends ConnectionActor
     with Actor {
   import ConnectionActor._
@@ -46,24 +46,24 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
   self.timeout = 60 * 1000 // 60 seconds (timeout in millis)
 
-  private case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) ⇒ Outgoing)
+  protected case class ClientSender(channel: AkkaChannel[Any], outgoingReplyBuilder: (ReplyMessage) ⇒ Outgoing)
 
   // remember, no need for any of this to be thread-safe since
   // actor runs in only one thread at a time.
-  private var senders = Map[Int, ClientSender]()
+  protected var senders = Map[Int, ClientSender]()
 
   // channel and max BSON size are created asynchronously
-  private var maybeChannel: Option[Channel] = None
-  private implicit var maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
-  private var isMaster = false
+  protected var maybeChannel: Option[Channel] = None
+  protected implicit var maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
+  protected var isMaster = false
 
-  private val addressString = addr.toString
+  protected val addressString = addr.toString
 
   // we cache a DirectConnection so we can send it when someone
   // needs a single-channel connection from the pool
-  private var directConnection: Option[DirectConnection] = None
+  protected var directConnection: Option[DirectConnection] = None
 
-  private def asyncSend(channel: AkkaChannel[Any], message: Any) = {
+  protected def asyncSend(channel: AkkaChannel[Any], message: Any) = {
     // We have to do this _asynchronously_ because sending a message
     // to an Akka future synchronously invokes app callbacks.
     // If the app then called back to the connection it would
@@ -71,7 +71,7 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
     Future(channel ! message, self.timeout)(self.dispatcher)
   }
 
-  private def startOpeningChannel() = {
+  protected def startOpeningChannel() = {
     // don't get any messages until we get our channel open
     self.dispatcher.suspend(self)
     log.trace("Suspended message delivery to %s", self.uuid)
@@ -94,63 +94,64 @@ private[mongodb] class ConnectionChannelActor(private val addr: InetSocketAddres
 
     val futureChannel = bootstrap.connect()
 
-    futureChannel.addListener(new ChannelFutureListener() {
-      val connectionActor = self
-      logActorState("ConstructFutureListener", connectionActor)
-      // CAUTION we are coming in to the actor from an outside
-      // thread here; the safety is that we keep the channel suspended
-      // so should not get messages or do anything else with it until
-      // this completes.
-      override def operationComplete(f: ChannelFuture) = {
-        log.trace("ChannelFutureListener notified for %s", connectionActor.uuid)
-        logActorState("channel future complete", connectionActor)
-        if (f.isSuccess) {
-          log.debug("Successfully opened a new channel %s", addressString)
-          maybeChannel = Some(f.getChannel)
-
-          // And yet another thread, but again this thread should be the only one
-          // touching the fields in our actor until it completes, since we're
-          // still suspended.
-          val t = new Thread(new Runnable() {
-            override def run = {
-              log.trace("Waiting on setup steps to complete for actor %s", connectionActor.uuid)
-              pipelineFactory.awaitSetup()
-              log.trace("Setup steps completed for actor %s", connectionActor.uuid)
-              if (pipelineFactory.setupFailed) {
-                log.error("Failed to setup %s, suiciding actor: %s", addressString, pipelineFactory.setupFailure.getMessage)
-                maybeChannel.get.close()
-                maybeChannel = None
-                connectionActor.stop()
-              } else {
-                maxBSONObjectSize = pipelineFactory.maxBSONObjectSize
-                isMaster = pipelineFactory.isMaster
-
-                log.debug("Resuming %s %s with max size %d and isMaster %s",
-                  addressString, connectionActor.uuid, maxBSONObjectSize, isMaster)
-
-                // now we can get messages.
-                connectionActor.dispatcher.resume(connectionActor)
-                logActorState("post-resume", connectionActor)
-              }
-              log.trace("Setup thread exiting for %s", connectionActor.uuid)
-            }
-          },
-            "Setup Hammersmith channel thread")
-          log.trace("Starting setup thread for %s", connectionActor.uuid)
-          t.start()
-        } else {
-          log.error("Failed to connect to %s, suiciding actor %s: %s", addressString, connectionActor.uuid, f.getCause)
-          require(maybeChannel.isEmpty)
-
-          // and we die
-          connectionActor.stop()
-        }
-        log.trace("Leaving channel listener for %s", connectionActor.uuid)
-      }
-    })
+    futureChannel.addListener(connectionStateListener(pipelineFactory))
   }
 
-  private def updateDirectConnection(state: State) = {
+  protected def connectionStateListener(pipelineFactory: MongoConnectionPipelineFactory): ChannelFutureListener = new ChannelFutureListener() {
+    val connectionActor = self
+    logActorState("ConstructFutureListener", connectionActor)
+    // CAUTION we are coming in to the actor from an outside
+    // thread here; the safety is that we keep the channel suspended
+    // so should not get messages or do anything else with it until
+    // this completes.
+    override def operationComplete(f: ChannelFuture) = {
+      log.trace("ChannelFutureListener notified for %s", connectionActor.uuid)
+      logActorState("channel future complete", connectionActor)
+      if (f.isSuccess) {
+        log.debug("Successfully opened a new channel %s", addressString)
+        maybeChannel = Some(f.getChannel)
+
+        // And yet another thread, but again this thread should be the only one
+        // touching the fields in our actor until it completes, since we're
+        // still suspended.
+        val t = new Thread(new Runnable() {
+          override def run = {
+            log.trace("Waiting on setup steps to complete for actor %s", connectionActor.uuid)
+            pipelineFactory.awaitSetup()
+            log.trace("Setup steps completed for actor %s", connectionActor.uuid)
+            if (pipelineFactory.setupFailed) {
+              log.error("Failed to setup %s, suiciding actor: %s", addressString, pipelineFactory.setupFailure.getMessage)
+              maybeChannel.get.close()
+              maybeChannel = None
+              connectionActor.stop()
+            } else {
+              maxBSONObjectSize = pipelineFactory.maxBSONObjectSize
+              isMaster = pipelineFactory.isMaster
+
+              log.debug("Resuming %s %s with max size %d and isMaster %s",
+                addressString, connectionActor.uuid, maxBSONObjectSize, isMaster)
+
+              // now we can get messages.
+              connectionActor.dispatcher.resume(connectionActor)
+              logActorState("post-resume", connectionActor)
+            }
+            log.trace("Setup thread exiting for %s", connectionActor.uuid)
+          }
+        },
+          "Setup Hammersmith channel thread")
+        log.trace("Starting setup thread for %s", connectionActor.uuid)
+        t.start()
+      } else {
+        log.error("Failed to connect to %s, suiciding actor %s: %s", addressString, connectionActor.uuid, f.getCause)
+        require(maybeChannel.isEmpty)
+
+        // and we die
+        connectionActor.stop()
+      }
+      log.trace("Leaving channel listener for %s", connectionActor.uuid)
+    }
+  }
+  protected def updateDirectConnection(state: State) = {
     directConnection foreach { d ⇒
       d.setState(state)
     }
