@@ -397,28 +397,10 @@ private[mongodb] object ConnectionChannelActor
 
   /* Pipeline factory generates a pipeline with our decoder and handler */
   class ConnectionActorPipelineFactory(val connectionActor: ActorRef,
-                                       val addressString: String) extends ChannelPipelineFactory {
+                                       val addressString: String) extends MongoConnectionPipelineFactory {
 
-    private val actorHandler = new ConnectionActorHandler(connectionActor, addressString)
-    private val setupHandler = new ConnectionSetupHandler(addressString)
-    private val pipeline = Channels.pipeline(new ReplyMessageDecoder(), setupHandler)
-    private var setup = false
-
-    override def getPipeline = pipeline
-
-    def awaitSetup() {
-      require(!setup)
-      setupHandler.await()
-      // now swap in the real handler
-      pipeline.replace(setupHandler, "actorHandler", actorHandler)
-      setup = true
-    }
-
-    // can only call these after awaitSetup
-    def setupFailed = setupHandler.failed
-    def setupFailure = setupHandler.failure
-    def isMaster = setupHandler.isMaster
-    def maxBSONObjectSize = setupHandler.maxBSONObjectSize
+    val actorHandler = Some(new ConnectionActorHandler(connectionActor, addressString))
+    val setupHandler = new ConnectionSetupHandler(addressString)
   }
 
   /* Handler that we install first to set up (before the actor wants messages),

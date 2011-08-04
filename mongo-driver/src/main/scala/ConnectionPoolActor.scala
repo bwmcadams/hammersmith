@@ -41,6 +41,7 @@ protected[mongodb] class ConnectionPoolActor(private val addr: InetSocketAddress
     with BasicNoBackoffFilter
     with BasicRampup {
 
+  // TODO - Important, make sure the ID of this actor is set to identify the server it handles
   override def receive = _route
 
   // BoundedCapacitor min and max actors in pool.
