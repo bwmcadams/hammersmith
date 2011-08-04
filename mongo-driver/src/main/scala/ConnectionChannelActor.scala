@@ -18,6 +18,7 @@
 package com.mongodb.async
 
 import akka.actor.{ Channel ⇒ AkkaChannel, _ }
+import akka.actor.Actor.spawn
 import akka.dispatch.Future
 import com.mongodb.async.wire._
 import com.mongodb.async.util._
@@ -114,33 +115,29 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
         // And yet another thread, but again this thread should be the only one
         // touching the fields in our actor until it completes, since we're
         // still suspended.
-        val t = new Thread(new Runnable() {
-          override def run = {
-            log.trace("Waiting on setup steps to complete for actor %s", connectionActor.uuid)
-            pipelineFactory.awaitSetup()
-            log.trace("Setup steps completed for actor %s", connectionActor.uuid)
-            if (pipelineFactory.setupFailed) {
-              log.error("Failed to setup %s, suiciding actor: %s", addressString, pipelineFactory.setupFailure.getMessage)
-              maybeChannel.get.close()
-              maybeChannel = None
-              connectionActor.stop()
-            } else {
-              maxBSONObjectSize = pipelineFactory.maxBSONObjectSize
-              isMaster = pipelineFactory.isMaster
+        val t = spawn {
+          log.trace("Starting setup thread for %s", connectionActor.uuid)
+          log.trace("Waiting on setup steps to complete for actor %s", connectionActor.uuid)
+          pipelineFactory.awaitSetup()
+          log.trace("Setup steps completed for actor %s", connectionActor.uuid)
+          if (pipelineFactory.setupFailed) {
+            log.error("Failed to setup %s, suiciding actor: %s", addressString, pipelineFactory.setupFailure.getMessage)
+            maybeChannel.get.close()
+            maybeChannel = None
+            connectionActor.stop()
+          } else {
+            maxBSONObjectSize = pipelineFactory.maxBSONObjectSize
+            isMaster = pipelineFactory.isMaster
 
-              log.debug("Resuming %s %s with max size %d and isMaster %s",
-                addressString, connectionActor.uuid, maxBSONObjectSize, isMaster)
+            log.debug("Resuming %s %s with max size %d and isMaster %s",
+              addressString, connectionActor.uuid, maxBSONObjectSize, isMaster)
 
-              // now we can get messages.
-              connectionActor.dispatcher.resume(connectionActor)
-              logActorState("post-resume", connectionActor)
-            }
-            log.trace("Setup thread exiting for %s", connectionActor.uuid)
+            // now we can get messages.
+            connectionActor.dispatcher.resume(connectionActor)
+            logActorState("post-resume", connectionActor)
           }
-        },
-          "Setup Hammersmith channel thread")
-        log.trace("Starting setup thread for %s", connectionActor.uuid)
-        t.start()
+          log.trace("Setup thread exiting for %s", connectionActor.uuid)
+        }
       } else {
         log.error("Failed to connect to %s, suiciding actor %s: %s", addressString, connectionActor.uuid, f.getCause)
         require(maybeChannel.isEmpty)
