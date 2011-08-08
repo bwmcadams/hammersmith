@@ -24,6 +24,7 @@ import wire.ReplyMessageDecoder
 import org.jboss.netty.channel.{ Channels, ChannelPipelineFactory }
 import com.mongodb.async.ConnectionChannelActor.{ ConnectionSetupHandler, ConnectionActorHandler }
 import java.util.concurrent.atomic.AtomicBoolean
+import state.{ MongodStatus, DisconnectedServerStatus, SingleServerStatus }
 
 abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory with Logging {
   def connectionActor: ActorRef
@@ -39,6 +40,7 @@ abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory wit
   def awaitSetup() {
     assume(!setup.get())
     setupHandler.await()
+    SingleServerStatus(setupHandler.isMaster, setupHandler.maxBSONObjectSize, None)
     /**
      * If one is defined, swap in the real handler
      * In some cases such as Replica Set monitoring we never want to
@@ -52,7 +54,5 @@ abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory wit
   // can only call these after awaitSetup
   def setupFailed = setupHandler.failed
   def setupFailure = setupHandler.failure
-  def isMaster = setupHandler.isMaster
-  def maxBSONObjectSize = setupHandler.maxBSONObjectSize
-
+  def serverStatus: MongodStatus = DisconnectedServerStatus
 }

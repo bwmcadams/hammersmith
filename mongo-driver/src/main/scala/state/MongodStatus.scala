@@ -1,12 +1,10 @@
-package 
-
 /**
  * Copyright (c) 2010, 2011 10gen, Inc. <http://10gen.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -16,8 +14,27 @@ package
  * limitations under the License.
  *
  */
+package com.mongodb.async
+package state
 
+import wire.MongoMessage
+import org.jboss.netty.channel.Channel
 
-class ReplicationAwareMessageDispatcher {
-
+/**
+ * "IS Master" Status
+ */
+trait MongodStatus {
+  def isMaster: Boolean
+  def maxBSONObjectSize: Int
+  def channel: Option[Channel]
 }
+
+case object DisconnectedServerStatus extends MongodStatus {
+  val isMaster = false
+  val maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
+  val channel = None
+}
+
+case class SingleServerStatus(val isMaster: Boolean, val maxBSONObjectSize: Int,
+                              val channel: Option[Channel]) extends MongodStatus
+
