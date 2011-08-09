@@ -103,7 +103,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
   onTransition {
     case NegotiatingChannel -> Connected ⇒
       spawn { // TODO - there is a freaking race condition between resuming dispatcher and the state transition.  $%!@%!@$%
-        Thread.sleep(150) // This isn't a bad approach but timing may vary drastically. We really need to hook into "AFTER" transitioned.
+        //        Thread.sleep(10) // This isn't a bad approach but timing may vary drastically. We really need to hook into "AFTER" transitioned.
         self.dispatcher.resume(self)
         log.info("Resuming message delivery to %s", self.id)
       }
