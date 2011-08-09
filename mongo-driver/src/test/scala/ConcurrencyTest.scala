@@ -70,7 +70,7 @@ class ConcurrencyTestingSpec extends Specification
     while (x < 10 && n != 600) {
       mongo.count()((_n: Int) ⇒ n = _n)
       x += 1
-      Thread.sleep(5.seconds.inMillis)
+      Thread.sleep(5.milliseconds.inMilliseconds)
     }
     log.info("Insert tie-out took %s milliseconds", start.untilNow.inMillis)
     n must eventually(beEqualTo(600))
