@@ -40,7 +40,7 @@ abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory wit
   def awaitSetup() {
     assume(!setup.get())
     setupHandler.await()
-    SingleServerStatus(setupHandler.isMaster, setupHandler.maxBSONObjectSize, None)
+    _serverStatus = SingleServerStatus(setupHandler.isMaster, setupHandler.maxBSONObjectSize, None)
     /**
      * If one is defined, swap in the real handler
      * In some cases such as Replica Set monitoring we never want to
@@ -54,5 +54,6 @@ abstract class MongoConnectionPipelineFactory extends ChannelPipelineFactory wit
   // can only call these after awaitSetup
   def setupFailed = setupHandler.failed
   def setupFailure = setupHandler.failure
-  def serverStatus: MongodStatus = DisconnectedServerStatus
+  protected var _serverStatus: MongodStatus = DisconnectedServerStatus
+  def serverStatus: MongodStatus = _serverStatus
 }

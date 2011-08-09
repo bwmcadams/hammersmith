@@ -69,6 +69,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
   when(NegotiatingChannel) {
     case Event(ChannelNegotiated(status), _) ⇒
       log.info("Netty Channel parameters negotiated. Flipping channel live.")
+
       goto(Connected) using status
   }
 
@@ -89,9 +90,24 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
       goto(Quiescing)
   }
 
+  whenUnhandled {
+    // Todo - Handling of Direct request, as a deferred future?
+    case Event(unknown, data) ⇒
+      log.warn("Unknown Event: %s with data %s", unknown, data)
+      stay
+  }
   /*  when(Quiesced) {
     case E
   }*/
+
+  onTransition {
+    case NegotiatingChannel -> Connected ⇒
+      spawn { // TODO - there is a freaking race condition between resuming dispatcher and the state transition.  $%!@%!@$%
+        Thread.sleep(150) // This isn't a bad approach but timing may vary drastically. We really need to hook into "AFTER" transitioned.
+        self.dispatcher.resume(self)
+        log.info("Resuming message delivery to %s", self.id)
+      }
+  }
 
   // VERY important this is the very last constructor statement for FSM to work
   initialize
@@ -107,14 +123,18 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
      * smart enough to monitor our state), then other connections
      * should get those messages instead of us.
      */
-    // don't get any messages until we get our channel open
-    // TODO - We can't really accept this logic right now to use FSM
-    // We should have stronger coordination with our dispatcher
-    /*    self.dispatcher.suspend(self)
-    log.trace("Suspended message delivery to %s", self.id)*/
     startOpeningChannel()
     log.debug("Completing initialization of %s", self.id)
     super.initialize
+  }
+
+  override def preStart() {
+    // don't get any messages until we get our channel open
+    // TODO - We can't really accept this logic right now to use FSM
+    // We should have stronger coordination with our dispatcher
+    self.dispatcher.suspend(self)
+    log.trace("Suspended message delivery to %s", self.id)
+
   }
 
   def disconnect = {
@@ -166,6 +186,8 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
     futureChannel.addListener(connectionStateListener(pipelineFactory))
   }
 
+  protected def event(evt: AnyRef) = this.receive(evt)
+
   /**
    * TODO  - Boot this into it's own managed thread, or actor to ensure concurrency safety.
    */
@@ -183,7 +205,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
         log.debug("Successfully opened a new channel %s", addressString)
         val maybeChannel = Some(f.getChannel) // TODO - Change me over to be part of the FSM State
         // Change our state
-        connectionActor ! ChannelEstablished
+        event(ChannelEstablished)
 
           def error {
             maybeChannel.get.close()
@@ -196,6 +218,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
           log.trace("Starting setup thread for %s", connectionActor.id)
           log.trace("Waiting on setup steps to complete for actor %s", connectionActor.id)
           pipelineFactory.awaitSetup()
+          log.trace("Setup Finished: %s", pipelineFactory.setupFailed)
           if (pipelineFactory.setupFailed) {
             log.error("Failed to setup %s, suiciding actor: %s", addressString, pipelineFactory.setupFailure.getMessage)
             error
@@ -205,8 +228,8 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
                 log.error("Expected a properly initialized ServerStatus on Pipeline but still disconnected.")
                 error
               case status: SingleServerStatus ⇒
-                log.debug("Received a SingleServerStatus Object.")
-                connectionActor ! ChannelNegotiated(status.copy(channel = maybeChannel))
+                log.info("Received a SingleServerStatus Object.")
+                event(ChannelNegotiated(status.copy(channel = maybeChannel)))
               case other ⇒ {
                 log.error("Unhandled/unhandleable Server Status found by Pipeline: %s", other)
                 error
