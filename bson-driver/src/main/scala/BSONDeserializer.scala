@@ -31,7 +31,7 @@ import org.bson.collection._
  * objects of type "T" (or a subclass thereof)
  */
 trait BSONDeserializer extends BSONDecoder with Logging {
-  val callback: Callback //= new DefaultBSONCallback
+  def callback: Callback //= new DefaultBSONCallback
   abstract class Callback extends BSONCallback {
 
   }

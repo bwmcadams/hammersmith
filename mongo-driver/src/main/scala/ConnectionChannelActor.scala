@@ -37,8 +37,8 @@ import akka.event.EventHandler
 
 sealed trait ConnectionStateTransition
 protected[mongodb] case object ChannelEstablished extends ConnectionStateTransition
-protected[mongodb] case class ChannelNegotiated(val mongodStatus: SingleServerStatus) extends ConnectionStateTransition
-protected[mongodb] case class UpdateMongodStatus(val mongodStatus: SingleServerStatus) extends ConnectionStateTransition
+protected[mongodb] case class ChannelNegotiated(val mongodStatus: MongodStatus) extends ConnectionStateTransition
+protected[mongodb] case class UpdateMongodStatus(val mongodStatus: MongodStatus) extends ConnectionStateTransition
 protected[mongodb] case object Quiesce extends ConnectionStateTransition
 protected[mongodb] case object Disconnect extends ConnectionStateTransition
 
@@ -76,10 +76,10 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
   when(Connected) {
     case Event(UpdateMongodStatus(status), _) ⇒
       stay using status
-    case Event(msg: Incoming, status: SingleServerStatus) ⇒
+    case Event(msg: Incoming, status: MongodStatus) ⇒
       receiveIncoming(msg)(status)
       stay
-    case Event(msg: IncomingFromNetty, status: SingleServerStatus) ⇒
+    case Event(msg: IncomingFromNetty, status: MongodStatus) ⇒
       receiveIncomingNetty(msg)(status)
       stay
     case Event(Disconnect, _) ⇒
@@ -248,7 +248,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
     }
   }
 
-  def receiveIncoming(incoming: Incoming)(implicit mongodStatus: SingleServerStatus) = {
+  def receiveIncoming(incoming: Incoming)(implicit mongodStatus: MongodStatus) = {
     log.trace("%s incoming message %s", self.id, incoming)
     incoming match {
       // message is from the app
@@ -263,7 +263,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
     log.trace("Post-send, senders waiting for reply: %s", senders)
   }
 
-  def receiveIncomingNetty(netty: IncomingFromNetty)(implicit mongodStatus: SingleServerStatus) = {
+  def receiveIncomingNetty(netty: IncomingFromNetty)(implicit mongodStatus: MongodStatus) = {
     log.trace("%s incoming netty %s", self.id, netty)
     netty match {
       case ServerMessageReceived(message) ⇒ {
@@ -317,7 +317,7 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
     }
   }
 
-  private def sendMessageToMongo(senderChannel: AkkaChannel[Any], clientRequest: SendClientMessage)(implicit mongodStatus: SingleServerStatus): Unit = {
+  private def sendMessageToMongo(senderChannel: AkkaChannel[Any], clientRequest: SendClientMessage)(implicit mongodStatus: MongodStatus): Unit = {
     val channel = mongodStatus.channel.get
     implicit val maxBSON = mongodStatus.maxBSONObjectSize
 
@@ -336,8 +336,9 @@ private[mongodb] class ConnectionChannelActor(protected val addr: InetSocketAddr
           // and update our own internal state
           def buildCheckMasterReply(reply: ReplyMessage): ConnectionActor.Outgoing = {
             val result = ConnectionActor.buildCheckMasterReply(reply)
+
             result match {
-              case CheckMasterReply(newIsMaster, newMaxBSONObjectSize) ⇒
+              case CheckMasterReply(newIsMaster, newMaxBSONObjectSize) ⇒ processMongodStatusChange
                 if (mongodStatus.isMaster != newIsMaster) {
                   log.debug("isMaster changing to %s", newIsMaster)
                   // update our own state
