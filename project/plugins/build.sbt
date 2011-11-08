@@ -1,3 +1,3 @@
-resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
+resolvers += Classpaths.typesafeResolver
 
-libraryDependencies += "com.typesafe" %% "sbt-scalariform" % "0.1.1"
+addSbtPlugin("com.typesafe.sbtscalariform" % "sbt-scalariform" % "0.1.4")

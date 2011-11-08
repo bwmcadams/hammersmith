@@ -29,7 +29,7 @@ import java.util.{ UUID, Date ⇒ JDKDate }
 import org.bson.collection.BSONList
 import scala.collection.Map
 
-trait BSONSerializer extends BSONEncoder with Logging {
+trait BSONSerializer extends BasicBSONEncoder with Logging {
 
   def encode(obj: Map[String, Any], out: OutputBuffer) {
     set(out)

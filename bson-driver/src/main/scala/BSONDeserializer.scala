@@ -18,8 +18,8 @@
 package org.bson
 
 import BSON._
-import org.bson.io.Bits
 import java.io._
+import org.bson.io.{ BSONInput, Bits }
 import org.bson.types._
 import java.util.{ UUID, Date ⇒ JDKDate }
 import org.bson.util.{ Logging }
@@ -30,8 +30,8 @@ import org.bson.collection._
  * Deserialization handler which is expected to turn a BSON ByteStream into
  * objects of type "T" (or a subclass thereof)
  */
-trait BSONDeserializer extends BSONDecoder with Logging {
-  val callback: Callback //= new DefaultBSONCallback
+trait BSONDeserializer extends BasicBSONDecoder with Logging {
+  def callback: Callback //= new DefaultBSONCallback
   abstract class Callback extends BSONCallback {
 
   }
@@ -47,7 +47,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   override def decode(first: Boolean = true): Int = {
     val len = _in.readInt // hmm.. should this be parend for side effects? PEDANTRY!
 
-    if (first) _in._max = len
+    if (first) _in.setMax(len)
 
     log.trace("Decoding, length: %d", len)
 
@@ -57,8 +57,8 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     }
     _callback.objectDone()
 
-    require(_in._read == len && first,
-      "Bad Data? Post-Read Lengths don't match up. Expected: %d, Got: %d".format(len, _in._read))
+    require(_in.numRead() == len && first,
+      "Bad Data? Post-Read Lengths don't match up. Expected: %d, Got: %d".format(len, _in.numRead()))
 
     len
   }
@@ -79,7 +79,7 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   }
 
   def decode(in: InputStream, callback: Callback): Int = try {
-    _decode(new Input(in), callback)
+    _decode(new BSONInput(in), callback)
   } catch {
     case ioe: IOException ⇒ {
       log.error(ioe, "OMG! PONIES!")
@@ -89,15 +89,15 @@ trait BSONDeserializer extends BSONDecoder with Logging {
   }
 
   def decode(b: Array[Byte], callback: Callback): Int = try {
-    _decode(new Input(new ByteArrayInputStream(b)), callback)
+    _decode(new BSONInput(new ByteArrayInputStream(b)), callback)
   } catch {
     case ioe: IOException ⇒ throw new BSONException("Failed to decode input data.", ioe)
     case t: Throwable ⇒ log.error(t, "Unexpected exception in decode"); throw t
   }
 
-  protected def _decode(in: Input, callback: Callback) = {
+  protected def _decode(in: BSONInput, callback: Callback) = {
     // TODO - Pooling/reusability
-    require(in._read == 0, "Invalid Read Bytes State on Input Object.")
+    require(in.numRead() == 0, "Invalid Read Bytes State on Input Object.")
     try {
       if (_in != null)
         throw new IllegalStateException("_in already defined; bad state.")
@@ -256,11 +256,6 @@ trait BSONDeserializer extends BSONDecoder with Logging {
     }
 
   }
-  /**
-   *  immutable, but we're trading off performance on pooling here
-   */
-  protected var _in: Input = null
-  protected var _callback: Callback = null
 
 }
 
