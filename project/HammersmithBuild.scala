@@ -9,7 +9,7 @@ object HammersmithBuild extends Build {
 
   lazy val buildSettings = Seq(
     organization := "com.mongodb.async",
-    version := "0.2.9-1",
+    version := "0.3.0-SNAPSHOT",
     scalaVersion := "2.9.1",
     crossScalaVersions := Seq("2.9.1", "2.9.0-1")
   )
@@ -95,7 +95,7 @@ object Publish {
 object Dependencies {
   //BSON 
   //val bsonJava = "org.mongodb" % "bson" % "2.7.1"  // currently broken for just bson
-  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.7.1" 
+  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.7.3" 
   // Connection Pooling
   val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
@@ -108,7 +108,7 @@ object Dependencies {
 
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.7.1" % "provided" 
-  val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.7.1" % "test->default"
+  val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.7.3" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1" % "test"
 
