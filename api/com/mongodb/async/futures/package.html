@@ -1,0 +1,284 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>com.mongodb.async.futures</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../../lib/template.css" />
+      <script type="text/javascript" src="../../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img src="../../../../lib/package_big.png" />
+        <p id="owner"><a name="com" class="extype" href="../../../package.html">com</a>.<a name="com.mongodb" class="extype" href="../../package.html">mongodb</a>.<a name="com.mongodb.async" class="extype" href="../package.html">async</a></p>
+        <h1>futures</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="kind">package</span>
+      <span class="symbol"> 
+        <span class="name">futures</span>
+        
+        
+      </span>
+      </h4>
+      
+          <div class="fullcommenttop" id="comment"></div>
+        
+
+      <div id="template">
+
+        <div id="mbrsel">
+          <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+          
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="com.mongodb.async.futures.BatchWriteRequestFuture" data-isabs="true">
+      <a id="BatchWriteRequestFuture:BatchWriteRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="BatchWriteRequestFuture.html"><span class="name">BatchWriteRequestFuture</span></a>
+        
+        <span class="result"> extends RequestFuture</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Will pass any *generated* _ids, in a Seq
+along with any relevant getLastError information
+For an update, don't expect to get ObjectId</p>
+    </li><li visbl="pub" name="com.mongodb.async.futures.CompletableCursorRequest" data-isabs="false">
+      <a id="CompletableCursorRequest:CompletableCursorRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CompletableCursorRequest.html"><span class="name">CompletableCursorRequest</span></a>
+        
+        <span class="params">(<span name="request">request: QueryMessage</span>, <span name="future">future: CursorQueryRequestFuture</span>)</span><span class="result"> extends CompletableReadRequest with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.CompletableGetMoreRequest" data-isabs="false">
+      <a id="CompletableGetMoreRequest:CompletableGetMoreRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CompletableGetMoreRequest.html"><span class="name">CompletableGetMoreRequest</span></a>
+        
+        <span class="params">(<span name="request">request: GetMoreMessage</span>, <span name="future">future: GetMoreRequestFuture</span>)</span><span class="result"> extends CompletableReadRequest with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.CompletableReadRequest" data-isabs="true">
+      <a id="CompletableReadRequest:CompletableReadRequest"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="CompletableReadRequest.html"><span class="name">CompletableReadRequest</span></a>
+        
+        <span class="result"> extends CompletableRequest</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.CompletableRequest" data-isabs="true">
+      <a id="CompletableRequest:CompletableRequest"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="CompletableRequest.html"><span class="name">CompletableRequest</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.CompletableSingleDocRequest" data-isabs="false">
+      <a id="CompletableSingleDocRequest:CompletableSingleDocRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CompletableSingleDocRequest.html"><span class="name">CompletableSingleDocRequest</span></a>
+        
+        <span class="params">(<span name="request">request: QueryMessage</span>, <span name="future">future: SingleDocQueryRequestFuture</span>)</span><span class="result"> extends CompletableReadRequest with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.CompletableWriteRequest" data-isabs="false">
+      <a id="CompletableWriteRequest:CompletableWriteRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="CompletableWriteRequest.html"><span class="name">CompletableWriteRequest</span></a>
+        
+        <span class="params">(<span name="request">request: MongoClientWriteMessage</span>, <span name="future">future: WriteRequestFuture</span>)</span><span class="result"> extends CompletableRequest with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.CursorQueryRequestFuture" data-isabs="true">
+      <a id="CursorQueryRequestFuture:CursorQueryRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="CursorQueryRequestFuture.html"><span class="name">CursorQueryRequestFuture</span></a>
+        
+        <span class="result"> extends QueryRequestFuture</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.FindAndModifyRequestFuture" data-isabs="true">
+      <a id="FindAndModifyRequestFuture:FindAndModifyRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="FindAndModifyRequestFuture.html"><span class="name">FindAndModifyRequestFuture</span></a>
+        
+        <span class="result"> extends QueryRequestFuture with Logging</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.GetMoreRequestFuture" data-isabs="true">
+      <a id="GetMoreRequestFuture:GetMoreRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="GetMoreRequestFuture.html"><span class="name">GetMoreRequestFuture</span></a>
+        
+        <span class="result"> extends QueryRequestFuture</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.NonCompletableWriteRequest" data-isabs="false">
+      <a id="NonCompletableWriteRequest:NonCompletableWriteRequest"></a>
+      <h4 class="signature">
+      <span class="kind">case class</span>
+      <span class="symbol"> 
+        <a href="NonCompletableWriteRequest.html"><span class="name">NonCompletableWriteRequest</span></a>
+        
+        <span class="params">(<span name="request">request: MongoClientMessage</span>, <span name="future">future: com.mongodb.async.futures.NoOpRequestFuture.type</span>)</span><span class="result"> extends CompletableRequest with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.QueryRequestFuture" data-isabs="true">
+      <a id="QueryRequestFuture:QueryRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="QueryRequestFuture.html"><span class="name">QueryRequestFuture</span></a>
+        
+        <span class="result"> extends RequestFuture</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
+    </li><li visbl="pub" name="com.mongodb.async.futures.RequestFuture" data-isabs="true">
+      <a id="RequestFuture:RequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="RequestFuture.html"><span class="name">RequestFuture</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>sealed </dd></dl></div>
+    </li><li visbl="pub" name="com.mongodb.async.futures.SingleDocQueryRequestFuture" data-isabs="true">
+      <a id="SingleDocQueryRequestFuture:SingleDocQueryRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="SingleDocQueryRequestFuture.html"><span class="name">SingleDocQueryRequestFuture</span></a>
+        
+        <span class="result"> extends QueryRequestFuture with Logging</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Used for findOne and commands
+Items which return a single document, and not a cursor
+</p>
+    </li><li visbl="pub" name="com.mongodb.async.futures.WriteRequestFuture" data-isabs="true">
+      <a id="WriteRequestFuture:WriteRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">trait</span>
+      <span class="symbol"> 
+        <a href="WriteRequestFuture.html"><span class="name">WriteRequestFuture</span></a>
+        
+        <span class="result"> extends RequestFuture</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Will pass any *generated* _id along with any relevant getLastError information
+For an update, don't expect to get ObjectId
+</p>
+    </li></ol>
+            </div>
+        
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="com.mongodb.async.futures.CompletableRequest" data-isabs="false">
+      <a id="CompletableRequest:CompletableRequest"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="CompletableRequest$.html"><span class="name">CompletableRequest</span></a>
+        
+        <span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.NoOpRequestFuture" data-isabs="false">
+      <a id="NoOpRequestFuture:NoOpRequestFuture"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="NoOpRequestFuture$.html"><span class="name">NoOpRequestFuture</span></a>
+        
+        <span class="result"> extends RequestFuture with Logging with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.RequestFutures" data-isabs="false">
+      <a id="RequestFutures:RequestFutures"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="RequestFutures$.html"><span class="name">RequestFutures</span></a>
+        
+        <span class="result"> extends Logging</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="com.mongodb.async.futures.SimpleRequestFutures" data-isabs="false">
+      <a id="SimpleRequestFutures:SimpleRequestFutures"></a>
+      <h4 class="signature">
+      <span class="kind">object</span>
+      <span class="symbol"> 
+        <a href="SimpleRequestFutures$.html"><span class="name">SimpleRequestFutures</span></a>
+        
+        <span class="result"> extends Logging</span>
+      </span>
+      </h4>
+      <p class="comment cmt">&quot;Simpler&quot; request futures which swallow any errors.</p>
+    </li></ol>
+            </div>
+
+        
+
+        
+
+      </div>
+      
+      <div id="tooltip"></div>
+      
+    </body>
+      </html>
