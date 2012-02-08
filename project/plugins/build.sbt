@@ -1,3 +1,4 @@
 resolvers += Classpaths.typesafeResolver
 
-addSbtPlugin("com.typesafe.sbtscalariform" % "sbt-scalariform" % "0.1.4")
+
+addSbtPlugin("com.typesafe.sbtscalariform" % "sbtscalariform" % "0.3.0")

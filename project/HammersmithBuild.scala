@@ -1,11 +1,11 @@
 import sbt._
 import Keys._
-import com.typesafe.sbtscalariform.ScalariformPlugin
-import ScalariformPlugin.{ format, formatPreferences }
+/*import scalariform.formatter.preferences._*/
 
 object HammersmithBuild extends Build {
   import Dependencies._
   import Resolvers._
+  import Publish._
 
   lazy val buildSettings = Seq(
     organization := "com.mongodb.async",
@@ -23,24 +23,26 @@ object HammersmithBuild extends Build {
 
   override lazy val settings = super.settings ++ buildSettings
 
-  lazy val baseSettings = Defaults.defaultSettings  ++ formatSettings
+  lazy val baseSettings = Defaults.defaultSettings  ++ Publish.settings
 
-  lazy val parentSettings = baseSettings ++ Publish.settings
+  lazy val parentSettings = baseSettings
 
-  lazy val formatSettings = ScalariformPlugin.settings ++ Seq(
-    formatPreferences in Compile := formattingPreferences,
-    formatPreferences in Test    := formattingPreferences
-  )
-
-  def formattingPreferences = {
-    import scalariform.formatter.preferences._
-    FormattingPreferences().setPreference(AlignParameters, true).
-                            setPreference(DoubleIndentClassDeclaration, true).
-                            setPreference(IndentLocalDefs, true).
-                            setPreference(PreserveDanglingCloseParenthesis, true).
-                            setPreference(RewriteArrowSymbols, true)
-  }
-
+/*
+ *  lazy val formatSettings = ScalariformPlugin.settings ++ Seq(
+ *    formatPreferences in Compile := formattingPreferences,
+ *    formatPreferences in Test    := formattingPreferences
+ *  )
+ *
+ *  def formattingPreferences = {
+ *    import scalariform.formatter.preferences._
+ *    FormattingPreferences().setPreference(AlignParameters, true).
+ *                            setPreference(DoubleIndentClassDeclaration, true).
+ *                            setPreference(IndentLocalDefs, true).
+ *                            setPreference(PreserveDanglingCloseParenthesis, true).
+ *                            setPreference(RewriteArrowSymbols, true)
+ *  }
+ *
+ */
 
   lazy val defaultSettings = baseSettings ++ Seq(
     libraryDependencies ++= Seq(commonsPool, scalaj_collection, netty, twitterUtilCore, slf4j, specs2),
@@ -105,7 +107,7 @@ object Dependencies {
   val twitterUtilCore = "com.twitter" % "util-core" % "1.12.2"
 
   // Testing Deps
-  val specs2 = "org.specs2" %% "specs2" % "1.5" % "provided" 
+  val specs2 = "org.specs2" %% "specs2" % "1.7.1" % "provided" 
   val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.7.1" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1" % "test"
