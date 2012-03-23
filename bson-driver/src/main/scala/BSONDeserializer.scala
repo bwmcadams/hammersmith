@@ -19,7 +19,7 @@ package org.bson
 
 import BSON._
 import java.io._
-import org.bson.io.{ BSONInput, Bits }
+import org.bson.io.Bits
 import org.bson.types._
 import java.util.{ UUID, Date ⇒ JDKDate }
 import org.bson.util.{ Logging }
