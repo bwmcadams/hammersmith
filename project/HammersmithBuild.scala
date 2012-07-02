@@ -10,8 +10,8 @@ object HammersmithBuild extends Build {
   lazy val buildSettings = Seq(
     organization := "com.mongodb.async",
     version := "0.3.0-SNAPSHOT",
-    scalaVersion := "2.9.1",
-    crossScalaVersions := Seq("2.9.1", "2.9.0-1")
+    scalaVersion := "2.9.2",
+    crossScalaVersions := Seq("2.9.2", "2.9.1", "2.9.0-1")
   )
 
   /**
@@ -45,7 +45,36 @@ object HammersmithBuild extends Build {
  */
 
   lazy val defaultSettings = baseSettings ++ Seq(
-    libraryDependencies ++= Seq(commonsPool, scalaj_collection, netty, twitterUtilCore, slf4j, specs2),
+    libraryDependencies ++= Seq(commonsPool, netty, twitterUtilCore, slf4j),
+    libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
+      sv match {
+        case "2.9.2" => 
+          deps :+ ("org.scalaj" % "scalaj-collection_2.9.1" % "1.2")
+        case x => {
+          deps :+ ("org.scalaj" %%  "scalaj-collection" % "1.2")
+        }
+      }
+
+    },
+    libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
+      sv match {
+        case "2.9.2" => 
+          deps :+ ("org.scala-tools.time" % "time_2.9.1" % "0.5")
+        case x => {
+          deps :+ ("org.scala-tools.time" %% "time" % "0.5")
+        }
+      }
+
+    },
+    libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
+      val versionMap = Map("2.8.1" -> ("specs2_2.8.1", "1.5"),
+                           "2.9.0" -> ("specs2_2.9.0", "1.7.1"),
+                           "2.9.0-1" -> ("specs2_2.9.0", "1.7.1"),
+                           "2.9.1" -> ("specs2_2.9.1", "1.7.1"),
+                           "2.9.2" -> ("specs2_2.9.2", "1.10"))
+      val tuple = versionMap.getOrElse(sv, sys.error("Unsupported Scala version for Specs2"))
+      deps :+ ("org.specs2" % tuple._1 % tuple._2)
+    },
     resolvers ++= Seq(sonaReleases, jbossRepo, sbtReleases, sbtSnapshots, twttrRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
@@ -95,7 +124,7 @@ object Publish {
 object Dependencies {
   //BSON 
   //val bsonJava = "org.mongodb" % "bson" % "2.7.1"  // currently broken for just bson
-  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.7.3" 
+  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" 
   // Connection Pooling
   val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
@@ -108,7 +137,7 @@ object Dependencies {
 
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.7.1" % "provided" 
-  val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.7.3" % "test->default"
+  val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1" % "test"
 
