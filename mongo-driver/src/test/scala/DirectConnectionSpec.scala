@@ -39,24 +39,24 @@ class DirectConnectionSpec extends Specification
 
   def is =
     "The MongoDB Direct Connection" ^
-      "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster) ^
+      "Connect correctly and grab isMaster, then disconnect" ! mongo(connectIsMaster _) ^
       endp ^
       "Write Operations" ^
-      "Support 'blind' (NoOp) writes" ! mongo(noopInsert) ^
-      "Support inserts with no (default) write concern" ! mongo(insertWithDefaultWriteConcern) ^
-      "Support inserts with implicit safe write concern" ! mongo(insertWithSafeImplicitWriteConcern) ^
-      "Support batch inserts" ! mongo(batchInsert) ^
+      "Support 'blind' (NoOp) writes" ! mongo(noopInsert _) ^
+      "Support inserts with no (default) write concern" ! mongo(insertWithDefaultWriteConcern _) ^
+      "Support inserts with implicit safe write concern" ! mongo(insertWithSafeImplicitWriteConcern _) ^
+      "Support batch inserts" ! mongo(batchInsert _) ^
       endp ^
       "Read Operations" ^
-      "Can count from a collection" ! mongo(countCmd) ^
-      "Iterate a simple cursor correctly" ! mongo(iterateSimpleCursor) ^
-      "Iterate a complex (iteratee) cursor correctly" ! mongo(iterateComplexCursor) ^
-      "Correctly calculate values for 'distinct'" ! mongo(distinctValue) ^
-      "Insert an ObjectId and retrieve it correctly" ! mongo(idDebug) ^
+      "Can count from a collection" ! mongo(countCmd _) ^
+      "Iterate a simple cursor correctly" ! mongo(iterateSimpleCursor _) ^
+      "Iterate a complex (iteratee) cursor correctly" ! mongo(iterateComplexCursor _) ^
+      "Correctly calculate values for 'distinct'" ! mongo(distinctValue _) ^
+      "Insert an ObjectId and retrieve it correctly" ! mongo(idDebug _) ^
       endp ^
       "More detailed special commands" ^
-      "Support findAndModify" ! mongo(simpleFindAndModify) ^
-      "Support findAndRemove" ! mongo(findAndRemoveTest) ^
+      "Support findAndModify" ! mongo(simpleFindAndModify _) ^
+      "Support findAndRemove" ! mongo(findAndRemoveTest _) ^
       end
   /*
   trait mongoConn extends AroundOutside[MongoConnection] {
@@ -155,7 +155,7 @@ class DirectConnectionSpec extends Specification
     mongo.findOne(Document("foo" -> "bar"))((_doc: Document) ⇒ {
       doc = _doc
     })
-    doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
+    doc must havePairs("foo" -> "bar", "bar" -> "baz")//.eventually BROKEN GODDAMN F-ING SPECS2  
   }
 
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
@@ -172,7 +172,7 @@ class DirectConnectionSpec extends Specification
     mongo.findOne(Document("foo" -> "bar"))((_doc: Document) ⇒ {
       doc = _doc
     })
-    doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
+    doc must havePairs("foo" -> "bar", "bar" -> "baz")//.eventually BROKEN GODDAMN F-ING SPECS2
   }
 
   def insertWithSafeImplicitWriteConcern(conn: MongoConnection) = {
@@ -205,7 +205,8 @@ class DirectConnectionSpec extends Specification
       doc = _doc
     })
     doc must not(beNull.eventually)
-    doc must eventually(havePairs("foo" -> "bar", "bar" -> "baz"))
+    doc must havePairs("foo" -> "bar", "bar" -> "baz")//.eventually
+
   }
 
   def idDebug(conn: MongoConnection) = {
@@ -233,7 +234,7 @@ class DirectConnectionSpec extends Specification
     log.debug("Inserted. %s", insertedID)
     mongo.insert(Document("_id" -> id, "foo" -> "y", "bar" -> "x"))(handler)
 
-    insertedID must eventually(beSome(id)) //Wait for the insert to finish?
+    insertedID must beSome(id) //.EVENTUALLYFUCKYOUSPECS2YOUPIECEOFSHIT //Wait for the insert to finish?
 
     var savedID: Option[ObjectId] = None
     //TODO - test findOneByID
