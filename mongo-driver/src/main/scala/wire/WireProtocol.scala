@@ -183,7 +183,6 @@ abstract class MongoMessage extends Logging {
   //  def apply(channel: Channel) = write
 
   def write(out: OutputStream)(implicit maxBSON: Int) = {
-    // TODO - Reuse / pool Serializers for performance via reset()
     val buf = new PoolOutputBuffer()
     val enc = new DefaultBSONSerializer
     enc.set(buf)
