@@ -37,7 +37,7 @@ class ConcurrencyTestingSpec extends Specification
   def is =
     "The MongoDB Direct Connection" ^
       "Works concurrently" ^
-      "Support lots of concurrent batch inserts" ! mongo(batchInsert) ^
+      "Support lots of concurrent batch inserts" ! mongo(batchInsert _) ^
       end
 
   object mongo extends AroundOutside[MongoConnection] {
