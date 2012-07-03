@@ -27,7 +27,9 @@ with HammersmithDefaultDBNames {
 
 
   def connectIsMaster = {
-    AkkaConnection() must not beNull
+    val x = AkkaConnection()
+    Thread.sleep(10000)
+    x must not beNull
   }
 
 }

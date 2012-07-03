@@ -34,6 +34,9 @@ import com.mongodb.async.util._
 import akka.actor._
 import akka.util.{ ByteString, ByteStringBuilder }
 import akka.actor.IO.SocketHandle
+import com.mongodb.io.ByteBufferInputStream
+import scalaj.collection.Imports._
+import java.util.ArrayList
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -105,15 +108,15 @@ class AkkaConnection(hostname: String, port: Int)(implicit actorSystem: ActorSys
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     val b = new ByteStringBuilder
     val outStream = b.asOutputStream
-    log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
-    log.trace("PreWrite with outStream '%s'", outStream)
+    log.info("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
+    log.info("PreWrite with outStream '%s'", outStream)
     /**
      * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
      * The GLE / Safe write stuff is setup later
      */
     if (!isWrite) dispatcher.put(msg.requestID, CompletableRequest(msg, f))
     msg.write(outStream)
-    log.debug("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
+    log.info("Writing Message '%s' out to Channel via stream '%s'.", msg, outStream)
 
     /**
      * Determine if we need to execute a GetLastError (E.G. w > 0),
@@ -124,19 +127,19 @@ class AkkaConnection(hostname: String, port: Int)(implicit actorSystem: ActorSys
       msg match {
         case wMsg: MongoClientWriteMessage ⇒ if (concern.safe_?) {
           val gle = MongoConnection.createCommand(wMsg.namespace.split("\\.")(0), Document("getlasterror" -> 1))
-          log.trace("Created a GetLastError Message: %s", gle)
+          log.info("Created a GetLastError Message: %s", gle)
           /**
            * We only setup dispatchers if it is a Non-Write Request or a Write Request w/ a Write Concern that necessitates GLE
            * Note we dispatch the GetLastError's ID but with the write message !
            */
           dispatcher.put(gle.requestID, CompletableRequest(msg, f))
           gle.write(outStream)
-          log.debug("Wrote a getLastError to the tail end of the output buffer.")
+          log.info("Wrote a getLastError to the tail end of the output buffer.")
           () ⇒ {}
         } else () ⇒ { wMsg.ids.foreach(x ⇒ f((x, WriteResult(true)).asInstanceOf[f.T])) }
         case unknown ⇒ {
           val e = new IllegalArgumentException("Invalid type of message passed; WriteRequestFutures expect a MongoClientWriteMessage underneath them. Got " + unknown)
-          log.error(e, "Error in write.")
+          log.info(e, "Error in write.")
           () ⇒ { f(e) }
         }
       }
@@ -155,7 +158,7 @@ class AkkaConnection(hostname: String, port: Int)(implicit actorSystem: ActorSys
       log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
       channelOpQueue.getOrElseUpdate(channel, new ConcurrentQueue) += exec
     } else exec(maxBSONObjectSize)*/
-    //exec(maxBSONObjectSize)
+    exec(maxBSONObjectSize)
 
   }
 }
@@ -173,23 +176,22 @@ trait MongoConnectionActor extends Actor with Logging {
       log.info("Now connected to MongoDB at '%s'", address)
       onConnection()
 
-    case IO.Read(socket, bytes) =>
-      log.info("Received incoming bytestream data from socket: '%s'", bytes)
+    case IO.Read(socket, bytes: ByteString) =>
       state(socket)(IO Chunk bytes)
+      val source = sender
+      log.info("Decoding bytestream")
+      implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
+      val len = bytes.iterator.getInt
+      val frame = bytes.take(len)
+      val msg = MongoMessage.unapply(new ByteBufferInputStream(List(frame.toByteBuffer).asJava))
+      log.info("Mongo Message: " + msg)
+
 
     case IO.Closed(socket: IO.SocketHandle, cause) =>
       log.info("Socket has closed, cause: " + cause)
       state(socket)(IO EOF cause)
       throw(cause getOrElse new RuntimeException("Network Socket Closed: '%s'".format(cause)))
 
-    case bytes: ByteString =>
-      val source = sender
-      state flatMap { x =>
-        val head = IO.take(4).get.asByteBuffer
-        log.debug("HEADER: %s / Order: %s", head, head.order())
-        val l = head.getInt
-        IO.take(l).get
-      }
   }
 
 }
