@@ -11,7 +11,7 @@ object HammersmithBuild extends Build {
     organization := "com.mongodb.async",
     version := "0.3.0-SNAPSHOT",
     scalaVersion := "2.9.2",
-    crossScalaVersions := Seq("2.9.2", "2.9.1", "2.9.0-1")
+    crossScalaVersions := Seq("2.9.2", "2.9.1")
   )
 
   /**
@@ -45,7 +45,7 @@ object HammersmithBuild extends Build {
  */
 
   lazy val defaultSettings = baseSettings ++ Seq(
-    libraryDependencies ++= Seq(commonsPool, netty, twitterUtilCore, slf4j),
+    libraryDependencies ++= Seq(commonsPool, netty, twitterUtilCore, slf4j, akkaActors, specs2),
     libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
       sv match {
         case "2.9.2" => 
@@ -66,7 +66,7 @@ object HammersmithBuild extends Build {
       }
 
     },
-    libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
+   /* libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
       val versionMap = Map("2.8.1" -> ("specs2_2.8.1", "1.5"),
                            "2.9.0" -> ("specs2_2.9.0", "1.7.1"),
                            "2.9.0-1" -> ("specs2_2.9.0", "1.7.1"),
@@ -74,8 +74,8 @@ object HammersmithBuild extends Build {
                            "2.9.2" -> ("specs2_2.9.2", "1.10"))
       val tuple = versionMap.getOrElse(sv, sys.error("Unsupported Scala version for Specs2"))
       deps :+ ("org.specs2" % tuple._1 % tuple._2)
-    },
-    resolvers ++= Seq(sonaReleases, jbossRepo, sbtReleases, sbtSnapshots, twttrRepo),
+    },*/
+    resolvers ++= Seq(sonaReleases, jbossRepo, sbtReleases, sbtSnapshots, twttrRepo, typesafeRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
     testFrameworks += TestFrameworks.Specs2
@@ -136,10 +136,13 @@ object Dependencies {
   val twitterUtilCore = "com.twitter" % "util-core" % "1.12.2"
 
   // Testing Deps
-  val specs2 = "org.specs2" %% "specs2" % "1.7.1" % "provided" 
+  val specs2 = "org.specs2" %% "specs2" % "1.10" % "provided" 
   val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
-  val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1" % "test"
+  val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
+
+  // Akka
+  val akkaActors = "com.typesafe.akka" % "akka-actor" % "2.1-SNAPSHOT"
 
   def specs2ScalazCore(scalaVer: sbt.SettingKey[String]) = 
     scalaVersionString(scalaVer) match {
@@ -160,6 +163,7 @@ object Resolvers {
   val sbtSnapshots = "snapshots" at "http://scala-tools.org/repo-snapshots"
   val sbtReleases  = "releases" at "http://scala-tools.org/repo-releases"
 
+  val typesafeRepo = "Typesafe Repository" at "http://repo.typesafe.com/typesafe/snapshots/"
   val sonaReleases = "releases" at "https://oss.sonatype.org/content/repositories/releases"
   val jbossRepo = "JBoss Public Repo" at "https://repository.jboss.org/nexus/content/groups/public-jboss/"
   val twttrRepo = "Twitter Public Repo" at "http://maven.twttr.com"
