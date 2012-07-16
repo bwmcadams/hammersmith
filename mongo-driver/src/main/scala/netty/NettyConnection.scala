@@ -28,6 +28,9 @@ import org.jboss.netty.channel.{Channel, AdaptiveReceiveBufferSizePredictor, Cha
 import org.jboss.netty.handler.execution.ExecutionHandler
 import java.util.concurrent.atomic.AtomicBoolean
 import java.net.InetSocketAddress
+import java.io.OutputStream
+import java.nio.ByteOrder
+import org.jboss.netty.buffer.{ChannelBufferOutputStream, ChannelBuffers}
 
 
 class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
@@ -140,10 +143,17 @@ class NettyConnectionContext protected[mongodb](private val channel: Channel) ex
   def close() {
     channel.close()
   }
+  def newOutputStream: OutputStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
 
   def connected_?(): Boolean = channel.isConnected
 
-  def write(msg: AnyRef) {}
+  def write(msg: AnyRef) = msg match {
+    case os: ChannelBufferOutputStream =>
+      channel.write(os.buffer())
+    case default =>
+      // attempt to write it anyway
+      channel.write(default)
+  }
 }
 
 protected[mongodb] class NettyConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler {
