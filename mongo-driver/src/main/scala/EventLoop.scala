@@ -1,10 +1,12 @@
+package com.mongodb.async
+
 /**
- * Copyright (c) 2010, 2011 10gen, Inc. <http://10gen.com>
+ * Copyright (c) 2008 - 2012 10gen, Inc. <http://10gen.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -15,18 +17,5 @@
  *
  */
 
-package com.mongodb.async
-
-import org.bson.util.Logging
-
-import java.net.InetSocketAddress
-import org.jboss.netty.bootstrap.ClientBootstrap
-/**
- * Direct Connection to a single mongod (or mongos) instance
- *
- * NOTE: Connection instances are instances of a *POOL*, always.
- */
-
-
-
-
+trait EventLoop[T] {
+}

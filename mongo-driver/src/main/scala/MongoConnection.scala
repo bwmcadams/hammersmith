@@ -37,6 +37,7 @@ import com.mongodb.async.util.{ ConcurrentQueue, CursorCleaningTimer }
 import org.bson.types.ObjectId
 import org.bson.util.Logging
 import com.mongodb.async.util._
+import com.mongodb.async.netty.NettyConnection
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -50,101 +51,18 @@ import com.mongodb.async.util._
  */
 abstract class MongoConnection extends Logging {
 
-  log.info("Initializing MongoConnectionHandler.")
+  type E
+
   MongoConnection.cleaningTimer.acquire(this)
 
-  // TODO - MAKE THESE IMMUTABLE AND/OR PASS TO PLACES THAT NEED TO ALLOCATE BUFFERS
-  /** Maximum size of BSON this server allows. */
-  protected implicit var maxBSONObjectSize = MongoMessage.DefaultMaxBSONObjectSize
-  protected var isMaster = false
+  def initialize: ConnectionContext
 
-  //protected val _connected = new AtomicBoolean(false)
+  def eventLoop: Option[E] = None
 
-  /* TODO - Can we reuse these factories across multiple connections??? */
+  def defaultEventLoop: E
 
-  /**
-   * Factory for client socket channels, reused by all connectors where possible.
-   */
-  val channelFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Boss")),
-    Executors.newCachedThreadPool(ThreadFactories("Hammersmith Netty Worker")))
+  protected implicit val context = initialize
 
-  protected implicit val bootstrap = new ClientBootstrap(channelFactory)
-
-  bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-    /* The executor ensures that we use more than one thread, so apps
-     * that call back into hammersmith from a callback don't deadlock,
-     * and so apps can use CPU (e.g. decoding) without slowing down IO.
-     *
-     * This executor does nothing to preserve order of message
-     * processing.
-     * By going unordered, we can decode replies and
-     * run app callbacks in parallel. That seems like a pretty
-     * big win; otherwise, we can only use one CPU to decode and
-     * process replies.
-     * (Replies from a connection pool would be in
-     * undefined order anyhow from the app's perspective,
-     * since the app doesn't know which socket the request
-     * went to.)
-     *
-     * Netty comes with a MemoryAwareThreadPoolExecutor and
-     * OrderedMemoryAwareThreadPoolExecutor. These have
-     * two problems. First, they use a queue,
-     * which means they never go above CorePoolSize
-     * (the queue has a fixed upper limit). This would create
-     * a deadlock if CorePoolSize threads are busy and the app
-     * calls back to Hammersmith. Moreover, the memory limit
-     * can create a deadlock if it stops accepting more messages
-     * and the app calls back to Hammersmith. Basically we can never
-     * stop processing messages or there's a deadlock.
-     * So we don't use the executors from Netty, instead using a plain
-     * ThreadPoolExecutor.
-     *
-     * Actors could be better than threads, in the future. Unlike
-     * invoking a callback, sending a message to an actor should not
-     * tie up the pipeline and risk deadlock.
-     */
-    private val appCallbackExecutor =
-      new ThreadPoolExecutor(Runtime.getRuntime.availableProcessors * 2, /* core pool size */
-        Int.MaxValue, /* max pool size (must be infinite to avoid deadlocks) */
-        20, TimeUnit.SECONDS, /* time to keep idle threads alive */
-        new SynchronousQueue[Runnable], /* queue that doesn't queue; we must make a thread, or we could deadlock */
-        ThreadFactories("Hammersmith Reply Handler"))
-
-    private val appCallbackExecutionHandler =
-      new ExecutionHandler(appCallbackExecutor)
-
-    def getPipeline = {
-      val p = Channels.pipeline(new ReplyMessageDecoder(),
-        appCallbackExecutionHandler,
-        handler)
-      p
-    }
-  })
-
-  bootstrap.setOption("remoteAddress", addr)
-  /* AdaptiveReceiveBufferSizePredictor gradually scales the buffer up and down
-   * depending on how many bytes arrive in each read()
-   */
-  bootstrap.setOption("child.receiveBufferSizePredictor",
-    new AdaptiveReceiveBufferSizePredictor(128, /* minimum */
-      256, /* initial */
-      1024 * 1024 * 4 /* max */ ));
-
-  private val _f = bootstrap.connect()
-  // TODO - Switch to listener based establishment
-  protected implicit val channel = _f.awaitUninterruptibly.getChannel
-
-  MongoConnection.channelState.put(channel, new AtomicBoolean(false))
-
-  bootstrap.setOption("tcpNoDelay", true)
-  bootstrap.setOption("keepAlive", true)
-  if (!_f.isSuccess) {
-    log.error("Failed to connect.", _f.getCause)
-    bootstrap.releaseExternalResources()
-  } else {
-    log.debug("Connected and retrieved a write channel (%s)", channel)
-    checkMaster()
-  }
 
   /**
    * Utility method to pull back a number of pieces of information
@@ -157,17 +75,17 @@ abstract class MongoConnection extends Logging {
    */
   def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
     if (!connected_? || force) {
-      log.info("Checking Master Status... (BSON Size: %d Force? %s)", maxBSONObjectSize, force)
+      log.info("Checking Master Status... (BSON Size: %d Force? %s)", context.maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
       val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
       MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) ⇒ {
         log.debug("Got a result from command: %s", doc)
-        isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
-        maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
+        context.isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
+        context.maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
         gotIsMaster.set(true)
-        if (requireMaster && !isMaster) throw new Exception("Couldn't find a master.") else _connectedState(true, maxBSONObjectSize)
-        handler.maxBSONObjectSize = maxBSONObjectSize
-        log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", isMaster, maxBSONObjectSize)
+        if (requireMaster && !context.isMaster) throw new Exception("Couldn't find a master.") else _connectedState(connected = true)
+        //handler.maxBSONObjectSize = maxBSONObjectSize
+        log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", context.isMaster, context.maxBSONObjectSize)
       }), _overrideLiveCheck = true)
     } else {
       log.debug("Already have cached master status. Skipping.")
@@ -417,12 +335,9 @@ abstract class MongoConnection extends Logging {
     runCommand(db, Document("deleteIndexes" -> (db + "." + collection), "index" -> name))(callback)
   }
 
-  // TODO "Ensure" mode
-  val handler: MongoConnectionHandler
 
-  def connected_? = MongoConnection.channelState(channel).get()
-  def _connectedState(connected: Boolean, maxBSONObjectSize: Int) =
-    MongoConnection.setChannelState(channel, connected, maxBSONObjectSize)
+  def connected_? = MongoConnection.connectionState(context).get()
+  def _connectedState(connected: Boolean) = MongoConnection.setConnectionState(context, connected)
 
   val addr: InetSocketAddress
 
@@ -431,8 +346,8 @@ abstract class MongoConnection extends Logging {
   protected[mongodb] def shutdown() {
     log.debug("Shutting Down & Cleaning up connection handler.")
     MongoConnection.cleaningTimer.stop(this)
-    channel.close()
-    _connectedState(false, maxBSONObjectSize)
+    context.close()
+    _connectedState(connected = false)
   }
 
   def close() {
@@ -488,24 +403,24 @@ object MongoConnection extends Logging {
    * This means that a channel being in the deadCursors map will NOT PREVENT IT
    * from being garbage collected.
    */
-  protected[mongodb] val deadCursors = new WeakHashMap[Channel, ConcurrentQueue[Long]]
+  protected[mongodb] val deadCursors = new WeakHashMap[ConnectionContext, ConcurrentQueue[Long]]
 
   /**
    * Canonical guide of the status of any channels.
    * e.g. what we know about their current live or dead status.
    */
-  protected val channelState = new WeakHashMap[Channel, AtomicBoolean]
+  protected[mongodb] val connectionState = new WeakHashMap[ConnectionContext, AtomicBoolean]
 
   /**
    * Operation queue for channels which aren't connected yet.
    */
-  protected val channelOpQueue = new WeakHashMap[Channel, ConcurrentQueue[(Int) ⇒ Unit]]
+  protected[mongodb] val connectionOpQueue = new WeakHashMap[ConnectionContext, ConcurrentQueue[(Int) ⇒ Unit]]
 
   def apply(hostname: String = "localhost", port: Int = 27017) = {
     log.debug("New Connection with hostname '%s', port '%s'", hostname, port)
     // For now, only support Direct Connection
 
-    new DirectConnection(new InetSocketAddress(hostname, port))
+    new NettyConnection(new InetSocketAddress(hostname, port))
   }
 
   /**
@@ -542,9 +457,9 @@ object MongoConnection extends Logging {
   }
 
   /** TODO - Support timing out of ops */
-  def setChannelState(channel: Channel, connected: Boolean, maxBSONObjectSize: Int) = {
-    log.info("Setting a channel state up to '%s' for '%s'", connected, channel)
-    val oldState = channelState.getOrElseUpdate(channel, new AtomicBoolean(false)).getAndSet(connected)
+  def setConnectionState(context: ConnectionContext, connected: Boolean) = {
+    log.info("Setting a context state up to '%s' for '%s'", connected, context)
+    val oldState = connectionState.getOrElseUpdate(context, new AtomicBoolean(false)).getAndSet(connected)
     if (oldState) connected match {
       case true ⇒ {
         log.trace("Connection state was already connected, set to connected again.  NOOP")
@@ -556,8 +471,8 @@ object MongoConnection extends Logging {
     else connected match {
       case true ⇒ {
         log.info("Connection state was disconnected, set to connected.  Dequeueing any backed up operations.")
-        channelOpQueue.get(channel).foreach { queue ⇒
-          queue.dequeueAll.foreach { op ⇒ op(maxBSONObjectSize) }
+        connectionOpQueue.get(context).foreach { queue ⇒
+          queue.dequeueAll().foreach { op ⇒ op(context.maxBSONObjectSize) }
         }
       }
       case false ⇒ {
@@ -566,8 +481,9 @@ object MongoConnection extends Logging {
     }
   }
 
-  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit channel: Channel, maxBSONObjectSize: Int, concern: WriteConcern = WriteConcern.Normal) = {
-    require(channel.isConnected, "Channel is closed.")
+  protected[mongodb] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit context: ConnectionContext, concern: WriteConcern = WriteConcern.Normal) = {
+    require(context.connected_?, "Connection is closed.")
+    implicit val maxBSON = context.maxBSONObjectSize
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
     val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
@@ -610,16 +526,16 @@ object MongoConnection extends Logging {
     // todo - clean this up to be more automatic like the writeCB is
 
     val exec = (_maxBSON: Int) ⇒ {
-      channel.write(outStream.buffer())
+      context.write(outStream.buffer())
       outStream.close()
       /** If no write Concern and it's a write, kick the callback now.*/
       writeCB()
     }
     // If the channel is open, it still doesn't mean we have a valid Mongo Connection.
-    if (!channelState(channel).get && !_overrideLiveCheck) {
+    if (!connectionState(context).get && !_overrideLiveCheck) {
       log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
-      channelOpQueue.getOrElseUpdate(channel, new ConcurrentQueue) += exec
-    } else exec(maxBSONObjectSize)
+      connectionOpQueue.getOrElseUpdate(context, new ConcurrentQueue) += exec
+    } else exec(maxBSON)
 
   }
 
@@ -631,9 +547,9 @@ object MongoConnection extends Logging {
   /**
    * Deferred - doesn't actually happen immediately
    */
-  protected[mongodb] def killCursors(ids: Long*)(implicit channel: Channel) {
-    log.debug("Adding Dead Cursors to cleanup list: %s on Channel: %s", ids, channel)
-    deadCursors.getOrElseUpdate(channel, new ConcurrentQueue[Long]) ++= ids
+  protected[mongodb] def killCursors(ids: Long*)(implicit context: ConnectionContext) {
+    log.debug("Adding Dead Cursors to cleanup list: %s on Context: %s", ids, context)
+    deadCursors.getOrElseUpdate(context, new ConcurrentQueue[Long]) ++= ids
   }
 
   /**
@@ -645,13 +561,13 @@ object MongoConnection extends Logging {
     if (deadCursors.isEmpty) {
       log.debug("No Dead Cursors.")
     } else {
-      deadCursors.foreach((entry: (Channel, ConcurrentQueue[Long])) ⇒ if (!entry._2.isEmpty) {
+      deadCursors.foreach((entry: (ConnectionContext, ConcurrentQueue[Long])) ⇒ if (!entry._2.isEmpty) {
         // TODO - ensure no concurrency issues / blockages here.
         log.trace("Pre DeQueue: %s", entry._2.length)
         val msg = KillCursorsMessage(entry._2.dequeueAll())
         log.trace("Post DeQueue: %s", entry._2.length)
         log.debug("Killing Cursors with Message: %s with %d cursors.", msg, msg.numCursors)
-        MongoConnection.send(msg, NoOpRequestFuture)(entry._1, 1024 * 1024 * 4) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
+        MongoConnection.send(msg, NoOpRequestFuture)(entry._1) // todo  flexible BSON although I doubt we'll need a 16 meg killcursors
       } else {
         log.debug("Removing Channel '%s' from cursor cleanup queue as it has no dead cursors.", entry._1) // should help with auto shutdown of cleaner thread + process
         deadCursors.remove(entry._1)

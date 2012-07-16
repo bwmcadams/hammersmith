@@ -26,21 +26,28 @@ import com.mongodb.async.futures._
 import org.jboss.netty.buffer._
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
+import com.mongodb.async.util.ConnectionContext
+
 /**
- * Base trait for all connections, be it direct, replica set, etc
- *
- * This contains common code for any type of connection.
- *
- * NOTE: Connection instances are instances of a *POOL*, always.
- *
- * @author Brendan W. McAdams <brendan@10gen.com>
- * @since 0.1
- */
+* Base trait for all connections, be it direct, replica set, etc
+*
+* This contains common code for any type of connection.
+*
+* NOTE: Connection instances are instances of a *POOL*, always.
+*
+* @author Brendan W. McAdams <brendan@10gen.com>
+* @since 0.1
+*/
 abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging {
   protected val bootstrap: ClientBootstrap
-  protected[mongodb] var maxBSONObjectSize = 1024 * 4 * 4 // default
 
-  protected def queryFail(reply: ReplyMessage, result: RequestFuture) = {
+  protected var _ctx: Option[ConnectionContext] = None
+
+  def ctx = _ctx
+
+  protected[mongodb] def ctx_=(value: Option[ConnectionContext]) { _ctx = value }
+
+  protected def queryFail(reply: ReplyMessage, result: RequestFuture)  {
     log.trace("Query Failure")
     // Attempt to grab the $err document
     val err = reply.documents.headOption match {
@@ -57,7 +64,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     }
   }
 
-  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
+  override def messageReceived(nettyCtx: ChannelHandlerContext, e: MessageEvent) {
     val message = e.getMessage.asInstanceOf[MongoMessage]
     log.debug("Incoming Message received type %s", message.getClass.getName)
     message match {
@@ -101,7 +108,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
               } else if (reply.queryFailure) {
                 queryFail(reply, cursorResult)
               } else {
-                cursorResult(Cursor(msg.namespace, reply)(ctx, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
+                cursorResult(Cursor(msg.namespace, reply)(ctx.get, _r.decoder).asInstanceOf[cursorResult.T]) // TODO - Fix Me!
               }
             }
             case CompletableGetMoreRequest(msg: GetMoreMessage, getMoreResult: GetMoreRequestFuture) ⇒ {
