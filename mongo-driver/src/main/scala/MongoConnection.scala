@@ -17,19 +17,13 @@
 
 package com.mongodb.async
 
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import java.net.InetSocketAddress
 import org.bson._
 import org.bson.collection._
-import org.jboss.netty.bootstrap.ClientBootstrap
-import org.jboss.netty.channel._
-import org.jboss.netty.handler.execution._
-import org.jboss.netty.util._
 import java.nio.ByteOrder
 import com.mongodb.async.wire._
 import scala.collection.JavaConversions._
 import com.mongodb.async.futures._
-import org.jboss.netty.buffer._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{ ConcurrentHashMap, Executors, SynchronousQueue, ThreadPoolExecutor, TimeUnit }
 import scala.collection.mutable.{ ConcurrentMap, WeakHashMap }
@@ -486,7 +480,7 @@ object MongoConnection extends Logging {
     implicit val maxBSON = context.maxBSONObjectSize
     val isWrite = f.isInstanceOf[WriteRequestFuture]
     // TODO - Better pre-estimation of buffer size - We don't have a length attributed to the Message yet
-    val outStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
+    val outStream = context.newOutputStream
     log.trace("Put msg id: %s f: %s into dispatcher: %s", msg.requestID, f, dispatcher)
     log.trace("PreWrite with outStream '%s'", outStream)
     /**
@@ -526,7 +520,7 @@ object MongoConnection extends Logging {
     // todo - clean this up to be more automatic like the writeCB is
 
     val exec = (_maxBSON: Int) ⇒ {
-      context.write(outStream.buffer())
+      context.write(outStream)
       outStream.close()
       /** If no write Concern and it's a write, kick the callback now.*/
       writeCB()

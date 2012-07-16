@@ -19,6 +19,7 @@ package util
   */
 
 import com.mongodb.async.wire._
+import java.io.OutputStream
 
 
 trait ConnectionContext {
@@ -38,7 +39,7 @@ trait ConnectionContext {
 
   def connected_?(): Boolean
 
-  //def newOutputStream: OutputStream
+  def newOutputStream: OutputStream
 
   def write(msg: AnyRef)
 
