@@ -19,10 +19,9 @@ package com.mongodb.async
 import org.bson.util.Logging
 import org.bson._
 import org.bson.collection._
-import org.jboss.netty.channel.ChannelHandlerContext
 import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
 import com.mongodb.async.futures.RequestFutures
-import com.mongodb.async.util.ConcurrentQueue
+import com.mongodb.async.util.{ConnectionContext, ConcurrentQueue}
 import scala.annotation.tailrec
 import com.twitter.util.CountDownLatch
 
@@ -36,7 +35,7 @@ object Cursor extends Logging {
   case class Next(op: (IterState) ⇒ IterCmd) extends IterCmd
   case class NextBatch(op: (IterState) ⇒ IterCmd) extends IterCmd
 
-  def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ChannelHandlerContext, decoder: SerializableBSONObject[T]) = {
+  def apply[T](namespace: String, reply: ReplyMessage)(implicit ctx: ConnectionContext, decoder: SerializableBSONObject[T]) = {
     log.debug("Instantiate new Cursor[%s], on namespace: '%s', # messages: %d", decoder, namespace, reply.numReturned)
     try {
       new Cursor[T](namespace, reply)(ctx, decoder)
@@ -111,13 +110,10 @@ object Cursor extends Logging {
  * If you want a more 'futured' non-blocking behavior use the foreach, etc. methods which will delay calling back.
  * TODO - Generic version with type passing
  */
-class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ChannelHandlerContext, val decoder: SerializableBSONObject[T]) extends Logging {
+class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implicit val ctx: ConnectionContext, val decoder: SerializableBSONObject[T]) extends Logging {
 
   val cursorID: Long = reply.cursorID
 
-  protected val handler = ctx.getHandler.asInstanceOf[MongoConnectionHandler]
-  protected implicit val channel = ctx.getChannel
-  protected implicit val maxBSONObjectSize = handler.maxBSONObjectSize // todo - will this change ? Should we explicitly grab it when needed
 
   /**
    * Cursor ID 0 indicates "No more results"
