@@ -337,7 +337,7 @@ abstract class MongoConnection extends Logging {
   }
 
 
-  def connected_? = MongoConnection.connectionState(context).get()
+  def connected_? = MongoConnection.connected_?(context)
   
   def _connectedState(connected: Boolean) = MongoConnection.setConnectionState(context, connected)
 
@@ -424,7 +424,12 @@ object MongoConnection extends Logging {
 
     new NettyConnection(new InetSocketAddress(hostname, port))
   }
-
+  
+  def connected_?(context: ConnectionContext): Boolean = connectionState.get(context) match {
+    case Some(bool) => bool.get()
+    case None => false
+  }
+  
   /**
    * Connect to MongoDB using a URI format.
    *
