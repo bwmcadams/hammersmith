@@ -75,7 +75,7 @@ object HammersmithBuild extends Build {
       val tuple = versionMap.getOrElse(sv, sys.error("Unsupported Scala version for Specs2"))
       deps :+ ("org.specs2" % tuple._1 % tuple._2)
     },*/
-    resolvers ++= Seq(sonaReleases, jbossRepo, sbtReleases, sbtSnapshots, twttrRepo, typesafeRepo),
+    resolvers ++= Seq(sonaReleases, jbossRepo, twttrRepo, typesafeRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
     testFrameworks += TestFrameworks.Specs2
@@ -160,11 +160,9 @@ object Dependencies {
 }
 
 object Resolvers {
-  val sbtSnapshots = "snapshots" at "http://scala-tools.org/repo-snapshots"
-  val sbtReleases  = "releases" at "http://scala-tools.org/repo-releases"
 
   val typesafeRepo = "Typesafe Repository" at "http://repo.typesafe.com/typesafe/snapshots/"
-  val sonaReleases = "releases" at "https://oss.sonatype.org/content/repositories/releases"
+  val sonaReleases = "sonatype releases" at "https://oss.sonatype.org/content/repositories/releases"
   val jbossRepo = "JBoss Public Repo" at "https://repository.jboss.org/nexus/content/groups/public-jboss/"
   val twttrRepo = "Twitter Public Repo" at "http://maven.twttr.com"
 }
