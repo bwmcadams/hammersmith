@@ -61,7 +61,6 @@ trait MongoConnectionHandler extends Logging {
   }
 
   def receiveMessage(msg: MongoMessage) {
-    log.debug("Incoming Message received type %s", msg.getClass.getName)
     msg match {
       case reply: ReplyMessage ⇒ {
         log.debug("Reply Message Received: %s", reply)
