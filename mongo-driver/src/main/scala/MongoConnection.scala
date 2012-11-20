@@ -76,7 +76,7 @@ abstract class MongoConnection extends Logging {
    */
   def checkMaster(force: Boolean = false, requireMaster: Boolean = true) {
     if (!connected_? || force) {
-      log.info("Checking Master Status... (BSON Size: %d Force? %s)", context.maxBSONObjectSize, force)
+      log.debug("Checking Master Status... (BSON Size: %d Force? %s)", context.maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
       val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
       MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) ⇒ {
@@ -86,7 +86,7 @@ abstract class MongoConnection extends Logging {
         gotIsMaster.set(true)
         if (requireMaster && !context.isMaster) throw new Exception("Couldn't find a master.") else _connectedState(connected = true)
         //handler.maxBSONObjectSize = maxBSONObjectSize
-        log.info("Server Status read.  Is Master? %s MaxBSONSize: %s", context.isMaster, context.maxBSONObjectSize)
+        log.debug("Server Status read.  Is Master? %s MaxBSONSize: %s", context.isMaster, context.maxBSONObjectSize)
       }), _overrideLiveCheck = true)
     } else {
       log.debug("Already have cached master status. Skipping.")

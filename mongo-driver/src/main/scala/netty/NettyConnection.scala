@@ -32,6 +32,9 @@ import java.io.OutputStream
 import java.nio.ByteOrder
 import org.jboss.netty.buffer.{ChannelBufferOutputStream, ChannelBuffers}
 import org.bson.util.Logging
+import org.jboss.netty.bootstrap.ClientBootstrap
+import org.jboss.netty.channel._
+import org.jboss.netty.buffer._
 
 
 class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
@@ -55,7 +58,7 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 
     val handler = new NettyConnectionHandler(bootstrap)
 
-    log.info("Event Loop: " + eventLoop + " empty? " + eventLoop.isEmpty + " getOrElse? " + eventLoop.getOrElse(defaultEventLoop))
+    log.trace("Event Loop: " + eventLoop + " empty? " + eventLoop.isEmpty + " getOrElse? " + eventLoop.getOrElse(defaultEventLoop))
     
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       private val appCallbackExecutionHandler =
@@ -147,7 +150,6 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 
 class NettyConnectionContext protected[mongodb](private val channel: Channel) extends ConnectionContext with Logging {
   
-  log.info("*** Initialized NettyConnectionContext")
   
   def close() {
     channel.close()
@@ -166,7 +168,34 @@ class NettyConnectionContext protected[mongodb](private val channel: Channel) ex
   }
 }
 
-protected[mongodb] class NettyConnectionHandler(val bootstrap: ClientBootstrap) extends MongoConnectionHandler {
+protected[mongodb] class NettyConnectionHandler(val bootstrap: ClientBootstrap) extends SimpleChannelHandler with MongoConnectionHandler {
 
+  override def messageReceived(nettyCtx: ChannelHandlerContext, e: MessageEvent) {
+    val message = e.getMessage.asInstanceOf[MongoMessage]
+    log.debug("Incoming Message received type %s", message.getClass.getName)
+    receiveMessage(message)
+  }
+  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
+    // TODO - pass this up to the user layer?
+    log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler: %s", e.getCause)
+    // TODO - Close connection?
+  }
+
+  override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    log.warn("Disconnected from '%s'", remoteAddress)
+    //    shutdown()
+  }
+
+  override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    log.info("Channel Closed to '%s'", remoteAddress)
+    //    shutdown()
+  }
+
+  override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    log.info("Connected to '%s' (Configging Channel to Little Endian)", remoteAddress)
+    e.getChannel.getConfig.setOption("bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN))
+  }
+
+  def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 }
 

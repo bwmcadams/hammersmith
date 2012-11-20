@@ -19,11 +19,8 @@ package com.mongodb.async
 
 import org.bson.util.Logging
 import org.bson.collection._
-import org.jboss.netty.bootstrap.ClientBootstrap
-import org.jboss.netty.channel._
 import com.mongodb.async.wire._
 import com.mongodb.async.futures._
-import org.jboss.netty.buffer._
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
 import com.mongodb.async.util.ConnectionContext
@@ -38,8 +35,7 @@ import com.mongodb.async.util.ConnectionContext
 * @author Brendan W. McAdams <brendan@10gen.com>
 * @since 0.1
 */
-abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging {
-  protected val bootstrap: ClientBootstrap
+trait MongoConnectionHandler extends Logging {
 
   protected var _ctx: Option[ConnectionContext] = None
 
@@ -64,10 +60,9 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
     }
   }
 
-  override def messageReceived(nettyCtx: ChannelHandlerContext, e: MessageEvent) {
-    val message = e.getMessage.asInstanceOf[MongoMessage]
-    log.debug("Incoming Message received type %s", message.getClass.getName)
-    message match {
+  def receiveMessage(msg: MongoMessage) {
+    log.debug("Incoming Message received type %s", msg.getClass.getName)
+    msg match {
       case reply: ReplyMessage ⇒ {
         log.debug("Reply Message Received: %s", reply)
         // Dispatch the reply, separate into requisite parts, etc
@@ -169,29 +164,6 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
       }
     }
   }
-
-  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-    // TODO - pass this up to the user layer?
-    log.error(e.getCause, "Uncaught exception Caught in ConnectionHandler: %s", e.getCause)
-    // TODO - Close connection?
-  }
-
-  override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    log.warn("Disconnected from '%s'", remoteAddress)
-    //    shutdown()
-  }
-
-  override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    log.info("Channel Closed to '%s'", remoteAddress)
-    //    shutdown()
-  }
-
-  override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    log.info("Connected to '%s' (Configging Channel to Little Endian)", remoteAddress)
-    e.getChannel.getConfig.setOption("bufferFactory", new HeapChannelBufferFactory(ByteOrder.LITTLE_ENDIAN))
-  }
-
-  def remoteAddress = bootstrap.getOption("remoteAddress").asInstanceOf[InetSocketAddress]
 
 }
 
