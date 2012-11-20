@@ -31,6 +31,7 @@ import java.net.InetSocketAddress
 import java.io.OutputStream
 import java.nio.ByteOrder
 import org.jboss.netty.buffer.{ChannelBufferOutputStream, ChannelBuffers}
+import org.bson.util.Logging
 
 
 class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
@@ -39,7 +40,7 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 
   log.info("Initializing Netty-based MongoDB connection on address '%s'", addr)
 
-  def initialize: ConnectionContext = {
+  lazy val initialize: ConnectionContext = {
 
     /*
      * Factory for client socket channels,
@@ -54,7 +55,7 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 
     val handler = new NettyConnectionHandler(bootstrap)
 
-    System.err.println("Event Loop: " + eventLoop + " empty? " + eventLoop.isEmpty + " getOrElse? " + eventLoop.getOrElse(defaultEventLoop))
+    log.info("Event Loop: " + eventLoop + " empty? " + eventLoop.isEmpty + " getOrElse? " + eventLoop.getOrElse(defaultEventLoop))
     
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       private val appCallbackExecutionHandler =
@@ -68,6 +69,7 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
       }
     })
 
+    
     bootstrap.setOption("remoteAddress", addr)
     /* AdaptiveReceiveBufferSizePredictor gradually scales the buffer up and down
      * depending on how many bytes arrive in each read()
@@ -84,6 +86,7 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
     val ctx = new NettyConnectionContext(channel)
 
     MongoConnection.connectionState.put(ctx, new AtomicBoolean(false))
+    
 
 
     bootstrap.setOption("tcpNoDelay", true)
@@ -94,7 +97,8 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
       throw new Exception("Unable to connect to MongoDB.", _f.getCause)
       // TODO: Retry system
     }
-    log.debug("Connected and retrieved a write channel (%s)", channel)
+    log.info("Connected and retrieved a write channel (%s)", channel)
+    handler.ctx = ctx
     ctx
   }
 
@@ -141,10 +145,14 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 }
 
 
-class NettyConnectionContext protected[mongodb](private val channel: Channel) extends ConnectionContext {
+class NettyConnectionContext protected[mongodb](private val channel: Channel) extends ConnectionContext with Logging {
+  
+  log.info("*** Initialized NettyConnectionContext")
+  
   def close() {
     channel.close()
   }
+  
   def newOutputStream: OutputStream = new ChannelBufferOutputStream(ChannelBuffers.dynamicBuffer(ByteOrder.LITTLE_ENDIAN, 256))
 
   def connected_?(): Boolean = channel.isConnected

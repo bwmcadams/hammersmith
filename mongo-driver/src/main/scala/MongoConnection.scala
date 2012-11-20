@@ -44,18 +44,25 @@ import com.mongodb.async.netty.NettyConnection
  * @since 0.1
  */
 abstract class MongoConnection extends Logging {
-
   type E
 
   MongoConnection.cleaningTimer.acquire(this)
+  
+  connect
 
   def initialize: ConnectionContext
 
   def eventLoop: Option[E] = None
 
+  // Default, run at object init.
+  def connect {
+    initialize
+    checkMaster(true, true)
+  }
+  
   def defaultEventLoop: E
 
-  protected implicit val context = initialize
+  protected implicit def context = initialize
 
 
   /**
@@ -331,6 +338,7 @@ abstract class MongoConnection extends Logging {
 
 
   def connected_? = MongoConnection.connectionState(context).get()
+  
   def _connectedState(connected: Boolean) = MongoConnection.setConnectionState(context, connected)
 
   val addr: InetSocketAddress
@@ -528,7 +536,7 @@ object MongoConnection extends Logging {
     // If the channel is open, it still doesn't mean we have a valid Mongo Connection.
     if (!connectionState(context).get && !_overrideLiveCheck) {
       log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
-      connectionOpQueue.getOrElseUpdate(context, new ConcurrentQueue) += exec
+      connectionOpQueue.getOrElseUpdate(context, new ConcurrentQueue()) += exec
     } else exec(maxBSON)
 
   }
@@ -543,7 +551,7 @@ object MongoConnection extends Logging {
    */
   protected[mongodb] def killCursors(ids: Long*)(implicit context: ConnectionContext) {
     log.debug("Adding Dead Cursors to cleanup list: %s on Context: %s", ids, context)
-    deadCursors.getOrElseUpdate(context, new ConcurrentQueue[Long]) ++= ids
+    deadCursors.getOrElseUpdate(context, new ConcurrentQueue[Long]()) ++= ids
   }
 
   /**

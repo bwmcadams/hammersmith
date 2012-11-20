@@ -55,18 +55,18 @@ trait Imports {
    * tosses an exception if necessary.
    * @throws MongoException
    */
-  protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = true): Boolean = doc.get("ok") match {
+  protected[mongodb] def boolCmdResult[A <: BSONDocument](doc: A, throwOnError: Boolean = false): Boolean = doc.get("ok") match {
     case Some(1.0) ⇒ {
       true
     }
     case Some(_) | None ⇒ {
-      if (throwOnError) throw new MongoException("Bad Boolean Command Result: %s  / %s".format(
-        doc, doc.getAsOrElse[String]("errmsg", "")))
+      val err = "Bad Boolean Command Result: %s  / %s".format(doc.getAsOrElse[String]("errmsg", ""), doc)
+      if (throwOnError) throw new MongoException(err)
       else false
     }
   }
 
-  protected[mongodb] def boolCmdResultCallback(callback: (Boolean) ⇒ Unit, throwOnError: Boolean = true) =
+  protected[mongodb] def boolCmdResultCallback(callback: (Boolean) ⇒ Unit, throwOnError: Boolean = false) =
     RequestFutures.command((result: Either[Throwable, Document]) ⇒ result match {
       case Right(doc) ⇒ {
         callback(boolCmdResult(doc, throwOnError))
