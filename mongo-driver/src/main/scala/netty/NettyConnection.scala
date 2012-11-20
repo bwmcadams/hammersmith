@@ -54,6 +54,8 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 
     val handler = new NettyConnectionHandler(bootstrap)
 
+    System.err.println("Event Loop: " + eventLoop + " empty? " + eventLoop.isEmpty + " getOrElse? " + eventLoop.getOrElse(defaultEventLoop))
+    
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       private val appCallbackExecutionHandler =
         new ExecutionHandler(eventLoop.getOrElse(defaultEventLoop))
@@ -129,7 +131,7 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
   * invoking a callback, sending a message to an actor should not
   * tie up the pipeline and risk deadlock.
   */
-  val defaultEventLoop =
+  lazy val defaultEventLoop =
     new ThreadPoolExecutor(Runtime.getRuntime.availableProcessors * 2, /* core pool size */
       Int.MaxValue, /* max pool size (must be infinite to avoid deadlocks) */
       20, TimeUnit.SECONDS, /* time to keep idle threads alive */

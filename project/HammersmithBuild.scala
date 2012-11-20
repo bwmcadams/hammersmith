@@ -45,7 +45,7 @@ object HammersmithBuild extends Build {
  */
 
   lazy val defaultSettings = baseSettings ++ Seq(
-    libraryDependencies ++= Seq(commonsPool, netty, twitterUtilCore, slf4j, akkaActors, specs2),
+    libraryDependencies ++= Seq(commonsPool, netty, twitterUtilCore, slf4j, akkaActors, specs2, junit),
     libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
       sv match {
         case "2.9.2" => 
@@ -124,7 +124,7 @@ object Publish {
 object Dependencies {
   //BSON 
   //val bsonJava = "org.mongodb" % "bson" % "2.7.1"  // currently broken for just bson
-  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" 
+  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.9.3" 
   // Connection Pooling
   val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
@@ -137,6 +137,7 @@ object Dependencies {
 
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.10" % "provided" 
+  val junit = "junit" % "junit" % "4.7" % "test"
   val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
