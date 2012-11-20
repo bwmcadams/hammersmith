@@ -20,11 +20,10 @@ package com.mongodb.async
 import org.bson.util.Logging
 
 import java.net.InetSocketAddress
-import org.jboss.netty.bootstrap.ClientBootstrap
+
 /**
  * Direct Connection to a single mongod (or mongos) instance
  *
- * NOTE: Connection instances are instances of a *POOL*, always.
  */
 
 
