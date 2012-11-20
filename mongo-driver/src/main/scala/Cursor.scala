@@ -85,7 +85,7 @@ object Cursor extends Logging {
    */
   def iterate[T: SerializableBSONObject](cursor: Cursor[T])(op: (IterState) ⇒ IterCmd) {
     log.trace("Iterating '%s' with op: '%s'", cursor, op)
-      def next(f: (IterState) ⇒ IterCmd): Unit = op(cursor.next()) match {
+      def next(f: (IterState) ⇒ IterCmd): Unit = f(cursor.next()) match {
         case Done ⇒ {
           log.trace("Closing Cursor.")
           cursor.close()
