@@ -89,7 +89,7 @@ object HammersmithBuild extends Build {
   )
 
   lazy val bson = Project(
-    id = "bson-driver",
+    id = "hammersmith-bson-driver",
     base = file("bson-driver"),
     settings = defaultSettings ++ Seq(
       libraryDependencies ++= Seq(bsonJava, mongoJava)
@@ -97,7 +97,7 @@ object HammersmithBuild extends Build {
   )
 
   lazy val mongo = Project(
-    id = "mongo-driver",
+    id = "hammersmith-mongo-driver",
     base = file("mongo-driver"),
     settings = defaultSettings ++ Seq(
       libraryDependencies += slf4jJCL

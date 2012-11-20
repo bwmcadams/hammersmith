@@ -45,7 +45,7 @@ abstract class MongoConnectionHandler extends SimpleChannelHandler with Logging 
 
   def ctx = _ctx
 
-  protected[mongodb] def ctx_=(value: Option[ConnectionContext]) { _ctx = value }
+  protected[mongodb] def ctx_=(value: ConnectionContext) { _ctx = Some(value) }
 
   protected def queryFail(reply: ReplyMessage, result: RequestFuture)  {
     log.trace("Query Failure")
