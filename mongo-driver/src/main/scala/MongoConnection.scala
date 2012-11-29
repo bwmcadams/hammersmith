@@ -539,7 +539,7 @@ object MongoConnection extends Logging {
       writeCB()
     }
     // If the channel is open, it still doesn't mean we have a valid Mongo Connection.
-    if (!connectionState(context).get && !_overrideLiveCheck) {
+    if (!connected_?(context) && !_overrideLiveCheck) {
       log.info("Channel is not currently considered 'live' for MongoDB... May still be connecting or recovering from a Replica Set failover. Queueing operation. (override? %s) ", _overrideLiveCheck)
       connectionOpQueue.getOrElseUpdate(context, new ConcurrentQueue()) += exec
     } else exec(maxBSON)
