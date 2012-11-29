@@ -18,7 +18,6 @@ package com.mongodb.async
 package netty
 
 import com.mongodb.async.MongoConnection
-
 import com.mongodb.async.util._
 import com.mongodb.async.wire._
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
