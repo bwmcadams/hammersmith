@@ -82,11 +82,11 @@ class MongoURI(uri: String) extends Logging {
     } else (s, Some(n), None)
   }
 
-  log.info("Server: %s, NS: %s, Options: %s", svr, ns, opts)
+  log.trace("Server: %s, NS: %s, Options: %s", svr, ns, opts)
 
   val (_hosts, _username, _password) = parseHosts(svr)
 
-  log.info("Hosts: %s, Username: %s, Password: %s", hosts, username, password)
+  log.trace("Hosts: %s, Username: %s, Password: %s", hosts, username, password)
 
   val (_db, _coll) = ns match {
     case Some(_ns) ⇒ {
@@ -96,7 +96,7 @@ class MongoURI(uri: String) extends Logging {
     case None ⇒ (None, None)
   }
 
-  log.info("DB: %s Coll: %s", _db, _coll)
+  log.trace("DB: %s Coll: %s", _db, _coll)
 
   opts.foreach {
     _.split("&|;").foreach { o ⇒
