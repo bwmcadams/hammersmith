@@ -16,7 +16,7 @@
  */
 
 package com.mongodb.async
-package wire
+package netty
 
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder
 import org.bson.util.Logging
@@ -24,6 +24,8 @@ import org.jboss.netty.buffer.ChannelBuffer
 import org.jboss.netty.channel.ChannelHandlerContext
 import org.jboss.netty.channel.Channel
 import org.jboss.netty.buffer.ChannelBufferInputStream
+import com.mongodb.async.wire.MongoMessage
+import com.mongodb.async.wire.ReplyMessage
 
 /**
  * Decoder capable of safely decoding fragmented frames from BSON
