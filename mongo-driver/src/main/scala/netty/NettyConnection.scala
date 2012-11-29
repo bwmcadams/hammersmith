@@ -1,8 +1,5 @@
-package com.mongodb.async
-package netty
-
 /**
- * Copyright (c) 2008 - 2012 10gen, Inc. <http://10gen.com>
+ * Copyright (c) 2011-2013 Brendan W. McAdams <http://evilmonkeylabs.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +14,9 @@ package netty
  * limitations under the License.
  *
  */
+package com.mongodb.async
+package netty
+
 import com.mongodb.async.MongoConnection
 
 import com.mongodb.async.util._
