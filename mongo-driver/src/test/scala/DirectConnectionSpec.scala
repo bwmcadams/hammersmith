@@ -156,11 +156,13 @@ class DirectConnectionSpec extends SpecificationWithJUnit
     })
     mongo.insert(Document("foo" -> "bar", "bar" -> "baz")) {}
     // TODO - Implement 'count'
-    var doc = Document.empty
+    var doc: Document = Document.empty
     mongo.findOne(Document("foo" -> "bar"))((_doc: Document) ⇒ {
+      log.info("***** FindONE Document: " + _doc)
       doc = _doc
     })
-    doc must havePairs("foo" -> "bar", "bar" -> "baz")//.eventually BROKEN GODDAMN F-ING SPECS2  
+    val result = doc must havePairs("foo" -> "bar", "bar" -> "baz")
+    eventually(result)
   }
 
   def insertWithDefaultWriteConcern(conn: MongoConnection) = {
@@ -179,7 +181,8 @@ class DirectConnectionSpec extends SpecificationWithJUnit
       doc = _doc
       log.info("GOT A DOC: " + doc)
     })
-    doc must havePairs("foo" -> "bar", "bar" -> "baz")//.eventually BROKEN GODDAMN F-ING SPECS2
+    val result = doc must havePairs("foo" -> "bar", "bar" -> "baz")
+    eventually(result)
   }
 
   def insertWithSafeImplicitWriteConcern(conn: MongoConnection) = {
@@ -212,8 +215,8 @@ class DirectConnectionSpec extends SpecificationWithJUnit
       doc = _doc
     })
     doc must not(beNull.eventually)
-    doc must havePairs("foo" -> "bar", "bar" -> "baz")//.eventually
-
+    val result = doc must havePairs("foo" -> "bar", "bar" -> "baz")
+    eventually(result)
   }
 
   def idDebug(conn: MongoConnection) = {
