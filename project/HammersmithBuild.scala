@@ -136,7 +136,7 @@ object Dependencies {
   val twitterUtilCore = "com.twitter" % "util-core" % "1.12.2"
 
   // Testing Deps
-  val specs2 = "org.specs2" %% "specs2" % "1.10" % "provided" 
+  val specs2 = "org.specs2" %% "specs2" % "1.12.3" % "test" 
   val junit = "junit" % "junit" % "4.7" % "test"
   val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
@@ -144,12 +144,6 @@ object Dependencies {
 
   // Akka
   val akkaActors = "com.typesafe.akka" % "akka-actor" % "2.1-SNAPSHOT"
-
-  def specs2ScalazCore(scalaVer: sbt.SettingKey[String]) = 
-    scalaVersionString(scalaVer) match {
-      case "2.8.1" => "org.specs2" %% "specs2-scalaz-core" % "5.1-SNAPSHOT" % "test"
-      case _ => "org.specs2" %% "specs2-scalaz-core" % "6.0.RC2" % "test"
-    }
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
