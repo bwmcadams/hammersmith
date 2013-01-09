@@ -8,7 +8,7 @@ object HammersmithBuild extends Build {
   import Publish._
 
   lazy val buildSettings = Seq(
-    organization := "com.mongodb.async",
+    organization := "net.evilmonkeylabs",
     version := "0.3.0-SNAPSHOT",
     scalaVersion := "2.9.2",
     crossScalaVersions := Seq("2.9.2", "2.9.1")
@@ -17,9 +17,9 @@ object HammersmithBuild extends Build {
   /**
    * Import some sample data for testing
    */
-  "mongoimport -d hammersmithIntegration -c yield_historical.in --drop ./mongo-driver/src/test/resources/yield_historical_in.json" !
+  "mongoimport -d hammersmithIntegration -c yield_historical.in --drop ./core/src/test/resources/yield_historical_in.json" !
 
-  "mongoimport -d hammersmithIntegration -c books --drop ./mongo-driver/src/test/resources/bookstore.json" ! 
+  "mongoimport -d hammersmithIntegration -c books --drop ./core/src/test/resources/bookstore.json" ! 
 
   override lazy val settings = super.settings ++ buildSettings
 
@@ -85,25 +85,16 @@ object HammersmithBuild extends Build {
     id = "hammersmith",
     base = file("."),
     settings = parentSettings,
-    aggregate = Seq(bson, mongo)
+    aggregate = Seq(core)
   )
 
-  lazy val bson = Project(
-    id = "hammersmith-bson-driver",
-    base = file("bson-driver"),
+  lazy val core = Project(
+    id = "hammersmith-core",
+    base = file("core"),
     settings = defaultSettings ++ Seq(
-      libraryDependencies ++= Seq(bsonJava, mongoJava)
+      libraryDependencies ++= Seq(bsonJava, mongoJava, slf4jJCL)
     )
   )
-
-  lazy val mongo = Project(
-    id = "hammersmith-mongo-driver",
-    base = file("mongo-driver"),
-    settings = defaultSettings ++ Seq(
-      libraryDependencies += slf4jJCL
-    )
-  ) dependsOn(bson)
-
 
 }
 
