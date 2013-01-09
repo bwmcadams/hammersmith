@@ -40,7 +40,6 @@ import hammersmith.netty.NettyConnection
  *
  * NOTE: Connection instances are instances of a *POOL*, always.
  *
- * @author Brendan W. McAdams <brendan@10gen.com>
  * @since 0.1
  */
 abstract class MongoConnection extends Logging {
@@ -387,7 +386,6 @@ abstract class MongoConnection extends Logging {
  *
  * NOTE: Connection instances are instances of a *POOL*, always.
  *
- * @author Brendan W. McAdams <brendan@10gen.com>
  * @since 0.1
  */
 object MongoConnection extends Logging {

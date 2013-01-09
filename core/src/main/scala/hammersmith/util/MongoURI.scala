@@ -28,7 +28,6 @@ import scala.collection.Set
  * TODO - Make me a more scalaey functional codebase.  Mostly eyeball
  * ported from Java.
  *
- * @author Brendan W. McAdams <brendan@10gen.com>
  * @see http://www.mongodb.org/display/DOCS/Connections
  */
 object MongoURI extends Logging {
