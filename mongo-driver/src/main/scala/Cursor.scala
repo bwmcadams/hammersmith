@@ -21,9 +21,8 @@ import org.bson._
 import org.bson.collection._
 import com.mongodb.async.wire.{ GetMoreMessage, ReplyMessage }
 import com.mongodb.async.futures.RequestFutures
-import com.mongodb.async.util.{ConnectionContext, ConcurrentQueue}
+import com.mongodb.async.util.{ConnectionContext, ConcurrentQueue, CountdownLatch}
 import scala.annotation.tailrec
-import com.twitter.util.CountDownLatch
 
 object Cursor extends Logging {
   trait IterState
@@ -124,7 +123,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   protected def validCursor(id: Long) = id == 0
   protected var cursorEmpty = validCursor(cursorID)
   @volatile
-  protected var gettingMore = new CountDownLatch(0)
+  protected var gettingMore = new CountdownLatch(0)
 
   /**
    * Mutable internally as we push further through the cursor on the server
@@ -170,7 +169,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
 
   def nextBatch(notify: Function0[Unit]) {
     if (gettingMore.isZero) {
-      gettingMore = new CountDownLatch(1)
+      gettingMore = new CountdownLatch(1)
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
       log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
       MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),

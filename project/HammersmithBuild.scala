@@ -45,7 +45,7 @@ object HammersmithBuild extends Build {
  */
 
   lazy val defaultSettings = baseSettings ++ Seq(
-    libraryDependencies ++= Seq(commonsPool, netty, twitterUtilCore, slf4j, akkaActors, specs2, junit),
+    libraryDependencies ++= Seq(commonsPool, netty, slf4j, akkaActors, specs2, junit),
     libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
       sv match {
         case "2.9.2" => 
@@ -131,9 +131,6 @@ object Dependencies {
   val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.2"
   // Netty
   val netty = "org.jboss.netty" % "netty" % "3.2.6.Final"
-
-  // Twitter-util
-  val twitterUtilCore = "com.twitter" % "util-core" % "1.12.2"
 
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.12.3" % "test" 

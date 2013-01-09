@@ -18,9 +18,7 @@
 package com.mongodb.async
 package util
 
-import com.twitter.conversions.time._
 import scala.ref.WeakReference
-import com.twitter.util._
 import org.bson.util.Logging
 import scala.collection.mutable.{ WeakHashMap, HashSet }
 
@@ -28,7 +26,7 @@ import scala.collection.mutable.{ WeakHashMap, HashSet }
  * Based on com.twitter.util.ReferenceCountedTimer
  * Tracks if any active channels are held and turns on / off the cleaner as needed
  */
-protected[mongodb] class CursorCleaningTimer(val period: Duration = 5.seconds) extends Logging {
+protected[mongodb] class CursorCleaningTimer(val period: Long = 5000) extends Logging {
   private[this] val connections = WeakHashMap.empty[MongoConnection, Boolean]
   private[this] var underlying: Timer = null
   private[this] val factory = () ⇒ new JavaTimer(true)
@@ -54,7 +52,7 @@ protected[mongodb] class CursorCleaningTimer(val period: Duration = 5.seconds) e
     }
   }
 
-  protected[mongodb] def scheduleCleanup() = underlying.schedule(period.fromNow, period) {
+  protected[mongodb] def scheduleCleanup() = underlying.schedule(period) {
     log.trace("Cleanup; holding connections: %s", connections)
     MongoConnection.cleanup()
   }
