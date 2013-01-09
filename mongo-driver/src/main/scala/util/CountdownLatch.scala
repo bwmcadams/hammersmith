@@ -14,22 +14,23 @@
  * limitations under the License.
  *
  */
-
 package com.mongodb.async
 package util
 
-import org.bson.collection._
-import com.mongodb.async.futures._
-import org.bson.SerializableBSONObject
-import org.bson.util.{ Logging, ThreadLocal }
-import java.io.InputStream
 
-object `package` extends Imports with Implicits
+import java.util.concurrent.TimeUnit
 
-trait Imports
-
-trait Implicits {
-
+/**
+ * Based on the Twitter-Util CountdownLatch
+ */
+class CountdownLatch(val initialCount: Int) {
+  val underlying = new java.util.concurrent.CountDownLatch(initialCount)
+  def count = underlying.getCount
+  def isZero = count == 0
+  def countDown() = underlying.countDown()
+  def await() = underlying.await()
+  def await(timeout: Long) = underlying.await(timeout, TimeUnit.MILLISECONDS)
+  def within(timeout: Long) = await(timeout) || {
+    throw new Exception("Within Failed: " + timeout.toString)
+  }
 }
-
-// vim: set ts=2 sw=2 sts=2 et:

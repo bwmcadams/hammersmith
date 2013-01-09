@@ -23,7 +23,6 @@ import scala.annotation.tailrec
 import org.bson.util.{ Logging, ThreadLocal }
 import scala.collection.mutable._
 import org.bson.collection._
-import com.twitter.util.SimplePool
 import com.mongodb.async.futures._
 import java.io.InputStream
 import org.bson.{ SerializableBSONObject, DefaultBSONDeserializer }

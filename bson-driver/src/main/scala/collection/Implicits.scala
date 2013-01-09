@@ -21,7 +21,6 @@ package collection
 import org.bson.util._
 import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
-import com.twitter.util.{ Future, SimplePool }
 import java.io.InputStream
 
 object `package` {
@@ -29,36 +28,33 @@ object `package` {
    * TODO - Replace ThreadLocal with actor pipelines?
    * TODO - Execute around pattern
    */
-  val defaultSerializerPool = new ThreadLocal(new SimplePool(for (i ← 0 until 10) yield new DefaultBSONSerializer)) // todo - intelligent pooling
+  def defaultSerializer = new ThreadLocal(new DefaultBSONSerializer)
 
-  val defaultDeserializerPool = new ThreadLocal(new SimplePool(for (i ← 0 until 10) yield new DefaultBSONDeserializer)) // todo - intelligent pooling
+  def defaultDeserializer = new ThreadLocal(new DefaultBSONDeserializer) 
 
   trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with Logging {
 
     def encode(doc: T, out: OutputBuffer) = {
       log.trace("Reserving an encoder instance")
-      val serializer = defaultSerializerPool().reserve()()
+      val serializer = defaultSerializer()
       log.trace("Reserved an encoder instance")
       serializer.encode(doc, out)
       serializer.done
-      defaultSerializerPool().release(serializer)
     }
 
     def encode(doc: T): Array[Byte] = {
       log.trace("Reserving an encoder instance")
-      val serializer = defaultSerializerPool().reserve()()
+      val serializer = defaultSerializer()
       log.trace("Reserved an encoder instance")
       val bytes = serializer.encode(doc)
       serializer.done
-      defaultSerializerPool().release(serializer)
       bytes
     }
 
     def decode(in: InputStream): T = {
-      val deserializer = defaultDeserializerPool().reserve()()
+      val deserializer = defaultDeserializer()
       val doc = deserializer.decodeAndFetch(in).asInstanceOf[T]
       log.debug("DECODED DOC: %s as %s", doc, doc.getClass)
-      defaultDeserializerPool().release(deserializer)
       doc
     }
 
