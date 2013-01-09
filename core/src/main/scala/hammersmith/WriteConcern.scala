@@ -47,7 +47,6 @@ trait WriteConcern {
 /**
  * Helper class for creating WriteConcern instances
  *
- * @author Brendan W. McAdams <brendan@10gen.com>
  * @since 2.0
  * @see com.mongodb.WriteConcern
  */

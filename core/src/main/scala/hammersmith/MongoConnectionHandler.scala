@@ -32,7 +32,6 @@ import hammersmith.util.ConnectionContext
 *
 * NOTE: Connection instances are instances of a *POOL*, always.
 *
-* @author Brendan W. McAdams <brendan@10gen.com>
 * @since 0.1
 */
 trait MongoConnectionHandler extends Logging {
