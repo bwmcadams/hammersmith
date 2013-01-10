@@ -22,6 +22,7 @@ import hammersmith.bson.Logging
 import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
+import scala.util.matching.Regex
 
 
 /*implicit def pimpByteString(str: ByteString): BSONByteString = 
@@ -243,6 +244,76 @@ class BSONBoolean extends BSONType {
       Some(name, bool) 
     } else None
 }
+
+/** BSON Timestamp, UTC  - because MongoDB still doesn't support timezones */
+class BSONUTCDateTime extends BSONType {
+  val typeCode: Byte = 0x09
+
+  /**
+   * Because different users will have different desired types
+   * for their dates, return a LONG representing epoch seconds 
+   */
+  def unapply(frame: ByteIterator): Option[(String, Long)] = 
+    if (frame.head == type) {
+      Some(readCString(frame.drop(1)), frame.getLong)
+    } else None
+}
+
+//case class BSONRegExHolder(val name: String, val pattern: String, val options: String)
+
+/** BSON Regular Expression */
+class BSONRegEx extends BSONType {
+  val typeCode: Byte = 0x10
+
+  /** TODO - Use a placeholder object that can be converted to the users 
+    * desired regex representation? */
+  def unapply(frame: ByteIterator): Option[String, Regex] = 
+    if (frame.head == type ) {
+      val name = readCString(frame.drop(1))
+      val pattern = readCString(frame)
+      val options = readCString(frame)
+      Some(name, "(?%s)%s".format(options, pattern).r)
+    } else None
+
+}
+
+// Currently no dereferencing support, etc. (not a fan anyway)
+case class DBRef(namespace: String, oid: ObjectID) 
+
+/** BSON DBRefs */
+class BSONDBref extends BSONType {
+  val typeCode: Byte = 0x0C
+
+  def unapply(frame: ByteIterator): Option[String, Regex] = 
+    if (frame.head == type) {
+      val name = readCString(frame.drop(1))
+      val namespace = readCString(frame)
+      /*
+       * again with consistency.
+       * though not documented anywhere, while normal OIDs are stored 
+       * big endian, in the java driver code the dbref ones are little. WTF?
+       */
+      val timestamp = frame.getInt()
+      val machineID = frame.getInt()
+      val increment = frame.getInt()
+      Some(name, DBRef(namespace, ObjectID(timestamp, machineID, increment, false)))
+    } else None
+
+}
+
+case class BSONCode(code: String)
+
+/** BSON JS Code ... basically a block of javascript stored in DB */
+class BSONJSCode extends BSONType {
+  val typeCode: Byte = 0x0D
+
+
+  def unapply(frame: ByteIterator) = ???
+}
+
+// needs a documnt for scope
+case class BSONCodeWScope(code: String, scope: ???)
+
 /** BSON Document */
 class BSONDocument extends BSONType {
   val typeCode: Byte = 0x03
