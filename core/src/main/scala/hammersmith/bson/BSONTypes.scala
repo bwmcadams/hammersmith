@@ -54,10 +54,10 @@ trait BSONParser extends Logging {
         document += (field, null)
       case BSONDoubleType(field, value) =>
         log.trace("Got a BSON Double '%s' for field '%s'", value, field)
-        doc += parseDouble(field, value)
+        doc += (field, parseDouble(field, value))
       case BSONStringType(field, value) => 
         log.trace("Got a BSON String '%s' for field '%s'", value, field)
-        doc += parseString(field, value) 
+        doc += (field, parseString(field, value))
       case BSONDocumentType(field, value) => 
         // todo - best way to handle this? Trampoline? What?
         log.trace("Got a BSON Document '%s' for field '%s'", value, field)
@@ -68,20 +68,136 @@ trait BSONParser extends Logging {
         log.trace("Got a BSON Array '%s' for field '%s'", value, field)
         // todo - how do we want to handle custom docs?
         doc += (field, value)
-        
-
+      case BSONBinaryType(field, value) => 
+        log.trace("Got a BSON Binary for field '%s'", field)
+        doc += (field, parseBinary(field, value))
+      case BSONObjectIDType(field, value) => 
+        log.trace("Got a BSON ObjectID for field '%s'", field)
+        doc += (field, parseObjectID(field, value))
+      case BSONBooleanType(field, value) => 
+        log.trace("Got a BSON Boolean '%s' for field '%s'", value, field)
+        // Until someone proves otherwise to me, don't see a reason for custom Bool
+        doc += (field, value) 
+      case BSONUTCDateTimeType(field, value) => 
+        log.trace("Got a BSON UTC Timestamp '%s' for field '%s'", value, field)
+        doc += (field, parseDateTime(field, value))
+      case BSONRegExType(field, value) =>
+        log.trace("Got a BSON Regex '%s' for field '%s'", value, field)
+        doc += (field, parseRegEx(field, value))
+      case BSONDBRefType(field, value) => 
+        log.trace("Got a BSON DBRef '%s' for field '%s'", value, field)
+        // no custom parsing for dbRef until necessity is proven
+        doc += (field, value)
+      case BSONJSCodeType(field, value) => 
+        log.trace("Got a BSON JSCode for field '%s'", field)
+        // no custom parsing for now
+        doc += (field, value)
+      case BSONJSCodeWScopeType(field, value) => 
+        log.trace("Got a BSON JSCode W/ Scope for field '%s'", field)
+        // no custom parsing for now
+        doc += (field, value)
+      case BSONSymbolType(field, value) =>
+        log.trace("Got a BSON Symbol '%s' for field '%s'", value, field)
+        doc += (field, parseSymbol(field, value))
+      case BSONInt32Type(field, value) =>
+        log.trace("Got a BSON Int32 '%s' for field '%s'", value, field)
+        doc += (field, parseInt32(field, value))
+      case BSONInt64Type(field, value) =>
+        log.trace("Got a BSON Int64 (Long) '%s' for field '%s'", value, field)
+        doc += (field, parseInt64(field, value))
+      case BSONTimestampType(field, value) => 
+        log.trace("Got a BSON Timestamp '%s' for field '%s'", value, field)
+        // because of it's use as an internal type, not allowing custom for now
+        doc += (field, value)
+      case BSONMinKeyType(field, value) => 
+        log.trace("Got a BSON MinKey for field '%s'", field)
+        // because of it's use as an internal type, not allowing custom 
+        doc += (field, value)
+      case BSONMaxKeyType(field, value) => 
+        log.trace("Got a BSON MaxKey for field '%s'", field)
+        // because of it's use as an internal type, not allowing custom 
+        doc += (field, value)
+      case unknown => 
+        log.warning("Unknown or unsupported BSON Type '%s'", unknown)
+        throw new BSONParsingException("No support for decoding BSON Type of byte '%s'", unknown)
     }
-  }
+    
+  /** 
+   * Overridable method for how to handle adding a int32 entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseInt32(field: String, value: Double): Any = value
+
+ /** 
+   * Overridable method for how to handle adding a int64 entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseInt64(field: String, value: Double): Any = value
+
+
+ /** 
+   * Overridable method for how to handle adding a symbol entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseSymbol(field: String, value: Symbol): Any = value
+
+ /** 
+   * Overridable method for how to handle adding a regex entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseRegEx(field: String, value: Regex): Any = value
+
+ /** 
+   * Overridable method for how to handle adding a UTC Datetime entry
+   * DateTime will be provided as a long representing seconds since 
+   * Jan 1, 1970 
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseDateTime(field: String, value: Long): Any = new java.util.Date(value) 
 
   /** 
    * Overridable method for how to handle adding a double entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
    */
-  def parseDouble(field, value) = (field, value)
+  def parseDouble(field: String, value: Double): Any = value
 
   /** 
    * Overridable method for how to handle adding a string entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
    */
-  def parseString(field, value) = (field, value)
+  def parseString(field: String, value: Double): Any = value
+
+  /** 
+   * Overridable method for how to handle adding an ObjectID entry
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseObjectID(field: String, value: ObjectID): Any = value
+
+  /** 
+   * Overridable method for how to handle adding a Binary entry
+   * Remember there are several subcontainer types and you likely
+   * want a pattern matcher for custom implementation
+   *
+   * Field is provided in case you need to respond differently based
+   * upon field name; should not be returned back.
+   */
+  def parseBinary(field: String, value: BSONBinary): Any = value
 }
 
 trait BSONType {
@@ -159,7 +275,7 @@ trait BSONType {
 
     val mostSignificant = readLong(bytes, endianness)
     val leastSignificant = readLong(bytes, endianness)
-    BSONBinaryUUIDContainer(mostSignificant, leastSignificant)
+    BSONBinaryUUID(mostSignificant, leastSignificant)
   }
 }
 
@@ -207,11 +323,11 @@ object BSONStringType extends BSONType {
 }
 
 
-trait BSONBinaryContainer 
-case class BSONBinaryUUIDContainer(mostSignificant: Long, leastSignificant: Long) extends BSONBinaryContainer
-case class BSONBinaryMD5Container(bytes: Array[Byte]) extends BSONBinaryContainer
-case class BSONBinaryContainer(bytes: Array[Byte]) extends BSONBinaryContainer
-case class BSONUserDefinedBinaryContainer(bytes: Array[Byte]) extends BSONBinaryContainer
+trait BSONBinary
+case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) extends BSONBinary
+case class BSONBinaryMD5(bytes: Array[Byte]) extends BSONBinary
+case class BSONBinary(bytes: Array[Byte]) extends BSONBinary
+case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinary
 
 /** 
  * BSON Binary - can actually be of several subtypes 
@@ -229,7 +345,7 @@ object BSONBinaryType extends BSONType with Logging {
   val Binary_MD5: Byte = 0x05
   val Binary_UserDefined: Byte = 0x80
 
-  def unapply(frame: ByteIterator): Option[(String, BSONBinaryContainer)] = 
+  def unapply(frame: ByteIterator): Option[(String, BSONBinary)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val _binLen = frame.getInt
@@ -258,11 +374,11 @@ object BSONBinaryType extends BSONType with Logging {
           if (_binLen != 16) 
             throw new BSONParsingException("Invalid MD5 Length in Binary. Expected 16, got " + _binLen)
           // TODO - parse MD5
-          Some(name, BSONBinaryMD5Container)
+          Some(name, BSONBinaryMD5)
         case Binary | Binary_Old =>
-          Some(name, BSONBinaryContainer(bin))
+          Some(name, BSONBinary(bin))
         case Binary_UserDefined | default => 
-          Some(name, BSONUserDefinedBinaryContainer(bin))
+          Some(name, BSONBinaryUserDefined(bin))
       }
     } else None 
 }
@@ -308,14 +424,10 @@ object BSONUTCDateTimeType extends BSONType {
     } else None
 }
 
-//case class BSONRegExHolder(val name: String, val pattern: String, val options: String)
-
 /** BSON Regular Expression */
 object BSONRegExType extends BSONType {
   val typeCode: Byte = 0x10
 
-  /** TODO - Use a placeholder object that can be converted to the users 
-    * desired regex representation? */
   def unapply(frame: ByteIterator): Option[String, Regex] = 
     if (frame.head == type ) {
       val name = readCString(frame.drop(1))
@@ -330,7 +442,7 @@ object BSONRegExType extends BSONType {
 case class DBRef(namespace: String, oid: ObjectID) 
 
 /** BSON DBRefs */
-object BSONDBrefType extends BSONType {
+object BSONDBRefType extends BSONType {
   val typeCode: Byte = 0x0C
 
   def unapply(frame: ByteIterator): Option[String, Regex] = 
