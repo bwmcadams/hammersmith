@@ -173,9 +173,6 @@ class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[(String, 
   def result(): T = elems
 }
 
-/**
- * Needed for some tasks such as Commands to run safely.
- */
 class Document extends BSONDocument {
   protected val _map = new HashMap[String, Any]
   def asMap = _map
