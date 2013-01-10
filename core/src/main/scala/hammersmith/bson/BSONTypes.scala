@@ -34,6 +34,55 @@ sealed class BSONByteString {
 
 class BSONParsingException(message: String, t: Throwable) extends Exception(message, t)
 
+// TODO - User extensible
+trait BSONParser extends Logging {
+  /** Parse documents... */
+  // TODO: Move to immutable objects, accrue yielded entries?
+  @tailrec
+  def parse(frame: ByteIterator, document: Document.empty): BSONDocument = 
+    frame.next() match {
+      case BSONEndOfObjectType() => 
+        log.trace("Got a BSON End of Object")
+        document
+      case BSONNullType(field) => 
+        // TODO - how best to represent nulls / undefs?
+        log.trace("Got a BSON Null for field '%s'", field)
+        document += (field, null)
+      case BSONUndefType(field) => 
+        // TODO - how best to represent nulls / undefs?
+        log.trace("Got a BSON Null for field '%s'", field)
+        document += (field, null)
+      case BSONDoubleType(field, value) =>
+        log.trace("Got a BSON Double '%s' for field '%s'", value, field)
+        doc += parseDouble(field, value)
+      case BSONStringType(field, value) => 
+        log.trace("Got a BSON String '%s' for field '%s'", value, field)
+        doc += parseString(field, value) 
+      case BSONDocumentType(field, value) => 
+        // todo - best way to handle this? Trampoline? What?
+        log.trace("Got a BSON Document '%s' for field '%s'", value, field)
+        // todo - how do we want to handle custom docs?
+        doc += (field, value)
+      case BSONArrayType(field, value) => 
+        // todo - best way to handle this? Trampoline? What?
+        log.trace("Got a BSON Array '%s' for field '%s'", value, field)
+        // todo - how do we want to handle custom docs?
+        doc += (field, value)
+        
+
+    }
+  }
+
+  /** 
+   * Overridable method for how to handle adding a double entry
+   */
+  def parseDouble(field, value) = (field, value)
+
+  /** 
+   * Overridable method for how to handle adding a string entry
+   */
+  def parseString(field, value) = (field, value)
+}
 
 trait BSONType {
   def typeCode: Byte
@@ -115,7 +164,7 @@ trait BSONType {
 }
 
 /** BSON End of Object Marker - indicates a Doc / BSON Block has ended */
-class BSONEndOfObjectType extends BSONType {
+object BSONEndOfObjectType extends BSONType {
   val typeCode: Byte = 0x00	  
 
   def unapply(frame: ByteIterator): Boolean = 
@@ -124,20 +173,20 @@ class BSONEndOfObjectType extends BSONType {
 }
 
 /** BSON null value */
-class BSONNullType extends BSONType {
+object BSONNullType extends BSONType {
   val typeCode: Byte = 0x0A
 
   def unapply = noopUnapply
 
 /** BSON Undefined value - deprecated in the BSON Spec; use null*/
-class BSONUndefType extends BSONType {
+object BSONUndefType extends BSONType {
   val typeCode: Byte = 0x06 
 
   def unapply = noopUnapply
 }
 
 /** BSON Floating point Number */
-class BSONDoubleType extends BSONType {
+object BSONDoubleType extends BSONType {
   val typeCode: Byte = 0x01
 
   def unapply(frame: ByteIterator): Option[(String, Double)] = 
@@ -147,12 +196,12 @@ class BSONDoubleType extends BSONType {
 }
 
 /** BSON String - UTF8 Encoded with length at beginning */
-class BSONStringType extends BSONType {
+object BSONStringType extends BSONType {
   val typeCode: Byte = 0x02
 
   // TODO - Performant UTF8 parsing
   def unapply(frame: ByteIterator): Option[(String, String)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       Some((readCString(frame.drop(1)), readUTF8String(frame)))
     } else None
 }
@@ -169,7 +218,7 @@ case class BSONUserDefinedBinaryContainer(bytes: Array[Byte]) extends BSONBinary
  *  
  * TODO - User customised container classes for subtypes 
  */
-class BSONBinaryType extends BSONType with Logging {
+object BSONBinaryType extends BSONType with Logging {
   val typeCode: Byte = 0x05
 
   val Binary_Generic: Byte = 0x00
@@ -181,7 +230,7 @@ class BSONBinaryType extends BSONType with Logging {
   val Binary_UserDefined: Byte = 0x80
 
   def unapply(frame: ByteIterator): Option[(String, BSONBinaryContainer)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val _binLen = frame.getInt
       val _subType = frame.next()
@@ -219,11 +268,11 @@ class BSONBinaryType extends BSONType with Logging {
 }
 
 /** BSON ObjectID */
-class BSONObjectIDType extends BSONType {
+object BSONObjectIDType extends BSONType {
   val typecode: Byte = 0x07
 
   def unapply(frame: ByteIterator): Option[(String, ObjectID)] =
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       // Because MongoDB Loves consistency, OIDs are stored Big Endian
       val name = readCString(frame.drop(1))
       val timestamp = frame.getInt(bigEndian)
@@ -234,11 +283,11 @@ class BSONObjectIDType extends BSONType {
 }
 
 /** BSON Boolean */
-class BSONBooleanType extends BSONType {
+object BSONBooleanType extends BSONType {
   val typeCode: Byte = 0x08
 
   def unapply(frame: ByteIterator): Option[(String, Boolean)] =
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val bool = frame.next() == 0x01
       Some(name, bool) 
@@ -246,7 +295,7 @@ class BSONBooleanType extends BSONType {
 }
 
 /** BSON Timestamp, UTC  - because MongoDB still doesn't support timezones */
-class BSONUTCDateTimeType extends BSONType {
+object BSONUTCDateTimeType extends BSONType {
   val typeCode: Byte = 0x09
 
   /**
@@ -254,7 +303,7 @@ class BSONUTCDateTimeType extends BSONType {
    * for their dates, return a LONG representing epoch seconds 
    */
   def unapply(frame: ByteIterator): Option[(String, Long)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       Some(readCString(frame.drop(1)), frame.getLong)
     } else None
 }
@@ -262,7 +311,7 @@ class BSONUTCDateTimeType extends BSONType {
 //case class BSONRegExHolder(val name: String, val pattern: String, val options: String)
 
 /** BSON Regular Expression */
-class BSONRegExType extends BSONType {
+object BSONRegExType extends BSONType {
   val typeCode: Byte = 0x10
 
   /** TODO - Use a placeholder object that can be converted to the users 
@@ -281,11 +330,11 @@ class BSONRegExType extends BSONType {
 case class DBRef(namespace: String, oid: ObjectID) 
 
 /** BSON DBRefs */
-class BSONDBrefType extends BSONType {
+object BSONDBrefType extends BSONType {
   val typeCode: Byte = 0x0C
 
   def unapply(frame: ByteIterator): Option[String, Regex] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val namespace = readCString(frame)
       /*
@@ -304,12 +353,12 @@ class BSONDBrefType extends BSONType {
 case class BSONCode(code: String)
 
 /** BSON JS Code ... basically a block of javascript stored in DB */
-class BSONJSCodeType extends BSONType {
+object BSONJSCodeType extends BSONType {
   val typeCode: Byte = 0x0D
 
 
   def unapply(frame: ByteIterator): Option[(String, BSONCode)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val code = readUTF8String(frame)
       log.debug("JSCode at '%s' - '%s'", name, code)
@@ -318,11 +367,11 @@ class BSONJSCodeType extends BSONType {
 }
 
 /** BSON Symbol - not used a lot, but for languages that support symbol */
-class BSONSymbolType extends BSONType {
+object BSONSymbolType extends BSONType {
   val typeCode: Byte = 0x0E
 
   def unapply(frame: ByteIterator): Option[(String, Symbol)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val sym = readUTF8String(frame)
       Some((name, Symbol(sym)))
@@ -330,22 +379,22 @@ class BSONSymbolType extends BSONType {
 }
 
 /** BSON 32 Bit Integer */
-class BSONInt32Type extends BSONType {
+object BSONInt32Type extends BSONType {
   val typeCode: Byte = 0x10
 
   def unapply(frame: ByteIterator): Option[(String, Int)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       Some((name, frame.getInt())) 
     } else None
 }
 
 /** BSON 64 Bit Integer  - aka a long */
-class BSONInt64Type extends BSONType {
+object BSONInt64Type extends BSONType {
   val typeCode: Byte = 0x12
 
   def unapply(frame: ByteIterator): Option[(String, Long)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       Some((name, frame.getLong())) 
     } else None
@@ -354,11 +403,11 @@ class BSONInt64Type extends BSONType {
 case class BSONTimestamp(increment: Int, time: Int)
 
 /** BSON Timestamp - this is a special type for sharding, oplog etc */
-class BSONTimestampType extends BSONType {
+object BSONTimestampType extends BSONType {
   val typeCode: Byte = 0x11
 
   def unapply(frame: ByteIterator): Option[(String, BSONTimestamp)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       Some((name, BSONTimestamp(frame.getInt, frame.getInt)))
     } else None
@@ -368,21 +417,21 @@ class BSONTimestampType extends BSONType {
 case object BSONMinKey
 case object BSONMaxKey 
 
-class BSONMinKeyType extends BSONType {
+object BSONMinKeyType extends BSONType {
   val typeCode: Byte = 0xFF.toByte
 
   def unapply(frame: ByteIterator): Option[(String, BSONMinKey)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       Some((name, BSONMinKey))
     } else None
 }
 
-class BSONMaxKeyType extends BSONType {
+object BSONMaxKeyType extends BSONType {
   val typeCode: Byte = 0x7F
 
   def unapply(frame: ByteIterator): Option[(String, BSONMaxKey)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       Some((name, BSONMaxKey))
     } else None
@@ -392,12 +441,11 @@ class BSONMaxKeyType extends BSONType {
 case class BSONCodeWScope(code: String, scope: ???)
 
 /** BSON JS Code with a scope ... basically a block of javascript stored in DB */
-class BSONJSCodeWScopeType extends BSONType {
+object BSONJSCodeWScopeType extends BSONType {
   val typeCode: Byte = 0x0F
 
-
   def unapply(frame: ByteIterator): Option[(String, BSONCodeWScope)] = 
-    if (frame.head == type) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val code = readUTF8String(frame)
       // TODO - READ SCOPE
@@ -407,14 +455,14 @@ class BSONJSCodeWScopeType extends BSONType {
 }
 
 /** BSON Document */
-class BSONDocumentType extends BSONType {
+object BSONDocumentType extends BSONType {
   val typeCode: Byte = 0x03
 
   def unapply(frame: ByteIterator) = ???
 }
 
 /** BSON Array */
-class BSONArrayType extends BSONType {
+object BSONArrayType extends BSONType {
   val typeCode: Byte = 0x04
 
   def unapply(frame: ByteIterator) = ???
