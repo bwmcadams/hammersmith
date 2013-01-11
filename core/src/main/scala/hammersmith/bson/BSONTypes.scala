@@ -17,12 +17,14 @@
 package hammersmith.bson
 
 
-import hammersmith.bson.Logging 
-
+import hammersmith.bson.util.Logging
 import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 import scala.util.matching.Regex
+import hammersmith.bson.collection.BSONDocument
+import scala.collection.mutable.{Seq => MutableSeq}
+import akka.util.ByteIterator
 
 
 /*implicit def pimpByteString(str: ByteString): BSONByteString = 
@@ -47,19 +49,19 @@ trait BSONParser[T] extends Logging {
 
   /** Parse documents... */
   @tailrec
-  protected[bson] def parse(frame: ByteIterator, entries: Seq[(String, Any)] = Seq[(String, Any)].empty): BSONDocument = {
-    val typ = frame.next()
-    typ match {
-      case BSONEndOfObjectType() => 
+  protected[bson] def parse(frame: ByteIterator, entries: MutableSeq[(String, Any)] = MutableSeq.empty[(String, Any)]): Seq[(String, Any)] = {
+    val typ = frame.head
+    frame match {
+      case BSONEndOfObjectType(eoo) => 
         log.trace("Got a BSON End of Object")
-      case BSONNullType(field) => 
+      /*case BSONNullType(field) => 
         // TODO - how best to represent nulls / undefs?
         log.trace("Got a BSON Null for field '%s'", field)
         entries += (field, null)
       case BSONUndefType(field) => 
         // TODO - how best to represent nulls / undefs?
         log.trace("Got a BSON Null for field '%s'", field)
-        entries += (field, null)
+        entries += (field, null)*/
       case BSONDoubleType(field, value) =>
         log.trace("Got a BSON Double '%s' for field '%s'", value, field)
         entries += (field, parseDouble(field, value))
@@ -227,7 +229,7 @@ trait BSONParser[T] extends Logging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseBinary(field: String, value: BSONBinary): Any = value
+  def parseBinary(field: String, value: BSONBinaryContainer): Any = value
 }
 
 object DefaultBSONParser extends BSONParser[Document] {
@@ -317,8 +319,8 @@ trait BSONType {
 object BSONEndOfObjectType extends BSONType {
   val typeCode: Byte = 0x00	  
 
-  def unapply(frame: ByteIterator): Boolean = 
-    frame.head == typeCode 
+  def unapply(frame: ByteIterator): Option[Boolean] = 
+    if (frame.head == typeCode) Some(true) else None
  
 }
 
@@ -326,13 +328,14 @@ object BSONEndOfObjectType extends BSONType {
 object BSONNullType extends BSONType {
   val typeCode: Byte = 0x0A
 
-  def unapply = noopUnapply
+  def unapply = noopUnapply _
+}
 
 /** BSON Undefined value - deprecated in the BSON Spec; use null*/
 object BSONUndefType extends BSONType {
   val typeCode: Byte = 0x06 
 
-  def unapply = noopUnapply
+  def unapply = noopUnapply _
 }
 
 /** BSON Floating point Number */
@@ -341,7 +344,7 @@ object BSONDoubleType extends BSONType {
 
   def unapply(frame: ByteIterator): Option[(String, Double)] = 
     if (frame.head == typeCode) {
-      Some((readCString(frame.drop(1), frame.getDouble))
+      Some((readCString(frame.drop(1), frame.getDouble)))
     } else None
 }
 
@@ -357,11 +360,11 @@ object BSONStringType extends BSONType {
 }
 
 
-trait BSONBinary
-case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) extends BSONBinary
-case class BSONBinaryMD5(bytes: Array[Byte]) extends BSONBinary
-case class BSONBinary(bytes: Array[Byte]) extends BSONBinary
-case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinary
+trait BSONBinaryContainer
+case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) extends BSONBinaryContainer
+case class BSONBinaryMD5(bytes: Array[Byte]) extends BSONBinaryContainer
+case class BSONBinary(bytes: Array[Byte]) extends BSONBinaryContainer
+case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinaryContainer
 
 /** 
  * BSON Binary - can actually be of several subtypes 
@@ -379,7 +382,7 @@ object BSONBinaryType extends BSONType with Logging {
   val Binary_MD5: Byte = 0x05
   val Binary_UserDefined: Byte = 0x80
 
-  def unapply(frame: ByteIterator): Option[(String, BSONBinary)] = 
+  def unapply(frame: ByteIterator): Option[(String, BSONBinaryContainer)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val _binLen = frame.getInt
@@ -389,7 +392,7 @@ object BSONBinaryType extends BSONType with Logging {
       val bin = new Array[Byte](_binLen)
 
       // TODO - Efficiency!
-      if (_subType == Binary_Old)
+      if (_subType == Binary_Old) {
         // Old binary format contained an extra length header 
         // parse out before passing 
         frame.drop(4) // drop the extra length header
@@ -411,7 +414,9 @@ object BSONBinaryType extends BSONType with Logging {
           Some(name, BSONBinaryMD5)
         case Binary | Binary_Old =>
           Some(name, BSONBinary(bin))
-        case Binary_UserDefined | default => 
+        case Binary_UserDefined =>
+          Some(name, BSONBinaryUserDefined(bin))
+        case other => 
           Some(name, BSONBinaryUserDefined(bin))
       }
     } else None 
@@ -463,7 +468,7 @@ object BSONRegExType extends BSONType {
   val typeCode: Byte = 0x10
 
   def unapply(frame: ByteIterator): Option[String, Regex] = 
-    if (frame.head == type ) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val pattern = readCString(frame)
       val options = readCString(frame)
@@ -508,7 +513,7 @@ object BSONJSCodeType extends BSONType {
       val name = readCString(frame.drop(1))
       val code = readUTF8String(frame)
       log.debug("JSCode at '%s' - '%s'", name, code)
-      Some((name, code))
+      Some((name, BSONCode(code)))
     } else None
 }
 
@@ -560,8 +565,8 @@ object BSONTimestampType extends BSONType {
 }
 
 /** BSON Min Key and Max Key represent special internal types for Sharding */
-case object BSONMinKey
-case object BSONMaxKey 
+case class BSONMinKey
+case class BSONMaxKey 
 
 object BSONMinKeyType extends BSONType {
   val typeCode: Byte = 0xFF.toByte
@@ -569,7 +574,7 @@ object BSONMinKeyType extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, BSONMinKey)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, BSONMinKey))
+      Some((name, BSONMinKey()))
     } else None
 }
 
@@ -579,12 +584,12 @@ object BSONMaxKeyType extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, BSONMaxKey)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, BSONMaxKey))
+      Some((name, BSONMaxKey()))
     } else None
 }
 
 // needs a document for scope
-case class BSONCodeWScope(code: String, scope: ???)
+case class BSONCodeWScope(code: String, scope: Map[String, Any])
 
 /** BSON JS Code with a scope ... basically a block of javascript stored in DB */
 object BSONJSCodeWScopeType extends BSONType {
@@ -596,7 +601,8 @@ object BSONJSCodeWScopeType extends BSONType {
       val code = readUTF8String(frame)
       // TODO - READ SCOPE
       log.debug("JSCode at '%s' - '%s'", name, code)
-      Some((name, code))
+      val scope = Map[String, Any](childParser(frame))
+      Some((name, BSONCodeWScope(code, scope)))
     } else None
 }
 
@@ -623,7 +629,7 @@ object BSONDocumentType extends BSONType {
 object BSONArrayType extends BSONType {
   val typeCode: Byte = 0x04
 
-  def unapply(frame: ByteIterator)(implicit childParser: BSONParser): Option[(String, Seq[Any]) = 
+  def unapply(frame: ByteIterator)(implicit childParser: BSONParser): Option[(String, Seq[Any])] = 
    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val subLen = frame.getInt()
@@ -631,6 +637,11 @@ object BSONArrayType extends BSONType {
       log.trace("Reading a BSON Array of '%s' bytes.", subLen)
       val doc = childParser(frame) 
       log.trace("Parsed a set of subdocument entries for '%s': '%s'", name, doc)
-      doc
+      /*
+       * I have seen no contractual guarantees that the array items are in order
+       * in mongo, but most drivers assume it, so shall we...
+       * Flatten out and ignore the keys
+       */ 
+      doc.map(_._2) 
     } else None
 }
