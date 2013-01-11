@@ -38,7 +38,7 @@ import java.nio.ByteBuffer
 class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000), 
 							 				 val machineID: Int = ObjectID.generatedMachineID,
 							 				 val increment: Int = ObjectID.nextIncrement(),
-							 				 val isNew: Boolean = true) extends Ordered[ObjectID] extends Logging {
+							 				 val isNew: Boolean = true) extends Ordered[ObjectID] with Logging {
 
 	def compare(that: ObjectID): Int = {
 		def compareUnsigned(n: Int, o: Int) = {
@@ -98,18 +98,18 @@ object ObjectID extends hammersmith.bson.Logging {
 		new ObjectID(timestamp, machineID, increment, isNew)
 
 
-	def this(time: java.util.Date, 
+	def apply(time: java.util.Date, 
 					 machineID: int = generatedMachineID,
 					 increment: Int = nextIncrement()) = 
 		new ObjectID((time.getTime / 1000).toInt, machineID, increment, false)
 	
-	def this(b: Array[Byte]) = {
+	def apply(b: Array[Byte]) = {
 		require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
 		val buf = ByteBuffer.wrap(b)
 		new ObjectID(buf.getInt(), buf.getInt(), buf.getInt(), false)
 	}
 
-	def this(s: String) = {
+	def apply(s: String) = {
 		require(ObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
 		val bytes = new Array[Byte](12)
 		for (i <- 0 until 12) bytes(i) = s.substring(i*2, i*2 + 2).toInt
