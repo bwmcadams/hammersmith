@@ -10,8 +10,8 @@ object HammersmithBuild extends Build {
   lazy val buildSettings = Seq(
     organization := "net.evilmonkeylabs",
     version := "0.3.0-SNAPSHOT",
-    scalaVersion := "2.9.2",
-    crossScalaVersions := Seq("2.9.2", "2.9.1")
+    scalaVersion := "2.10.0"/*,
+    crossScalaVersions := Seq("2.9.2", "2.9.1")*/
   )
 
   /**
@@ -46,35 +46,6 @@ object HammersmithBuild extends Build {
 
   lazy val defaultSettings = baseSettings ++ Seq(
     libraryDependencies ++= Seq(commonsPool, netty, slf4j, akkaActors, specs2, junit),
-    libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
-      sv match {
-        case "2.9.2" => 
-          deps :+ ("org.scalaj" % "scalaj-collection_2.9.1" % "1.2")
-        case x => {
-          deps :+ ("org.scalaj" %%  "scalaj-collection" % "1.2")
-        }
-      }
-
-    },
-    libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
-      sv match {
-        case "2.9.2" => 
-          deps :+ ("org.scala-tools.time" % "time_2.9.1" % "0.5")
-        case x => {
-          deps :+ ("org.scala-tools.time" %% "time" % "0.5")
-        }
-      }
-
-    },
-   /* libraryDependencies <<= (scalaVersion, libraryDependencies) { (sv, deps) =>
-      val versionMap = Map("2.8.1" -> ("specs2_2.8.1", "1.5"),
-                           "2.9.0" -> ("specs2_2.9.0", "1.7.1"),
-                           "2.9.0-1" -> ("specs2_2.9.0", "1.7.1"),
-                           "2.9.1" -> ("specs2_2.9.1", "1.7.1"),
-                           "2.9.2" -> ("specs2_2.9.2", "1.10"))
-      val tuple = versionMap.getOrElse(sv, sys.error("Unsupported Scala version for Specs2"))
-      deps :+ ("org.specs2" % tuple._1 % tuple._2)
-    },*/
     resolvers ++= Seq(sonaReleases, jbossRepo, twttrRepo, typesafeRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
@@ -119,7 +90,6 @@ object Dependencies {
   // Connection Pooling
   val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
-  val scalaj_collection = "org.scalaj" %% "scalaj-collection" % "1.2"
   // Netty
   val netty = "org.jboss.netty" % "netty" % "3.2.6.Final"
 
@@ -131,7 +101,7 @@ object Dependencies {
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
 
   // Akka
-  val akkaActors = "com.typesafe.akka" % "akka-actor" % "2.1-SNAPSHOT"
+  val akkaActors = "com.typesafe.akka" % "akka-actor" % "2.1.0"
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
