@@ -101,7 +101,7 @@ object Dependencies {
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
 
   // Akka
-  val akkaActors = "com.typesafe.akka" % "akka-actor" % "2.1.0"
+  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.1.0"
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
