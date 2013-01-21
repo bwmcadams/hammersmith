@@ -17,6 +17,7 @@
 
 package hammersmith
 
+import bson.collection.Implicits._
 import hammersmith.bson.util.Logging
 import hammersmith.bson.collection._
 import hammersmith.wire._

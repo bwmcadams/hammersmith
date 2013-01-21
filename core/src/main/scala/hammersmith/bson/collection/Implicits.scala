@@ -103,12 +103,16 @@ object `package` {
     def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")
   }
 
+
+}
+
+object Implicits {
+
   implicit object SerializableDocument extends SerializableBSONDocumentLike[Document]
 
   implicit object SerializableOrderedDocument extends SerializableBSONDocumentLike[OrderedDocument]
 
   implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
-
 }
 
 // vim: set ts=2 sw=2 sts=2 et:

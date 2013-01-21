@@ -177,17 +177,9 @@ abstract class BSONSerializer extends BasicBSONEncoder with Logging {
       log.trace("RegEx Pattern.")
       putPattern(_: String, pattern)
     }
-    case jdkMap: java.util.Map[_, _] ⇒ {
-      log.trace("jDK Map value.")
-      putMap(_: String, jdkMap.asScala)
-    }
     case sMap: Map[_, _] ⇒ {
       log.trace("Scala Map value.")
       putMap(_: String, sMap)
-    }
-    case jdkIter: java.lang.Iterable[_] ⇒ {
-      log.trace("JDK Iterable value.")
-      putIterable(_: String, jdkIter.asScala)
     }
     case lst: scala.collection.Seq[_] ⇒ {
       log.trace("List (Seq) value.")
@@ -271,7 +263,7 @@ abstract class BSONSerializer extends BasicBSONEncoder with Logging {
     val sizePos = _buf.getPosition
     _buf.writeInt(0) // placeholder for length
 
-    for ((k, v) ← m) {
+    for ((k, v) ← m.asInstanceOf[Map[Any, Any]]) {
       log.trace("Key: %s, Value: %s", k, v)
       _putObjectField(k.toString, v.asInstanceOf[AnyRef]) // force boxing
     }
