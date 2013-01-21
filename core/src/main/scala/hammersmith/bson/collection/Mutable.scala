@@ -158,7 +158,7 @@ trait BSONDocumentFactory[T <: BSONDocument] {
   def empty: T
 
   def apply[A <: String, B <: Any](elems: (A, B)*): T = (newBuilder ++= elems).result
-  def apply[A <: String, B <: Any](elems: List[(A, B)]): T = apply(elems: _*)
+  def apply[A <: String, B <: Any](elems: Seq[(A, B)]): T = apply(elems: _*)
 
   def newBuilder: BSONDocumentBuilder[T] = new BSONDocumentBuilder[T](empty)
 }

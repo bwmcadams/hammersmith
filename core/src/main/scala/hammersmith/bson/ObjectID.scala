@@ -16,10 +16,12 @@
  */
 package hammersmith.bson
 
-import hammersmith.bson.Logging 
+import hammersmith.bson.util.Logging
 
 import java.util.concurrent.atomic.AtomicInteger
-import java.nio.ByteBuffer 
+import java.nio.ByteBuffer
+import java.net.NetworkInterface
+import math.BigDecimal.long2bigDecimal
 
 /**
  * Globally unique ID for Objects, typically used as a primary key.
@@ -35,7 +37,7 @@ import java.nio.ByteBuffer
  *
  * @see http://docs.mongodb.org/manual/core/object-id/
  */
-class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000), 
+class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
 							 				 val machineID: Int = ObjectID.generatedMachineID,
 							 				 val increment: Int = ObjectID.nextIncrement(),
 							 				 val isNew: Boolean = true) extends Ordered[ObjectID] with Logging {
@@ -47,8 +49,8 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000),
 			val y = o & mask
 			val diff = x - y
 			if (diff < Int.MinValue) Int.MinValue 
-			else if (diff > Integer.MaxValue) Int.MaxValue
-			else diff
+			else if (diff > Int.MaxValue) Int.MaxValue
+			else diff.toInt
 		}
 
 		if (that == null) -1 
@@ -63,13 +65,13 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000),
 		}
 	}
 
-	override def toBytes: Array[Byte] = {
+	def toBytes: Array[Byte] = {
 		val bytes = new Array[Byte](12)
 		val buf = ByteBuffer.wrap(bytes)
 		buf.putInt(timestamp)
 		buf.putInt(machineID)
 		buf.putInt(increment)
-		b
+		bytes
 	}
 
 	override def toString: String = {
@@ -87,22 +89,17 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000),
 	}
 }
 
-object ObjectID extends hammersmith.bson.Logging {
+object ObjectID extends Logging {
 
 	def apply() = new ObjectID()
 
-	def apply(timestamp: Int = (System.currentTimeMillis() / 1000), 
+	def apply(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
 						machineID: Int = generatedMachineID,
 						increment: Int = nextIncrement(),
 						isNew: Boolean = false) = 
 		new ObjectID(timestamp, machineID, increment, isNew)
 
 
-	def apply(time: java.util.Date, 
-					 machineID: int = generatedMachineID,
-					 increment: Int = nextIncrement()) = 
-		new ObjectID((time.getTime / 1000).toInt, machineID, increment, false)
-	
 	def apply(b: Array[Byte]) = {
 		require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
 		val buf = ByteBuffer.wrap(b)
@@ -112,7 +109,7 @@ object ObjectID extends hammersmith.bson.Logging {
 	def apply(s: String) = {
 		require(ObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
 		val bytes = new Array[Byte](12)
-		for (i <- 0 until 12) bytes(i) = s.substring(i*2, i*2 + 2).toInt
+		for (i <- 0 until 12) bytes(i) = s.substring(i*2, i*2 + 2).toByte
 		val buf = ByteBuffer.wrap(bytes)
 		new ObjectID(buf.getInt(), buf.getInt(), buf.getInt(), false)
 	}
@@ -126,7 +123,7 @@ object ObjectID extends hammersmith.bson.Logging {
 	lazy val generatedMachineID = {
 		// Generate a 2-byte machine piece based on NIC Info
 		val machinePiece = {
-			import scala.util.JavaConversions._
+			import scala.collection.JavaConversions._
 			try {
 				val nics = for (nic <- NetworkInterface.getNetworkInterfaces()) yield nic.toString()
 				nics.mkString.hashCode << 16
@@ -154,7 +151,7 @@ object ObjectID extends hammersmith.bson.Logging {
 
 			val loader = this.getClass.getClassLoader
 			val loaderID = if (loader != null) System.identityHashCode(loader) else 0
-			(processID.toHexString + loaderID.toHexString).hashCode & 0xFFFF
+			(pid.toHexString + loaderID.toHexString).hashCode & 0xFFFF
 		}
 		log.trace("Generated ObjectID Process Piece: %s", processPiece)
 

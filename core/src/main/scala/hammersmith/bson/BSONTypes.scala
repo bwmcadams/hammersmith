@@ -22,8 +22,8 @@ import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 import scala.util.matching.Regex
-import hammersmith.bson.collection.BSONDocument
-import scala.collection.mutable.{Seq => MutableSeq}
+import collection.{Document, BSONDocument}
+import scala.collection.immutable.Queue
 import akka.util.ByteIterator
 
 
@@ -34,10 +34,12 @@ sealed class BSONByteString {
   def take
 }*/
 
-class BSONParsingException(message: String, t: Throwable) extends Exception(message, t)
+class BSONParsingException(message: String, t: Throwable = null) extends Exception(message, t)
 
 /** T is your toplevel document type. */
 trait BSONParser[T] extends Logging {
+
+  implicit val thisParser = this
 
   /** The "core" parse routine; should break down your BSON into T */
   def unapply(frame: ByteIterator): T = parseRootObject(parse(frame))
@@ -49,7 +51,7 @@ trait BSONParser[T] extends Logging {
 
   /** Parse documents... */
   @tailrec
-  protected[bson] def parse(frame: ByteIterator, entries: MutableSeq[(String, Any)] = MutableSeq.empty[(String, Any)]): Seq[(String, Any)] = {
+  protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
     frame match {
       case BSONEndOfObjectType(eoo) => 
@@ -64,75 +66,75 @@ trait BSONParser[T] extends Logging {
         entries += (field, null)*/
       case BSONDoubleType(field, value) =>
         log.trace("Got a BSON Double '%s' for field '%s'", value, field)
-        entries += (field, parseDouble(field, value))
+        entries :+ (field, parseDouble(field, value))
       case BSONStringType(field, value) => 
         log.trace("Got a BSON String '%s' for field '%s'", value, field)
-        entries += (field, parseString(field, value))
-      case BSONDocumentType(field, value) => 
+        entries :+ (field, parseString(field, value))
+      case BSONDocumentType(field, values) =>
         // todo - best way to handle this? Trampoline? What?
-        log.trace("Got a BSON entries '%s' for field '%s'", value, field)
+        log.trace("Got a BSON entries '%s' for field '%s'", values, field)
         // todo - how do we want to handle custom docs?
-        entries += (field, parseDocument(Some(field), value))
+        entries :+ (field, parseDocument(field, values))
       case BSONArrayType(field, value) => 
         // todo - best way to handle this? Trampoline? What?
         log.trace("Got a BSON Array '%s' for field '%s'", value, field)
         // todo - how do we want to handle custom docs?
-        entries += (field, parseArray(field, value))
+        entries :+ (field, parseArray(field, value))
       case BSONBinaryType(field, value) => 
         log.trace("Got a BSON Binary for field '%s'", field)
-        entries += (field, parseBinary(field, value))
-      case BSONObjectIDType(field, value) => 
+        entries :+ (field, parseBinary(field, value))
+      case BSONObjectIDType(field, value) =>
         log.trace("Got a BSON ObjectID for field '%s'", field)
-        entries += (field, parseObjectID(field, value))
+        entries :+ (field, parseObjectID(field, value))
       case BSONBooleanType(field, value) => 
         log.trace("Got a BSON Boolean '%s' for field '%s'", value, field)
         // Until someone proves otherwise to me, don't see a reason for custom Bool
-        entries += (field, value) 
+        entries :+ (field, value)
       case BSONUTCDateTimeType(field, value) => 
         log.trace("Got a BSON UTC Timestamp '%s' for field '%s'", value, field)
-        entries += (field, parseDateTime(field, value))
+        entries :+ (field, parseDateTime(field, value))
       case BSONRegExType(field, value) =>
         log.trace("Got a BSON Regex '%s' for field '%s'", value, field)
-        entries += (field, parseRegEx(field, value))
+        entries :+ (field, parseRegEx(field, value))
       case BSONDBRefType(field, value) => 
         log.trace("Got a BSON DBRef '%s' for field '%s'", value, field)
         // no custom parsing for dbRef until necessity is proven
-        entries += (field, value)
+        entries :+ (field, value)
       case BSONJSCodeType(field, value) => 
         log.trace("Got a BSON JSCode for field '%s'", field)
         // no custom parsing for now
-        entries += (field, value)
+        entries :+ (field, value)
       case BSONJSCodeWScopeType(field, value) => 
         log.trace("Got a BSON JSCode W/ Scope for field '%s'", field)
         // no custom parsing for now
-        entries += (field, value)
+        entries :+ (field, value)
       case BSONSymbolType(field, value) =>
         log.trace("Got a BSON Symbol '%s' for field '%s'", value, field)
-        entries += (field, parseSymbol(field, value))
+        entries :+ (field, parseSymbol(field, value))
       case BSONInt32Type(field, value) =>
         log.trace("Got a BSON Int32 '%s' for field '%s'", value, field)
-        entries += (field, parseInt32(field, value))
+        entries :+ (field, parseInt32(field, value))
       case BSONInt64Type(field, value) =>
         log.trace("Got a BSON Int64 (Long) '%s' for field '%s'", value, field)
-        entries += (field, parseInt64(field, value))
+        entries :+ (field, parseInt64(field, value))
       case BSONTimestampType(field, value) => 
         log.trace("Got a BSON Timestamp '%s' for field '%s'", value, field)
         // because of it's use as an internal type, not allowing custom for now
-        entries += (field, value)
+        entries :+ (field, value)
       case BSONMinKeyType(field, value) => 
         log.trace("Got a BSON MinKey for field '%s'", field)
         // because of it's use as an internal type, not allowing custom 
-        entries += (field, value)
+        entries :+ (field, value)
       case BSONMaxKeyType(field, value) => 
         log.trace("Got a BSON MaxKey for field '%s'", field)
         // because of it's use as an internal type, not allowing custom 
-        entries += (field, value)
+        entries :+ (field, value)
       case unknown => 
         log.warning("Unknown or unsupported BSON Type '%s'", unknown)
-        throw new BSONParsingException("No support for decoding BSON Type of byte '%s'", unknown)
+        throw new BSONParsingException("No support for decoding BSON Type of byte '%s'".format(unknown))
     }
     // todo - are we exiting properly in the case of the EOO?
-    if (BSONEndOfObjectType.typeCode == typ) entries else parse(entries)
+    if (BSONEndOfObjectType.typeCode == typ) entries else parse(frame, entries)
   }
 
   /** 
@@ -160,7 +162,7 @@ trait BSONParser[T] extends Logging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseDocument(field: String, values: Seq[Any]): Any = Document(values)
+  def parseDocument(field: String, values: Seq[(String, Any)]): Any = Document(values: _*)
 
  /** 
    * Overridable method for how to handle adding a array entry
@@ -211,7 +213,7 @@ trait BSONParser[T] extends Logging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseString(field: String, value: Double): Any = value
+  def parseString(field: String, value: String): Any = value
 
   /** 
    * Overridable method for how to handle adding an ObjectID entry
@@ -233,10 +235,10 @@ trait BSONParser[T] extends Logging {
 }
 
 object DefaultBSONParser extends BSONParser[Document] {
-  def parseRootObject(entries: Seq[(String, Any)]) = Document(entries)
+  def parseRootObject(entries: Seq[(String, Any)]) = Document(entries: _*)
 }
 
-trait BSONType {
+trait BSONType extends Logging {
   def typeCode: Byte
 
   val littleEndian = ByteOrder.LITTLE_ENDIAN
@@ -261,13 +263,13 @@ trait BSONType {
    * Byte* terminated by \x00
    */
   @tailrec
-  def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
+  final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
     val c = frame.next()
 
     if (c == 0x00) {
       buffer.toString
     } else {
-      buffer += c
+      buffer.append(c)
       readCString(frame, buffer)
     }
   }
@@ -280,33 +282,34 @@ trait BSONType {
   def readUTF8String(frame: ByteIterator): String = {
     val size = frame.getInt
     val buf = new Array[Byte](size)
-    val data = frame.getBytes(buf)
+    frame.getBytes(buf)
     val parse = catching(classOf[UnsupportedOperationException]).withApply { e =>
       throw new BSONParsingException("Unable to decode UTF8 String from BSON.", e)
     } 
-    parse { new String(data, 0, size - 1, "UTF-8") }
+    parse { new String(buf, 0, size - 1, "UTF-8") }
   }
 
   def readLong(bytes: Array[Byte], endianness: ByteOrder) = {
     var x = 0
     endianness match {
       case `littleEndian` => 
-        x |= (0xFF & buf(0)) << 0
-        x |= (0xFF & buf(1)) << 8
-        x |= (0xFF & buf(2)) << 16
-        x |= (0xFF & buf(3)) << 24
+        x |= (0xFF & bytes(0)) << 0
+        x |= (0xFF & bytes(1)) << 8
+        x |= (0xFF & bytes(2)) << 16
+        x |= (0xFF & bytes(3)) << 24
       case `bigEndian` => 
-        x |= (0xFF & buf(0)) << 24 
-        x |= (0xFF & buf(1)) << 16
-        x |= (0xFF & buf(2)) << 8
-        x |= (0xFF & buf(3)) << 0
+        x |= (0xFF & bytes(0)) << 24
+        x |= (0xFF & bytes(1)) << 16
+        x |= (0xFF & bytes(2)) << 8
+        x |= (0xFF & bytes(3)) << 0
     }
     x
   }
 
   def parseUUID(bytes: Array[Byte], endianness: ByteOrder = bigEndian) = {
+    val _binLen = bytes.length
 
-    if (_binLen != 16) 
+    if (_binLen != 16)
       throw new BSONParsingException("Invalid UUID Length in Binary. Expected 16, got " + _binLen)
 
     val mostSignificant = readLong(bytes, endianness)
@@ -344,7 +347,7 @@ object BSONDoubleType extends BSONType {
 
   def unapply(frame: ByteIterator): Option[(String, Double)] = 
     if (frame.head == typeCode) {
-      Some((readCString(frame.drop(1), frame.getDouble)))
+      Some((readCString(frame.drop(1)), frame.getDouble))
     } else None
 }
 
@@ -380,7 +383,7 @@ object BSONBinaryType extends BSONType with Logging {
   val Binary_UUID_Old: Byte = 0x03
   val Binary_UUID: Byte = 0x04
   val Binary_MD5: Byte = 0x05
-  val Binary_UserDefined: Byte = 0x80
+  val Binary_UserDefined: Byte = 0x80.toByte
 
   def unapply(frame: ByteIterator): Option[(String, BSONBinaryContainer)] = 
     if (frame.head == typeCode) {
@@ -403,28 +406,28 @@ object BSONBinaryType extends BSONType with Logging {
       _subType match {
         case Binary_UUID => 
           // "NEW" UUID Format uses big endianness, not little 
-          Some(name, parseUUID(bin)) 
+          Some((name, parseUUID(bin)))
         case Binary_UUID_Old => 
           // "Old" UUID format used little endianness which is NOT how UUIDs are encoded
-          Some(name, parseUUID(bin, littleEndian))
+          Some((name, parseUUID(bin, littleEndian)))
         case Binary_MD5 => 
           if (_binLen != 16) 
             throw new BSONParsingException("Invalid MD5 Length in Binary. Expected 16, got " + _binLen)
           // TODO - parse MD5
-          Some(name, BSONBinaryMD5)
-        case Binary | Binary_Old =>
-          Some(name, BSONBinary(bin))
+          Some((name, BSONBinaryMD5(bin)))
+        case Binary_Generic | Binary_Old =>
+          Some((name, BSONBinary(bin)))
         case Binary_UserDefined =>
-          Some(name, BSONBinaryUserDefined(bin))
+          Some((name, BSONBinaryUserDefined(bin)))
         case other => 
-          Some(name, BSONBinaryUserDefined(bin))
+          Some((name, BSONBinaryUserDefined(bin)))
       }
     } else None 
 }
 
 /** BSON ObjectID */
 object BSONObjectIDType extends BSONType {
-  val typecode: Byte = 0x07
+  val typeCode: Byte = 0x07
 
   def unapply(frame: ByteIterator): Option[(String, ObjectID)] =
     if (frame.head == typeCode) {
@@ -467,7 +470,7 @@ object BSONUTCDateTimeType extends BSONType {
 object BSONRegExType extends BSONType {
   val typeCode: Byte = 0x10
 
-  def unapply(frame: ByteIterator): Option[String, Regex] = 
+  def unapply(frame: ByteIterator): Option[(String, Regex)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val pattern = readCString(frame)
@@ -484,7 +487,7 @@ case class DBRef(namespace: String, oid: ObjectID)
 object BSONDBRefType extends BSONType {
   val typeCode: Byte = 0x0C
 
-  def unapply(frame: ByteIterator): Option[String, Regex] = 
+  def unapply(frame: ByteIterator): Option[(String, DBRef)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val namespace = readCString(frame)
@@ -493,10 +496,10 @@ object BSONDBRefType extends BSONType {
        * though not documented anywhere, while normal OIDs are stored 
        * big endian, in the java driver code the dbref ones are little. WTF?
        */
-      val timestamp = frame.getInt()
-      val machineID = frame.getInt()
-      val increment = frame.getInt()
-      Some(name, DBRef(namespace, ObjectID(timestamp, machineID, increment, false)))
+      val timestamp = frame.getInt
+      val machineID = frame.getInt
+      val increment = frame.getInt
+      Some((name, DBRef(namespace, ObjectID(timestamp, machineID, increment, false))))
     } else None
 
 }
@@ -536,7 +539,7 @@ object BSONInt32Type extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, Int)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, frame.getInt())) 
+      Some((name, frame.getInt))
     } else None
 }
 
@@ -547,7 +550,7 @@ object BSONInt64Type extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, Long)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, frame.getLong())) 
+      Some((name, frame.getLong))
     } else None
 }
 
@@ -595,13 +598,13 @@ case class BSONCodeWScope(code: String, scope: Map[String, Any])
 object BSONJSCodeWScopeType extends BSONType {
   val typeCode: Byte = 0x0F
 
-  def unapply(frame: ByteIterator): Option[(String, BSONCodeWScope)] = 
+  def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, BSONCodeWScope)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val code = readUTF8String(frame)
       // TODO - READ SCOPE
       log.debug("JSCode at '%s' - '%s'", name, code)
-      val scope = Map[String, Any](childParser(frame))
+      val scope = Map[String, Any](childParser.parse(frame): _*)
       Some((name, BSONCodeWScope(code, scope)))
     } else None
 }
@@ -612,15 +615,16 @@ object BSONJSCodeWScopeType extends BSONType {
 object BSONDocumentType extends BSONType {
   val typeCode: Byte = 0x03
 
-  def unapply(frame: ByteIterator)(implicit childParser: BSONParser): Option[(String, Seq[String, Any])] = 
+  def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[(String, Any)])] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      val subLen = frame.getInt()
-      val bytes = frame.clone.slice().take(subLen)
+      val subLen = frame.getInt
+      // todo check me for validity - there WAS A bad clone.slice here
+      val bytes = frame.take(subLen)
       log.trace("Reading an embedded BSON object of '%s' bytes.", subLen)
-      val doc = childParser(frame) 
+      val doc = childParser.parse(bytes)
       log.trace("Parsed a set of subdocument entries for '%s': '%s'", name, doc)
-      doc
+      Some((name, doc))
     } else None
 }
 
@@ -629,19 +633,20 @@ object BSONDocumentType extends BSONType {
 object BSONArrayType extends BSONType {
   val typeCode: Byte = 0x04
 
-  def unapply(frame: ByteIterator)(implicit childParser: BSONParser): Option[(String, Seq[Any])] = 
+  def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[Any])] =
    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      val subLen = frame.getInt()
-      val bytes = frame.clone.slice().take(subLen)
+      val subLen = frame.getInt
+      // todo check me for validity - there WAS A bad clone.slice here
+      val bytes = frame.take(subLen)
       log.trace("Reading a BSON Array of '%s' bytes.", subLen)
-      val doc = childParser(frame) 
+      val doc = childParser.parse(frame)
       log.trace("Parsed a set of subdocument entries for '%s': '%s'", name, doc)
       /*
        * I have seen no contractual guarantees that the array items are in order
        * in mongo, but most drivers assume it, so shall we...
        * Flatten out and ignore the keys
        */ 
-      doc.map(_._2) 
+      Some((name, doc.map(_._2)))
     } else None
 }
