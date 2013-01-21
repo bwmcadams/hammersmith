@@ -42,7 +42,13 @@ trait BSONParser[T] extends Logging {
   implicit val thisParser = this
 
   /** The "core" parse routine; should break down your BSON into T */
-  def unapply(frame: ByteIterator): T = parseRootObject(parse(frame))
+  def unapply(frame: ByteIterator): T = {
+    // Extract the BSON doc
+    val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
+    val data = frame.clone().take(len)
+    log.info(s"Parsing a BSON doc of $len bytes")
+    parseRootObject(parse(data))
+  }
 
   /** Parses a sequence of entries into a Root object, which must be of type T
    * Separated from parseDocument to allow for discreet subdocument types (which may backfire on me)
@@ -56,14 +62,14 @@ trait BSONParser[T] extends Logging {
     frame match {
       case BSONEndOfObjectType(eoo) => 
         log.trace("Got a BSON End of Object")
-      /*case BSONNullType(field) => 
+      case BSONNullType(field) =>
         // TODO - how best to represent nulls / undefs?
         log.trace("Got a BSON Null for field '%s'", field)
-        entries += (field, null)
+        entries :+ (field, null)
       case BSONUndefType(field) => 
         // TODO - how best to represent nulls / undefs?
         log.trace("Got a BSON Null for field '%s'", field)
-        entries += (field, null)*/
+        entries :+ (field, null)
       case BSONDoubleType(field, value) =>
         log.trace("Got a BSON Double '%s' for field '%s'", value, field)
         entries :+ (field, parseDouble(field, value))
@@ -130,8 +136,8 @@ trait BSONParser[T] extends Logging {
         // because of it's use as an internal type, not allowing custom 
         entries :+ (field, value)
       case unknown => 
-        log.warning("Unknown or unsupported BSON Type '%s'", unknown)
-        throw new BSONParsingException("No support for decoding BSON Type of byte '%s'".format(unknown))
+        log.warning(s"Unknown or unsupported BSON Type '$typ' / $unknown")
+        throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown")
     }
     // todo - are we exiting properly in the case of the EOO?
     if (BSONEndOfObjectType.typeCode == typ) entries else parse(frame, entries)
@@ -264,7 +270,7 @@ trait BSONType extends Logging {
    */
   @tailrec
   final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
-    val c = frame.next()
+    val c = frame.next().toChar
 
     if (c == 0x00) {
       buffer.toString
@@ -320,25 +326,26 @@ trait BSONType extends Logging {
 
 /** BSON End of Object Marker - indicates a Doc / BSON Block has ended */
 object BSONEndOfObjectType extends BSONType {
-  val typeCode: Byte = 0x00	  
+  val typeCode: Byte = 0x00
 
-  def unapply(frame: ByteIterator): Option[Boolean] = 
+  def unapply(frame: ByteIterator): Option[Boolean] =
     if (frame.head == typeCode) Some(true) else None
- 
+
+
 }
 
 /** BSON null value */
 object BSONNullType extends BSONType {
   val typeCode: Byte = 0x0A
 
-  def unapply = noopUnapply _
+  def unapply(frame: ByteIterator) = noopUnapply(frame)
 }
 
 /** BSON Undefined value - deprecated in the BSON Spec; use null*/
 object BSONUndefType extends BSONType {
   val typeCode: Byte = 0x06 
 
-  def unapply = noopUnapply _
+  def unapply(frame: ByteIterator) = noopUnapply(frame)
 }
 
 /** BSON Floating point Number */
@@ -432,11 +439,14 @@ object BSONObjectIDType extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, ObjectID)] =
     if (frame.head == typeCode) {
       // Because MongoDB Loves consistency, OIDs are stored Big Endian
+      log.info("Parsing an ObjectID!")
       val name = readCString(frame.drop(1))
       val timestamp = frame.getInt(bigEndian)
       val machineID = frame.getInt(bigEndian)
       val increment = frame.getInt(bigEndian)
-      Some(name, ObjectID(timestamp, machineID, increment, false))
+      val oid = ObjectID(timestamp, machineID, increment, false)
+      log.info(s"Parsed out an ObjectID in '$name' from BSON '$oid'")
+      Some(name, oid)
     } else None
 }
 
