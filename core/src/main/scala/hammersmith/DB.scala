@@ -20,6 +20,7 @@ package hammersmith
 import hammersmith.bson.util.Logging
 import hammersmith.bson._
 import hammersmith.bson.collection._
+import hammersmith.bson.collection.Implicits._
 import hammersmith.futures._
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest

@@ -20,6 +20,7 @@ package hammersmith
 import java.net.InetSocketAddress
 import hammersmith.bson._
 import hammersmith.bson.collection._
+import hammersmith.bson.collection.Implicits._
 import java.nio.ByteOrder
 import hammersmith.wire._
 import scala.collection.JavaConversions._

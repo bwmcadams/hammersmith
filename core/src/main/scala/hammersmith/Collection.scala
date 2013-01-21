@@ -20,6 +20,7 @@ import hammersmith.futures._
 import hammersmith.bson.util.Logging
 import hammersmith.bson._
 import hammersmith.bson.collection._
+import hammersmith.bson.collection.Implicits._
 
 object Collection extends Logging {
 
