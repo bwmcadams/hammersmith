@@ -53,7 +53,7 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).
 			else diff.toInt
 		}
 
-		if (that == null) -1 
+		if (that == null) -1
 		else {
 			// crappy implementation, copied from Mongo Java driver.
 			lazy val timeComp = compareUnsigned(this.timestamp, that.timestamp)
@@ -109,7 +109,7 @@ object ObjectID extends Logging {
 	def apply(s: String) = {
 		require(ObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
 		val bytes = new Array[Byte](12)
-		for (i <- 0 until 12) bytes(i) = s.substring(i*2, i*2 + 2).toByte
+		for (i <- 0 until 12) bytes(i) = Integer.parseInt(s.substring(i*2, i*2 + 2), 16).toByte
 		val buf = ByteBuffer.wrap(bytes)
 		new ObjectID(buf.getInt(), buf.getInt(), buf.getInt(), false)
 	}

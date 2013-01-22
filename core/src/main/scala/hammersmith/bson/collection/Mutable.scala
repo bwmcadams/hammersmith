@@ -197,56 +197,6 @@ object OrderedDocument extends BSONDocumentFactory[OrderedDocument] {
   def empty = new OrderedDocument
 }
 
-/**
- * List holder for ser/deser
- */
-class BSONList extends BSONDocument {
-  protected val _map = new HashMap[String, Any]
-  def asMap = _map
-  def self = _map
-  def put(k: Int, v: Any): Option[Any] = put(k.toString, v)
-
-  override def isDefinedAt(key: String): Boolean = isDefinedAt(asInt(key))
-
-  override def contains(key: String): Boolean = contains(asInt(key))
-
-  override def apply(key: String): Any = apply(asInt(key))
-
-  override def getOrElse[B1 >: Any](key: String, default: ⇒ B1): B1 = getOrElse(asInt(key), default)
-
-  override def get(key: String): Option[Any] = get(asInt(key))
-
-  def asInt(key: String, err: Boolean = true): Int = try {
-    Integer.parseInt(key)
-  } catch {
-    case e: Exception ⇒
-      if (err)
-        throw new IllegalArgumentException("BSONLists can only work with Integer representable keys, failed parsing '%s'".format(key))
-      else -1
-  }
-
-  def isDefinedAt(key: Int): Boolean = super.isDefinedAt(key.toString)
-
-  def contains(key: Int): Boolean = super.contains(key.toString)
-
-  def apply(key: Int): Any = super.apply(key.toString)
-
-  def getOrElse[B1 >: Any](key: Int, default: ⇒ B1): B1 = super.getOrElse(key.toString, default)
-
-  def get(key: Int): Option[Any] = super.get(key.toString)
-
-  override def toList = super.toList.sortWith(_._1 < _._1)
-
-  def asList = toList.map(_._2)
-
-  def asArray = toArray.sortWith(_._1 < _._1).map(_._2)
-
-  def asIndexedSeq = toIndexedSeq.sortWith(_._1 < _._1).map(_._2)
-}
-
-object BSONList extends BSONDocumentFactory[BSONList] {
-  def empty = new BSONList
-}
 
 /**
  * A lazily evaluated BSON Document which
