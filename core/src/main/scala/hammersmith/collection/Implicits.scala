@@ -15,7 +15,7 @@
  *
  */
 
-package hammersmith.bson
+package hammersmith
 package collection
 
 import hammersmith.util._
