@@ -19,12 +19,14 @@ package hammersmith
 
 import hammersmith.bson.util.Logging
 import hammersmith.bson._
-import hammersmith.bson.collection._
-import hammersmith.bson.collection.Implicits._
+import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import hammersmith.futures._
 import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
 import hammersmith.wire.{ InsertMessage, QueryMessage }
+import hammersmith.collection.{BSONDocument, BSONList}
+import hammersmith.collection.mutable.{OrderedDocument, Document}
 
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
 

@@ -18,7 +18,7 @@
 package hammersmith
 package util
 
-import hammersmith.bson.collection._
+import hammersmith.collection._
 import hammersmith.futures._
 import hammersmith.bson.SerializableBSONObject
 import hammersmith.bson.util.{ Logging, ThreadLocal }

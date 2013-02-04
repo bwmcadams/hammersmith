@@ -19,10 +19,11 @@ package hammersmith
 package wire
 
 import org.bson._
-import hammersmith.bson.collection._
+import hammersmith.collection._
 import hammersmith.bson.util.Logging
 import bson.BSONSerializer
 import bson.SerializableBSONObject
+import hammersmith.collection.mutable.BSONDocument
 
 /**
  * OP_UPDATE Message

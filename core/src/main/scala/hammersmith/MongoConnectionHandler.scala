@@ -17,9 +17,9 @@
 
 package hammersmith
 
-import bson.collection.Implicits._
 import hammersmith.bson.util.Logging
-import hammersmith.bson.collection._
+import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import hammersmith.wire._
 import hammersmith.futures._
 import java.net.InetSocketAddress
@@ -54,7 +54,6 @@ trait MongoConnectionHandler extends Logging {
       }
       case None ⇒ {
         log.warn("No Error Document Found.")
-        "Unknown Error."
         result(new Exception("Unknown error."))
       }
     }
@@ -149,7 +148,6 @@ trait MongoConnectionHandler extends Logging {
               }
               case None ⇒ {
                 log.warn("No Document Found.")
-                "Unknown Error."
                 writeResult(new Exception("Unknown error; no document returned.."))
               }
             }

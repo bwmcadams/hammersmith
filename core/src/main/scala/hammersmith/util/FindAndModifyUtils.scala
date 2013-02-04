@@ -22,11 +22,12 @@ import org.bson.types.ObjectId
 import scala.annotation.tailrec
 import hammersmith.bson.util.{ Logging, ThreadLocal }
 import scala.collection.mutable._
-import hammersmith.bson.collection._
+import hammersmith.collection._
 import hammersmith.futures._
 import java.io.InputStream
 import hammersmith.bson.SerializableBSONObject 
 import hammersmith.bson.DefaultBSONDeserializer
+import hammersmith.collection.mutable.BSONDocument
 
 class FindAndModifyResult[V: SerializableBSONObject: Manifest] extends BSONDocument {
   val decoder = implicitly[SerializableBSONObject[V]]
@@ -88,7 +89,7 @@ class FindAndModifyBSONDeserializer[V: SerializableBSONObject: Manifest] extends
     root = new FindAndModifyResult[V]
 
     override def create(array: Boolean) =
-      if (array) BSONList.empty else new FindAndModifyResult[V]
+      new FindAndModifyResult[V]
 
     override def reset() {
       root = new FindAndModifyResult[V]

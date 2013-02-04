@@ -20,7 +20,7 @@ package test
 import hammersmith._
 import hammersmith.util._
 import hammersmith.futures.RequestFutures
-import hammersmith.bson.collection._
+import hammersmith.collection._
 import org.specs2.time.Time._
 import hammersmith.bson.util.Logging
 import org.bson.types._

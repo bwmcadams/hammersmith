@@ -17,8 +17,8 @@
 
 package hammersmith
 
-import hammersmith.bson.collection._
-import hammersmith.bson.collection.Implicits._
+import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import hammersmith.futures._
 import hammersmith.bson.SerializableBSONObject
 
