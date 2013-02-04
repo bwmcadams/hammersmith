@@ -19,9 +19,9 @@ package hammersmith
 import hammersmith.futures._
 import hammersmith.bson.util.Logging
 import hammersmith.bson._
+import hammersmith.collection.BSONDocument
 import hammersmith.collection.Implicits._
-import hammersmith.collection.{BSONDocument, BSONList}
-import hammersmith.collection.mutable.{OrderedDocument, Document}
+import hammersmith.collection.mutable.{BSONList, OrderedDocument, Document}
 
 object Collection extends Logging {
 

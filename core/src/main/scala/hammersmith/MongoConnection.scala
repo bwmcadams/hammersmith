@@ -33,7 +33,8 @@ import org.bson.types.ObjectId
 import hammersmith.bson.util.Logging
 import hammersmith.util._
 import hammersmith.netty.NettyConnection
-import hammersmith.collection.mutable.{OrderedDocument, Document, BSONDocument, BSONList}
+import hammersmith.collection.{BSONDocument, BSONList}
+import hammersmith.collection.mutable.{OrderedDocument, Document}
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
