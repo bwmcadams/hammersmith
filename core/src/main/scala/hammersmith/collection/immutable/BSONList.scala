@@ -14,55 +14,31 @@
  * limitations under the License.
  *
  */
-package hammersmith.collection.mutable
+package hammersmith.collection.immutable
 
-import scala.collection.mutable.{BufferLike, Buffer, Seq}
 import hammersmith.collection.BSONListFactory
+import hammersmith.collection
 
-class BSONList(val underlying: Buffer[Any]) extends hammersmith.collection.BSONList
-                                         with Buffer[Any] {
-  def self: Seq[Any] = underlying
-
-  def update(idx: Int, elem: Any) { underlying.update(idx, elem) }
-
-  def +=(elem: Any) = {
-    underlying += elem
-    this
-  }
-
-  def +=:(elem: Any) = {
-    underlying.+=:(elem)
-    this
-  }
-
-  def clear() {
-    underlying.clear()
-  }
-
-
-  def insertAll(n: Int, elems: Traversable[Any]) {
-    underlying.insertAll(n, elems)
-  }
-
-  def remove(n: Int): Any = underlying.remove(n)
+class BSONList(val underlying: Seq[Any]) extends hammersmith.collection.BSONList
+                                         with scala.collection.immutable.Seq[Any] {
+  def self = underlying
 
   def apply(v1: Int): Any = underlying.apply(v1)
 
   def iterator: Iterator[Any] = underlying.iterator
 
   def length: Int = underlying.length
-
 }
 
 object BSONList extends BSONListFactory[BSONList] {
-  def empty = new BSONList(Buffer.empty[Any])
+  def empty = new BSONList(Seq.empty[Any])
 
   def newBuilder: BSONListBuilder[BSONList] = new BSONListBuilder[BSONList](empty)
 }
 
 class BSONListBuilder[T <: BSONList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) {
   def +=(elem: Any) = {
-    elems += elem
+    elems.+:(elems)
     this
   }
 }

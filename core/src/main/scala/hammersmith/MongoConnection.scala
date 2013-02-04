@@ -19,8 +19,8 @@ package hammersmith
 
 import java.net.InetSocketAddress
 import hammersmith.bson._
-import hammersmith.bson.collection._
-import hammersmith.bson.collection.Implicits._
+import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import java.nio.ByteOrder
 import hammersmith.wire._
 import scala.collection.JavaConversions._
@@ -33,6 +33,7 @@ import org.bson.types.ObjectId
 import hammersmith.bson.util.Logging
 import hammersmith.util._
 import hammersmith.netty.NettyConnection
+import hammersmith.collection.mutable.{OrderedDocument, Document, BSONDocument, BSONList}
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -120,8 +121,8 @@ abstract class MongoConnection extends Logging {
       log.trace("Got a result from 'listDatabases' command: %s", doc)
       if (!doc.isEmpty) {
         val dbs = {
-          val lst = doc.as[BSONList]("databases").asList
-          lst.map(_.asInstanceOf[Document].as[String]("name"))
+          val lst = doc.as[BSONList]("databases")
+          lst.map { x: Any => x.asInstanceOf[Document].as[String]("name") }
         }
         callback(dbs)
       } else {

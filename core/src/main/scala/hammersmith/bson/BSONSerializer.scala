@@ -25,7 +25,7 @@ import org.bson.types.ObjectId
 import java.util.regex.Pattern
 import scala.util.matching.Regex
 import java.util.{ UUID, Date ⇒ JDKDate }
-import hammersmith.bson.collection.BSONList
+import hammersmith.collection.mutable.BSONList
 import scala.collection.Map
 import org.bson.BasicBSONEncoder
 import org.bson.BSONObject

@@ -21,7 +21,7 @@ package wire
 import hammersmith.bson.util.Logging
 import java.io.{ ByteArrayInputStream, InputStream }
 import org.bson._
-import hammersmith.bson.collection._
+import hammersmith.collection._
 import bson.BSONSerializer
 import bson.DefaultBSONDeserializer
 

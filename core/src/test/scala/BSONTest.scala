@@ -25,8 +25,8 @@ import scala.collection.JavaConverters._
 
 import java.util.regex._
 
-import hammersmith.bson.collection._
-import hammersmith.bson.collection.Implicits._
+import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import bson._
 import akka.util.ByteString
 import bson.BSONMinKey

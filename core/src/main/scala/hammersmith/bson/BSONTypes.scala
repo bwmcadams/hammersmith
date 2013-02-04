@@ -22,13 +22,12 @@ import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 import scala.util.matching.Regex
-import collection.{BSONList, Document, BSONDocument}
 import scala.collection.immutable.Queue
 import akka.util.ByteIterator
-import math.BigDecimal.double2bigDecimal
+import hammersmith.collection.mutable.{Document, BSONList}
 
 
-/*implicit def pimpByteString(str: ByteString): BSONByteString = 
+/*implicit def pimpByteString(str: ByteString): BSONByteString =
   new BSONByteString(str)
 
 sealed class BSONByteString {

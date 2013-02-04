@@ -19,7 +19,7 @@ import org.bson.BSON._
 import java.io._
 import org.bson.io.Bits
 import hammersmith.bson.types._
-import hammersmith.bson.collection._
+import hammersmith.collection.mutable._
 import java.util.{ UUID, Date ⇒ JDKDate }
 import hammersmith.bson.util.{ Logging }
 import scala.collection.mutable.Stack
@@ -296,8 +296,8 @@ class DefaultBSONDeserializer extends BSONDeserializer {
 
     def get: BSONDocument = root
 
-    def create(array: Boolean) =
-      if (array) BSONList.empty else Document.empty
+    def create(array: Boolean): BSONDocument =
+      Document.empty
 
     def objectStart() {
       require(stack.size == 0, "Invalid stack state; no-arg objectStart can only be called on initial decode.")

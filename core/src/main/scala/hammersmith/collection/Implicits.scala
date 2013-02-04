@@ -15,21 +15,59 @@
  *
  */
 
-package hammersmith
-package collection
+package hammersmith.collection
 
-import hammersmith.util._
 import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
 import java.io.InputStream
 import hammersmith.bson.util.Logging
 import hammersmith.bson.util.ThreadLocal
+import hammersmith.bson.{SerializableBSONObject, DefaultBSONDeserializer, DefaultBSONSerializer}
 
-object `package` {
-  /**
-   * TODO - Replace ThreadLocal with actor pipelines?
-   * TODO - Execute around pattern
-   */
+trait Imports extends Logging {
+  // TODO - do we still need this, migrating into the Casbah code? -bwm feb-3-13
+  // I dont think I can combine this with NotNothing...
+  // The issue here is that asInstanceOf[A] doesn't use the
+  // manifest and thus doesn't do anything (no runtime type
+  // check). We have to use the manifest to cast by hand.
+  // Surely there is an easier way to do this! If you know it,
+  // please advise.
+  protected[collection] def checkedCast[A <: Any: Manifest](value: Any): A = {
+    try {
+      // I could not tell you why we have to check both ScalaObject
+      // and AnyRef here, but for example
+      // manifest[BSONDocument] <:< manifest[AnyRef]
+      // is false.
+      if (manifest[A] <:< manifest[AnyRef] ||
+        manifest[A] <:< manifest[ScalaObject]) {
+        // casting to a boxed type
+        manifest[A].erasure.asInstanceOf[Class[A]].cast(value)
+      } else {
+        // casting to an Any such as Int, we need boxed types to unpack,
+        // which asInstanceOf does but Class.cast does not
+        val asAnyVal = manifest[A] match {
+          case m if m == manifest[Byte] => value.asInstanceOf[Byte]
+          case m if m == manifest[Short] => value.asInstanceOf[Short]
+          case m if m == manifest[Int] => value.asInstanceOf[Int]
+          case m if m == manifest[Long] => value.asInstanceOf[Long]
+          case m if m == manifest[Float] => value.asInstanceOf[Float]
+          case m if m == manifest[Double] => value.asInstanceOf[Double]
+          case m if m == manifest[Boolean] => value.asInstanceOf[Boolean]
+          case m if m == manifest[Char] => value.asInstanceOf[Char]
+          case m => throw new UnsupportedOperationException("Type " + manifest[A] + " not supported by getAs, value is: " + value)
+        }
+        asAnyVal.asInstanceOf[A]
+      }
+    } catch {
+      case cc: ClassCastException =>
+        log.debug("Error casting " +
+          value.asInstanceOf[AnyRef].getClass.getName +
+          " to " +
+          manifest[A].erasure.getName)
+        throw cc
+    }
+  }
+
   def defaultSerializer = new ThreadLocal(new DefaultBSONSerializer)
 
   def defaultDeserializer = new ThreadLocal(new DefaultBSONDeserializer) 
@@ -91,28 +129,73 @@ object `package` {
           //other
         }
         case None ⇒ {
+          // TODO - Replace me with new ObjectID Implementation
           val oid = new ObjectId()
-          doc.put("_id", oid)
           log.trace("no ObjectId. Generated: %s", doc.get("_id"))
-          //oid
+          doc + "_id" -> oid
         }
       }
       doc
     }
 
-    def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")
-  }
 
+    def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")
+
+  }
 
 }
 
+object `package` extends Imports
+
 object Implicits {
 
+
+  // todo - can we do this with Object instead of inside implicits?
   implicit object SerializableDocument extends SerializableBSONDocumentLike[Document]
 
   implicit object SerializableOrderedDocument extends SerializableBSONDocumentLike[OrderedDocument]
 
-  implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
+  //implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
+
+  implicit object SerializableImmutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.Document]
+
+  implicit object SerializableImmutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.OrderedDocument]
+
+  //implicit object SerializableImmutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.immutable.BSONList]
+
+  implicit object SerializableMutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.Document]
+
+  implicit object SerializableMutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.OrderedDocument]
+
+  //implicit object SerializableMutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.mutable.BSONList]
+}
+
+abstract class ValidBSONType[T]
+
+// todo - refactor types for Hammersmith's
+object ValidBSONType {
+  implicit object BasicBSONList extends ValidBSONType[org.bson.types.BasicBSONList]
+  implicit object BasicDBList extends ValidBSONType[com.mongodb.BasicDBList]
+  implicit object Binary extends ValidBSONType[org.bson.types.Binary]
+  implicit object BSONTimestamp extends ValidBSONType[org.bson.types.BSONTimestamp]
+  implicit object Code extends ValidBSONType[org.bson.types.Code]
+  implicit object CodeWScope extends ValidBSONType[org.bson.types.CodeWScope]
+  implicit object ObjectId extends ValidBSONType[org.bson.types.ObjectId]
+  implicit object Symbol extends ValidBSONType[org.bson.types.Symbol]
+  implicit object BSONObject extends ValidBSONType[org.bson.BSONObject]
+  implicit object BasicDBObject extends ValidBSONType[com.mongodb.BasicDBObject]
+  implicit object DBObject extends ValidBSONType[com.mongodb.DBObject]
+}
+
+/**
+ * Nice trick from Miles Sabin using ambiguity in implicit resolution to disallow Nothing
+ */
+sealed trait NotNothing[A]{
+  type B
+}
+object NotNothing {
+  implicit val nothing = new NotNothing[Nothing]{ type B = Any }
+  implicit def notNothing[A] = new NotNothing[A]{ type B = A }
 }
 
 // vim: set ts=2 sw=2 sts=2 et:
