@@ -19,10 +19,10 @@ package hammersmith
 package wire
 
 import hammersmith.bson.util.Logging
-import org.bson._
 import hammersmith.collection._
-import bson.BSONSerializer
-import hammersmith.collection.mutable.{Document, BSONDocument}
+import hammersmith.collection.Implicits._
+import hammersmith.collection.mutable.Document
+import hammersmith.bson.BSONSerializer
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,

@@ -21,9 +21,8 @@ package wire
 import org.bson._
 import hammersmith.collection._
 import hammersmith.bson.util.Logging
-import bson.BSONSerializer
-import bson.SerializableBSONObject
-import hammersmith.collection.mutable.BSONDocument
+import hammersmith.collection.BSONDocument
+import hammersmith.bson.{BSONSerializer, SerializableBSONObject}
 
 /**
  * OP_UPDATE Message
