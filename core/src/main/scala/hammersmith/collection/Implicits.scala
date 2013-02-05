@@ -151,9 +151,7 @@ object Implicits {
 
 
   // todo - can we do this with Object instead of inside implicits?
-  implicit object SerializableDocument extends SerializableBSONDocumentLike[Document]
-
-  implicit object SerializableOrderedDocument extends SerializableBSONDocumentLike[OrderedDocument]
+  implicit object SerializableBSONDocument extends SerializableBSONDocumentLike[BSONDocument]
 
   //implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
 

@@ -48,7 +48,7 @@ trait MongoConnectionHandler extends Logging {
     // Attempt to grab the $err document
     val err = reply.documents.headOption match {
       case Some(b) ⇒ {
-        val errDoc = SerializableDocument.decode(b) // TODO - Extractors!
+        val errDoc = SerializableImmutableDocument.decode(b) // TODO - Extractors!
         log.trace("Error Document found: %s", errDoc)
         result(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
       }
@@ -124,7 +124,7 @@ trait MongoConnectionHandler extends Logging {
             // Attempt to grab the document
             reply.documents.headOption match {
               case Some(b) ⇒ {
-                val doc = SerializableDocument.decode(b) // TODO - Extractors!
+                val doc = SerializableImmutableDocument.decode(b) // TODO - Extractors!
                 log.debug("Document found: %s", doc)
                 val ok = boolCmdResult(doc, false)
                 // this is how the Java driver decides to throwOnError, !ok || "err"

@@ -18,9 +18,10 @@ package hammersmith.collection.immutable
 
 import hammersmith.collection.BSONListFactory
 import hammersmith.collection
+import hammersmith.bson.util.Logging
 
-class BSONList(val underlying: Seq[Any]) extends hammersmith.collection.BSONList
-                                         with scala.collection.immutable.Seq[Any] {
+class BSONList(protected[immutable] val underlying: scala.collection.mutable.Buffer[Any]) extends hammersmith.collection.BSONList
+                                                                                       with scala.collection.immutable.Seq[Any] {
   def self = underlying
 
   def apply(v1: Int): Any = underlying.apply(v1)
@@ -28,17 +29,21 @@ class BSONList(val underlying: Seq[Any]) extends hammersmith.collection.BSONList
   def iterator: Iterator[Any] = underlying.iterator
 
   def length: Int = underlying.length
+
+
 }
 
 object BSONList extends BSONListFactory[BSONList] {
-  def empty = new BSONList(Seq.empty[Any])
+  def empty = new BSONList(scala.collection.mutable.Buffer.empty[Any])
 
   def newBuilder: BSONListBuilder[BSONList] = new BSONListBuilder[BSONList](empty)
 }
 
-class BSONListBuilder[T <: BSONList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) {
+class BSONListBuilder[T <: BSONList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) with Logging {
   def +=(elem: Any) = {
-    elems.+:(elems)
+    // todo - a CanBuildFrom should help fix the need to attack underlying here
+    elems.underlying += elem
+    log.trace(s"Added $elem to $elems.")
     this
   }
 }

@@ -22,7 +22,7 @@ import scala.collection.immutable.MapLike
 import scala.collection.mutable.{ HashMap, LinkedHashMap}
 import hammersmith.collection.BSONDocumentFactory
 
-trait BSONDocument extends hammersmith.collection.BSONDocument with Map[String, Any]
+protected[immutable] trait BSONDocument extends hammersmith.collection.BSONDocument with Map[String, Any]
                                                                with MapLike[String, Any, BSONDocument] {
   // todo - this is needed for now, to allow easy mutation of internal repr but unsafe.
   protected def self: scala.collection.mutable.Map[String, Any]
@@ -52,7 +52,7 @@ trait BSONDocument extends hammersmith.collection.BSONDocument with Map[String, 
 }
 
 
-class Document extends hammersmith.collection.Document with BSONDocument {
+class Document extends BSONDocument {
   protected val self = new HashMap[String, Any]
 }
 
@@ -64,7 +64,7 @@ object Document extends BSONDocumentFactory[Document] {
 /**
  * Needed for some tasks such as Commands to run safely.
  */
-class OrderedDocument extends hammersmith.collection.Document with BSONDocument {
+class OrderedDocument extends BSONDocument {
   protected val self = new LinkedHashMap[String, Any]
 }
 
