@@ -32,9 +32,10 @@ import akka.util.ByteString
 import bson.BSONMinKey
 import bson.BSONMaxKey
 import hammersmith.collection.immutable.Document
+import hammersmith.bson.util.Logging
 
 @RunWith(classOf[JUnitRunner])
-class BSONTest extends Specification {
+class BSONTest extends Specification with Logging {
   def is =
 
     "This is a specification to test the functionality of BSON" ^
@@ -122,8 +123,12 @@ class BSONTest extends Specification {
   def hasArray = parsedBSON.getAs[BSONList]("array") must beSome.which(_ must contain("foo", "bar", "baz", "x", "y", "z"))
   
   def hasBytes = parsedBSON.getAs[BSONBinary]("binary") must beSome.which(_ must beEqualTo(testBin.getData()))
-  
-  def hasUUID = parsedBSON.get("uuid").asInstanceOf[java.util.UUID] must beEqualTo(testUUID)
+
+  def hasUUID = {
+    log.info("<<<< " + parsedBSON.getAs[BSONBinaryUUID]("uuid").orNull.leastSignificant + " - " + testUUID.getLeastSignificantBits)
+    log.info(">>>> " + parsedBSON.getAs[BSONBinaryUUID]("uuid").orNull.mostSignificant + " - " + testUUID.getMostSignificantBits)
+    parsedBSON.getAs[BSONBinaryUUID]("uuid") must beSome.which(_.leastSignificant must beEqualTo(testUUID.getLeastSignificantBits))
+  }
   // -- Setup definitions
 
   lazy val oid = new org.bson.types.ObjectId
