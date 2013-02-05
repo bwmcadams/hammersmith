@@ -33,6 +33,7 @@ import bson.BSONMinKey
 import bson.BSONMaxKey
 import hammersmith.collection.immutable.Document
 import hammersmith.bson.util.Logging
+import org.bson.{BasicBSONDecoder, BSONDecoder, NewBSONDecoder}
 
 @RunWith(classOf[JUnitRunner])
 class BSONTest extends Specification with Logging {
@@ -68,7 +69,13 @@ class BSONTest extends Specification with Logging {
       "array" ! hasArray ^
       "binary" ! hasBytes ^
       "uuid" ! hasUUID ^
-      end
+      endp ^ /*
+      "Perform somewhat sanely" ^
+        "Scala Parser Performs" ! scalaParserPerfTest ^
+        "'New' Java Parser Performs" ! newJavaParserPerfTest ^
+        "'Old' Java Parser Performs" ! oldJavaParserPerfTest ^*/
+    end
+
 
   def testBasicParse = {
     System.err.println("Doc: " + parsedBSON)
@@ -207,12 +214,25 @@ class BSONTest extends Specification with Logging {
 
     val encoder = new org.bson.BasicBSONEncoder
 
-    java.nio.ByteBuffer.wrap(encoder.encode(doc))
+    encoder.encode(doc)
   }
 
-  lazy val parsedBSON: Document = {
-    val p = DefaultBSONParser.unapply(ByteString(javaBSON).iterator)
-    p
+
+  lazy val parsedBSON: Document = parseBSONWithScala
+
+  def parseBSONWithScala: Document = DefaultBSONParser.unapply(ByteString(javaBSON).iterator)
+
+  // Test with the "New" Decoder which is probably the performance guideline going forward
+  def parseBSONWithNewJava = {
+    newJavaParser.readObject(javaBSON)
   }
 
+  def parseBSONWithOldJava = {
+    oldJavaParser.readObject(javaBSON)
+  }
+
+
+  private val newJavaParser = new NewBSONDecoder()
+
+  private val oldJavaParser = new BasicBSONDecoder()
 }

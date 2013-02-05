@@ -45,7 +45,7 @@ trait BSONParser[T] extends Logging {
     // Extract the BSON doc
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
     val data = frame.clone().take(len)
-    log.info(s"Parsing a BSON doc of $len bytes")
+    log.debug(s"Parsing a BSON doc of $len bytes")
     parseRootObject(parse(data))
   }
 
@@ -136,7 +136,7 @@ trait BSONParser[T] extends Logging {
         throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown")
       }
     if (BSONEndOfObjectType.typeCode == typ) {
-      log.info("***** EOO")
+      log.trace("***** EOO")
       frame.next()
       _entries
     } else parse(frame, _entries)
@@ -292,10 +292,12 @@ trait BSONType extends Logging {
     val size = frame.getInt
     val buf = new Array[Byte](size)
     frame.getBytes(buf)
-    val parse = catching(classOf[UnsupportedOperationException]).withApply { e =>
+    // TODO - Catching is heavy on the profiler.. lets try to leave it out for now (though may hav runtime blowup :/)
+    /*val parse = catching(classOf[UnsupportedOperationException]).withApply { e =>
       throw new BSONParsingException("Unable to decode UTF8 String from BSON.", e)
     } 
-    parse { new String(buf, 0, size - 1, "UTF-8") }
+    parse { */
+    new String(buf, 0, size - 1, "UTF-8") //}
   }
 
   def readInt(bytes: Array[Byte], endianness: ByteOrder) = {
