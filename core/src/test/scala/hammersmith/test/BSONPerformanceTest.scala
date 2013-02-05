@@ -9,37 +9,49 @@ import java.util.regex.Pattern
 
 object BSONPerformanceTest extends App with Logging {
 
-  scalaParserPerfTest
-  newJavaParserPerfTest
-  oldJavaParserPerfTest
+  //short
+  scalaParserPerfTest(50L)
+  newJavaParserPerfTest(50L)
+  oldJavaParserPerfTest(50L)
+  log.info("*************************")
+  //longer
+  scalaParserPerfTest(5000L)
+  newJavaParserPerfTest(5000L)
+  oldJavaParserPerfTest(5000L)
+  log.info("*************************")
 
-  def perfRunCount = 50000
+  //much longer
+  scalaParserPerfTest(10000L)
+  newJavaParserPerfTest(10000L)
+  oldJavaParserPerfTest(10000L)
+  log.info("*************************")
 
-  def scalaParserPerfTest = {
+
+  def scalaParserPerfTest(x: Long) = {
     val start = System.currentTimeMillis()
-    for (i <- 0 until perfRunCount)
+    for (i <- 0L until x)
       parseBSONWithScala
     val end = System.currentTimeMillis()
     val time = end - start
-    log.info(s"Time to parse BSON with Scala $perfRunCount times: '$time' milliseconds.")
+    log.info(s"Time to parse BSON with Scala $x times: '$time' milliseconds.")
   }
 
-  def newJavaParserPerfTest = {
+  def newJavaParserPerfTest(x: Long) = {
     val start = System.currentTimeMillis()
-    for (i <- 0 until perfRunCount)
+    for (i <- 0L until x)
       parseBSONWithNewJava
     val end = System.currentTimeMillis()
     val time = end - start
-    log.info(s"Time to parse BSON with 'New' Java $perfRunCount times: '$time' milliseconds.")
+    log.info(s"Time to parse BSON with 'New' Java $x times: '$time' milliseconds.")
   }
 
-  def oldJavaParserPerfTest = {
+  def oldJavaParserPerfTest(x: Long) = {
     val start = System.currentTimeMillis()
-    for (i <- 0 until perfRunCount)
+    for (i <- 0L until x)
       parseBSONWithOldJava
     val end = System.currentTimeMillis()
     val time = end - start
-    log.info(s"Time to parse BSON with 'Old' Java $perfRunCount times: '$time' milliseconds.")
+    log.info(s"Time to parse BSON with 'Old' Java $x times: '$time' milliseconds.")
   }
 
   // -- Setup definitions
