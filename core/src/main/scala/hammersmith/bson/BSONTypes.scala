@@ -294,7 +294,7 @@ trait BSONType extends Logging {
     parse { new String(buf, 0, size - 1, "UTF-8") }
   }
 
-  def readLong(bytes: Array[Byte], endianness: ByteOrder) = {
+  def readInt(bytes: Array[Byte], endianness: ByteOrder) = {
     var x = 0
     endianness match {
       case `littleEndian` => 
@@ -311,14 +311,39 @@ trait BSONType extends Logging {
     x
   }
 
+  def readLong(bytes: Array[Byte], endianness: ByteOrder) = {
+    var x = 0L
+    endianness match {
+      case `littleEndian` =>
+        x |= (0xFFL & bytes(0)) << 0
+        x |= (0xFFL & bytes(1)) << 8
+        x |= (0xFFL & bytes(2)) << 16
+        x |= (0xFFL & bytes(3)) << 24
+        x |= (0xFFL & bytes(4)) << 32
+        x |= (0xFFL & bytes(5)) << 40
+        x |= (0xFFL & bytes(6)) << 48
+        x |= (0xFFL & bytes(7)) << 56
+      case `bigEndian` =>
+        x |= (0xFF & bytes(0)) << 56
+        x |= (0xFF & bytes(1)) << 48
+        x |= (0xFF & bytes(2)) << 40
+        x |= (0xFF & bytes(3)) << 32
+        x |= (0xFF & bytes(4)) << 24
+        x |= (0xFF & bytes(5)) << 16
+        x |= (0xFF & bytes(6)) << 8
+        x |= (0xFF & bytes(7)) << 0
+    }
+    x
+  }
+
   def parseUUID(bytes: Array[Byte], endianness: ByteOrder = bigEndian) = {
     val _binLen = bytes.length
 
     if (_binLen != 16)
       throw new BSONParsingException("Invalid UUID Length in Binary. Expected 16, got " + _binLen)
 
-    val mostSignificant = readLong(bytes, endianness)
-    val leastSignificant = readLong(bytes, endianness)
+    val mostSignificant = readLong(bytes.slice(0, 8), endianness)
+    val leastSignificant = readLong(bytes.slice(8, 16), endianness)
     BSONBinaryUUID(mostSignificant, leastSignificant)
   }
 }
