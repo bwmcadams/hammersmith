@@ -122,13 +122,10 @@ class BSONTest extends Specification with Logging {
       
   def hasArray = parsedBSON.getAs[BSONList]("array") must beSome.which(_ must contain("foo", "bar", "baz", "x", "y", "z"))
   
-  def hasBytes = parsedBSON.getAs[BSONBinary]("binary") must beSome.which(_ must beEqualTo(testBin.getData()))
+  def hasBytes = parsedBSON.getAs[BSONBinary]("binary") must beSome.which(_.bytes must beEqualTo(testBin.getData()))
 
-  def hasUUID = {
-    log.info("<<<< " + parsedBSON.getAs[BSONBinaryUUID]("uuid").orNull.leastSignificant + " - " + testUUID.getLeastSignificantBits)
-    log.info(">>>> " + parsedBSON.getAs[BSONBinaryUUID]("uuid").orNull.mostSignificant + " - " + testUUID.getMostSignificantBits)
-    parsedBSON.getAs[BSONBinaryUUID]("uuid") must beSome.which(_.leastSignificant must beEqualTo(testUUID.getLeastSignificantBits))
-  }
+  def hasUUID =  parsedBSON.getAs[java.util.UUID]("uuid") must beSome.which { _ must beEqualTo(testUUID) }
+
   // -- Setup definitions
 
   lazy val oid = new org.bson.types.ObjectId

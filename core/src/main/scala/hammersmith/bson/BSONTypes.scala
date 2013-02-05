@@ -236,7 +236,11 @@ trait BSONParser[T] extends Logging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseBinary(field: String, value: BSONBinaryContainer): Any = value
+  def parseBinary(field: String, value: BSONBinaryContainer): Any = value match {
+    case BSONBinaryUUID(most, least) => new java.util.UUID(most, least)
+    //case BSONBinaryMD5(bytes)
+    case other => value
+  }
 }
 
 object DefaultBSONParser extends BSONParser[Document] {
