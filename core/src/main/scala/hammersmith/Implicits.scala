@@ -21,6 +21,7 @@ import hammersmith.collection._
 import hammersmith.collection.Implicits._
 import hammersmith.futures._
 import hammersmith.bson.SerializableBSONObject
+import hammersmith.collection.immutable.Document
 
 object `package` extends Implicits with Imports
 

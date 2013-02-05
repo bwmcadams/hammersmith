@@ -40,14 +40,14 @@ trait BSONDocument extends Map[String, Any] with Logging {
    * @throws NoSuchElementException
    */
   def as[A : NotNothing](key: String): A =  get(key) match {
-    case null => default(key).asInstanceOf[A]
-    case value => value.asInstanceOf[A]
+    case None => default(key).asInstanceOf[A]
+    case Some(value) => value.asInstanceOf[A]
   }
 
   /** Lazy utility method to allow typing without conflicting with Map's required get() method and causing ambiguity */
   def getAs[A : NotNothing : Manifest](key: String): Option[A] = get(key) match {
-    case null => None
-    case value =>  Some(value.asInstanceOf[A])
+    case None => None
+    case Some(value) => Some(value.asInstanceOf[A]) // recast as requested type.
   }
 
 
@@ -112,7 +112,4 @@ abstract class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends Builder[
   def result(): T = elems
 }
 
-trait Document extends BSONDocument
-// TODO - Something to solidify the ordering?
-trait OrderedDocument extends BSONDocument
 

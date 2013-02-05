@@ -21,9 +21,9 @@ import scala.collection.mutable.{MapProxy, LinkedHashMap, HashMap}
 import org.bson.{BasicBSONCallback, BSONCallback, BSONDecoder}
 import hammersmith.collection.{BSONDocumentFactory}
 
-trait BSONDocument extends hammersmith.collection.BSONDocument with MapProxy[String, Any]
+protected[mutable] trait BSONDocument extends hammersmith.collection.BSONDocument with MapProxy[String, Any]
 
-class Document extends hammersmith.collection.Document with BSONDocument {
+class Document extends  BSONDocument {
   protected val _map = new HashMap[String, Any]
   def self = _map
 }
@@ -36,7 +36,7 @@ object Document extends BSONDocumentFactory[Document] {
 /**
  * Needed for some tasks such as Commands to run safely.
  */
-class OrderedDocument extends hammersmith.collection.Document with BSONDocument {
+class OrderedDocument extends BSONDocument {
   protected val _map = new LinkedHashMap[String, Any]
   def self = _map
 }

@@ -24,7 +24,7 @@ import scala.util.control.Exception.catching
 import scala.util.matching.Regex
 import scala.collection.immutable.Queue
 import akka.util.ByteIterator
-import hammersmith.collection.mutable.{Document, BSONList}
+import hammersmith.collection.immutable.{Document, BSONList}
 
 
 /*implicit def pimpByteString(str: ByteString): BSONByteString =
@@ -77,14 +77,10 @@ trait BSONParser[T] extends Logging {
         log.trace("Got a BSON String '%s' for field '%s'", value, field)
         entries :+ (field, parseString(field, value))
       case BSONDocumentType(field, values) =>
-        // todo - best way to handle this? Trampoline? What?
         log.trace("Got a BSON entries '%s' for field '%s'", values, field)
-        // todo - how do we want to handle custom docs?
         entries :+ (field, parseDocument(field, values))
       case BSONArrayType(field, value) =>
-        // todo - best way to handle this? Trampoline? What?
         log.trace("Got a BSON Array '%s' for field '%s'", value, field)
-        // todo - how do we want to handle custom docs?
         entries :+ (field, parseArray(field, value))
       case BSONBinaryType(field, value) =>
         log.trace("Got a BSON Binary for field '%s'", field)
@@ -180,7 +176,7 @@ trait BSONParser[T] extends Logging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseArray(field: String, values: Seq[Any]): Any = BSONList(values)
+  def parseArray(field: String, values: Seq[Any]): Any = BSONList(values: _*)
 
  /** 
    * Overridable method for how to handle adding a symbol entry
@@ -653,6 +649,7 @@ object BSONArrayType extends BSONType {
       val name = readCString(frame.drop(1))
       val subLen = frame.getInt - 4
       val bytes = frame.clone().take(subLen)
+      frame.drop(subLen)
       log.trace("Reading a BSON Array of '%s' bytes.", subLen)
       val doc = childParser.parse(bytes)
       log.trace("Parsed a set of subdocument entries for '%s': '%s'", name, doc)

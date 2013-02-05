@@ -17,9 +17,7 @@
 package hammersmith
 package wire
 
-import org.bson._
 import hammersmith.bson.util.Logging
-import hammersmith.collection.{ Document, BSONDocument }
 import scala.collection.mutable.Queue
 import bson.BSONSerializer
 import bson.SerializableBSONObject
