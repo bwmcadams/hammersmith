@@ -17,9 +17,9 @@
 
 package hammersmith.collection
 
-import scala.collection.{SeqLike, SeqProxyLike, SeqProxy}
 import hammersmith.bson.util.Logging
 import scala.collection.mutable.Builder
+import hammersmith.collection.immutable.{DBList => ImmutableDBList}
 import hammersmith.collection.immutable.Document
 
 trait BSONList extends Seq[Any]  with Logging {
@@ -55,9 +55,15 @@ trait BSONList extends Seq[Any]  with Logging {
     case Some(v) => v
     case None => default
   }
+
+  /**
+   * Converts this DBList to an Immutable DBList
+   * @return an Immutable version of the current DBList
+   */
+  def toDBList: ImmutableDBList
 }
 
-trait BSONListFactory[T <: BSONList] {
+trait BSONListFactory[T <: BSONList] extends Logging {
   def empty: BSONList
   def newBuilder: BSONListBuilder[T]
 
@@ -79,6 +85,20 @@ trait BSONListFactory[T <: BSONList] {
     b.result
   }
 
+
+  /**
+   * Attempt to massage a document to a list if it has numeric only indexes
+   * todo: check performance
+   * @param doc
+   */
+  def apply(doc: BSONDocument): BSONList = {
+    // this is a really shitty implementation
+    require(doc.keys.forall(x => try { x.toInt; true } catch { case e => false }),
+            "Unable to massage Document into DBList; keys are not all numeric.")
+    apply(doc.keys.toSeq.sortWith((l, r) => l.toInt.compareTo(r.toInt) < 0).map { k =>
+      doc(k)
+    }: _*)
+  }
 }
 
 abstract class BSONListBuilder[T <: BSONList](empty: T) extends Builder[Any, T] {

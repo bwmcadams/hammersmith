@@ -16,11 +16,12 @@
  */
 package hammersmith.collection.mutable
 
-import scala.collection.mutable.{BufferLike, Buffer, Seq}
+import scala.collection.mutable.{Buffer, Seq}
+import hammersmith.collection.immutable.{DBList => ImmutableDBList}
 import hammersmith.collection.BSONListFactory
 
-class BSONList(val underlying: Buffer[Any]) extends hammersmith.collection.BSONList
-                                         with Buffer[Any] {
+class DBList protected[collection](protected[mutable] val underlying: Buffer[Any]) extends hammersmith.collection.BSONList
+                                                                                     with Buffer[Any] {
   def self: Seq[Any] = underlying
 
   def update(idx: Int, elem: Any) { underlying.update(idx, elem) }
@@ -52,15 +53,21 @@ class BSONList(val underlying: Buffer[Any]) extends hammersmith.collection.BSONL
 
   def length: Int = underlying.length
 
+  /**
+   * Converts this DBList to an Immutable DBList
+   * @return an Immutable version of the current DBList
+   */
+  def toDBList: ImmutableDBList = new ImmutableDBList(underlying)
+
 }
 
-object BSONList extends BSONListFactory[BSONList] {
-  def empty = new BSONList(Buffer.empty[Any])
+object DBList extends BSONListFactory[DBList] {
+  def empty: DBList = new DBList(Buffer.empty[Any])
 
-  def newBuilder: BSONListBuilder[BSONList] = new BSONListBuilder[BSONList](empty)
+  def newBuilder: DBListBuilder[DBList] = new DBListBuilder[DBList](empty)
 }
 
-class BSONListBuilder[T <: BSONList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) {
+class DBListBuilder[T <: DBList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) {
   def +=(elem: Any) = {
     elems += elem
     this
