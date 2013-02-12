@@ -18,21 +18,16 @@ package hammersmith
 package test
 
 import hammersmith._
-import hammersmith.util._
 import hammersmith.futures.RequestFutures
-import hammersmith.collection._
 import hammersmith.collection.Implicits._
-import org.specs2.time.Time._
 import hammersmith.bson.util.Logging
 import org.bson.types._
 import org.specs2.execute.Result
-import org.specs2.SpecificationWithJUnit
 import org.specs2.specification._
-import org.specs2.matcher._
 import org.junit.runner._
 import org.specs2.runner._
 import org.specs2.SpecificationWithJUnit
-import hammersmith.collection.immutable.Document
+import hammersmith.collection.mutable.Document
 
 trait HammersmithDefaultDBNames {
   val integrationTestDBName = "hammersmithIntegration"

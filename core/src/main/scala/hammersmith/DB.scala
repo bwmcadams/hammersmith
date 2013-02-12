@@ -26,7 +26,7 @@ import java.io.{ IOException, ByteArrayOutputStream }
 import java.security.MessageDigest
 import hammersmith.wire.{ InsertMessage, QueryMessage }
 import hammersmith.collection.{BSONDocument, BSONList}
-import hammersmith.collection.mutable.{OrderedDocument, Document}
+import hammersmith.collection.immutable.{OrderedDocument, Document}
 
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
 
@@ -109,7 +109,7 @@ class DB(val name: String)(implicit val connection: MongoConnection) extends Log
   def collectionNames(callback: Seq[String] ⇒ Unit) {
     val qMsg = QueryMessage("%s.system.namespaces".format(name), 0, 0, Document.empty)
     log.debug("[%s] Querying for Collection Names with: %s", name, qMsg)
-    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor[Document]) ⇒ {
+    connection.send(qMsg, SimpleRequestFutures.find((cursor: Cursor[BSONDocument]) ⇒ {
       log.debug("Got a result from listing collections: %s", cursor)
       val b = Seq.newBuilder[String]
 

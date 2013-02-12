@@ -17,10 +17,9 @@
 package hammersmith.collection.immutable
 
 import hammersmith.collection.BSONListFactory
-import hammersmith.collection
 import hammersmith.bson.util.Logging
 
-class BSONList(protected[immutable] val underlying: scala.collection.mutable.Buffer[Any]) extends hammersmith.collection.BSONList
+class DBList protected[collection](protected[immutable] val underlying: scala.collection.mutable.Buffer[Any]) extends hammersmith.collection.BSONList
                                                                                        with scala.collection.immutable.Seq[Any] {
   def self = underlying
 
@@ -30,16 +29,21 @@ class BSONList(protected[immutable] val underlying: scala.collection.mutable.Buf
 
   def length: Int = underlying.length
 
+  /**
+   * Converts this DBList to an Immutable DBList
+   * @return an Immutable version of the current DBList
+   */
+  def toDBList: DBList = this
 
 }
 
-object BSONList extends BSONListFactory[BSONList] {
-  def empty = new BSONList(scala.collection.mutable.Buffer.empty[Any])
+object DBList extends BSONListFactory[DBList] {
+  def empty: DBList = new DBList(scala.collection.mutable.Buffer.empty[Any])
 
-  def newBuilder: BSONListBuilder[BSONList] = new BSONListBuilder[BSONList](empty)
+  def newBuilder: DBListBuilder[DBList] = new DBListBuilder[DBList](empty)
 }
 
-class BSONListBuilder[T <: BSONList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) with Logging {
+class DBListBuilder[T <: DBList](empty: T) extends hammersmith.collection.BSONListBuilder[T](empty) with Logging {
   def +=(elem: Any) = {
     // todo - a CanBuildFrom should help fix the need to attack underlying here
     elems.underlying += elem

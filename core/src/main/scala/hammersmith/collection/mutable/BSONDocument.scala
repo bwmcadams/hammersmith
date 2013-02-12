@@ -20,8 +20,15 @@ package hammersmith.collection.mutable
 import scala.collection.mutable.{MapProxy, LinkedHashMap, HashMap}
 import org.bson.{BasicBSONCallback, BSONCallback, BSONDecoder}
 import hammersmith.collection.{BSONDocumentFactory}
+import hammersmith.collection.immutable.{BSONDocument => ImmutableBSONDocument, Document => ImmutableDocument}
 
-protected[mutable] trait BSONDocument extends hammersmith.collection.BSONDocument with MapProxy[String, Any]
+trait BSONDocument extends hammersmith.collection.BSONDocument with MapProxy[String, Any] {
+  /**
+   * Convert this BSONDocument to an immutable representation
+   *
+   */
+  def toDocument: ImmutableBSONDocument = ImmutableDocument(toSeq: _*)
+}
 
 class Document extends  BSONDocument {
   protected val _map = new HashMap[String, Any]

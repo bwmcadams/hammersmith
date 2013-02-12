@@ -25,7 +25,7 @@ import org.bson.types.ObjectId
 import java.util.regex.Pattern
 import scala.util.matching.Regex
 import java.util.{ UUID, Date ⇒ JDKDate }
-import hammersmith.collection.mutable.BSONList
+import hammersmith.collection.mutable.DBList
 import scala.collection.Map
 import org.bson.BasicBSONEncoder
 import org.bson.BSONObject
@@ -78,7 +78,7 @@ abstract class BSONSerializer extends BasicBSONEncoder with Logging {
     if (handleSpecialObjects(name.getOrElse(null), o)) _buf.getPosition - start
 
     // TODO - MASSIVELY Reduce repetiveness. Original impl. was clean but buggy; factored out larger to debug -bwm 5/30/11
-    val _type = if (o.isInstanceOf[BSONList]) ARRAY else OBJECT
+    val _type = if (o.isInstanceOf[DBList]) ARRAY else OBJECT
 
     name.foreach(_put(_type, _))
 

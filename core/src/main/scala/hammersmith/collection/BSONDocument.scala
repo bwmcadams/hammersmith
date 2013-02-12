@@ -19,6 +19,7 @@ package hammersmith.collection
 
 import scala.annotation.tailrec
 import hammersmith.bson.util.Logging
+import hammersmith.collection.immutable.{BSONDocument => ImmutableBSONDocument}
 import scala.collection._
 import scala.collection.mutable.Builder
 
@@ -81,6 +82,11 @@ trait BSONDocument extends Map[String, Any] with Logging {
     }
   }
 
+  /**
+   * Convert this BSONDocument to an immutable representation
+   *
+   */
+  def toDocument: ImmutableBSONDocument
 }
 
 /**
@@ -90,7 +96,7 @@ trait BSONDocumentFactory[T <: BSONDocument] {
   def empty: T
   def newBuilder: BSONDocumentBuilder[T]
 
-  def apply[A <: String, B <: Any](elems: (A, B)*): T = (newBuilder ++= elems).result
+  def apply(elems: (String, Any)*): T = (newBuilder ++= elems).result
 
 }
 

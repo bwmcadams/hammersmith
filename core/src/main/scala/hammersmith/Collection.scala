@@ -19,9 +19,9 @@ package hammersmith
 import hammersmith.futures._
 import hammersmith.bson.util.Logging
 import hammersmith.bson._
-import hammersmith.collection.BSONDocument
+import hammersmith.collection.{BSONDocument, BSONList}
 import hammersmith.collection.Implicits._
-import hammersmith.collection.mutable.{BSONList, OrderedDocument, Document}
+import hammersmith.collection.immutable.{DBList, OrderedDocument, Document}
 
 object Collection extends Logging {
 
@@ -174,7 +174,7 @@ class Collection(val name: String)(implicit val db: DB) extends Logging {
    *
    */
   def distinct[Qry: SerializableBSONObject](key: String, query: Qry = Document.empty)(callback: Seq[Any] ⇒ Unit) {
-    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) ⇒ callback(doc.getAsOrElse[BSONList]("values", BSONList.empty))))
+    command(OrderedDocument("distinct" -> name, "key" -> key, "query" -> query))(SimpleRequestFutures.findOne((doc: Document) ⇒ callback(doc.getAsOrElse[DBList]("values", DBList.empty))))
   }
 
   /**

@@ -24,7 +24,7 @@ import scala.util.control.Exception.catching
 import scala.util.matching.Regex
 import scala.collection.immutable.Queue
 import akka.util.ByteIterator
-import hammersmith.collection.immutable.{Document, BSONList}
+import hammersmith.collection.immutable.{Document, DBList}
 
 
 /*implicit def pimpByteString(str: ByteString): BSONByteString =
@@ -176,7 +176,7 @@ trait BSONParser[T] extends Logging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseArray(field: String, values: Seq[Any]): Any = BSONList(values: _*)
+  def parseArray(field: String, values: Seq[Any]): Any = DBList(values: _*)
 
  /** 
    * Overridable method for how to handle adding a symbol entry
@@ -293,11 +293,12 @@ trait BSONType extends Logging {
     val buf = new Array[Byte](size)
     frame.getBytes(buf)
     // TODO - Catching is heavy on the profiler.. lets try to leave it out for now (though may hav runtime blowup :/)
-    /*val parse = catching(classOf[UnsupportedOperationException]).withApply { e =>
+    val parse = catching(classOf[UnsupportedOperationException]).withApply { e =>
       throw new BSONParsingException("Unable to decode UTF8 String from BSON.", e)
     } 
-    parse { */
-    new String(buf, 0, size - 1, "UTF-8") //}
+    parse {
+      new String(buf, 0, size - 1, "UTF-8")
+    }
   }
 
   def readInt(bytes: Array[Byte], endianness: ByteOrder) = {

@@ -69,7 +69,7 @@ trait Imports {
   }
 
   protected[hammersmith] def boolCmdResultCallback(callback: (Boolean) ⇒ Unit, throwOnError: Boolean = false) =
-    RequestFutures.command((result: Either[Throwable, Document]) ⇒ result match {
+    RequestFutures.command((result: Either[Throwable, BSONDocument]) ⇒ result match {
       case Right(doc) ⇒ {
         callback(boolCmdResult(doc, throwOnError))
       }

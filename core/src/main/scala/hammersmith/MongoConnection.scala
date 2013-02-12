@@ -34,7 +34,7 @@ import hammersmith.bson.util.Logging
 import hammersmith.util._
 import hammersmith.netty.NettyConnection
 import hammersmith.collection.{BSONDocument, BSONList}
-import hammersmith.collection.mutable.{OrderedDocument, Document}
+import hammersmith.collection.immutable.{DBList, OrderedDocument, Document}
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -81,7 +81,7 @@ abstract class MongoConnection extends Logging {
       log.debug("Checking Master Status... (BSON Size: %d Force? %s)", context.maxBSONObjectSize, force)
       val gotIsMaster = new AtomicBoolean(false)
       val qMsg = MongoConnection.createCommand("admin", Document("isMaster" -> 1))
-      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: Document) ⇒ {
+      MongoConnection.send(qMsg, SimpleRequestFutures.command((doc: BSONDocument) ⇒ {
         log.debug("Got a result from command: %s", doc)
         context.isMaster = doc.getAsOrElse[Boolean]("ismaster", false)
         context.maxBSONObjectSize = doc.getAsOrElse[Int]("maxBsonObjectSize", MongoMessage.DefaultMaxBSONObjectSize)
@@ -118,12 +118,14 @@ abstract class MongoConnection extends Logging {
   def database(dbName: String): DB = new DB(dbName)(this)
 
   def databaseNames(callback: Seq[String] ⇒ Unit) {
-    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: Document) ⇒ {
+    runCommand("admin", Document("listDatabases" -> 1))(SimpleRequestFutures.command((doc: BSONDocument) ⇒ {
       log.trace("Got a result from 'listDatabases' command: %s", doc)
       if (!doc.isEmpty) {
         val dbs = {
-          val lst = doc.as[BSONList]("databases")
-          lst.map { x: Any => x.asInstanceOf[Document].as[String]("name") }
+          // temporary hack until we swap out BSON deserializers
+          DBList(doc("databases").asInstanceOf[BSONDocument]).map { x: Any =>
+            x.asInstanceOf[BSONDocument].as[String]("name")
+          }
         }
         callback(dbs)
       } else {
@@ -195,7 +197,7 @@ abstract class MongoConnection extends Logging {
       builder += ("limit" -> limit)
     if (skip > 0)
       builder += ("skip" -> skip)
-    runCommand(db, builder.result)(SimpleRequestFutures.command((doc: Document) ⇒ {
+    runCommand(db, builder.result)(SimpleRequestFutures.command((doc: BSONDocument) ⇒ {
       log.trace("Got a result from 'count' command: %s", doc)
       callback(doc.getAsOrElse[Double]("n", -1.0).toInt)
     }))
@@ -228,17 +230,15 @@ abstract class MongoConnection extends Logging {
     getNew: Boolean = false,
     fields: Flds = Document.empty,
     upsert: Boolean = false)(callback: FindAndModifyRequestFuture) = {
-    val cmd = OrderedDocument("findandmodify" -> collection,
-      "query" -> query,
-      "fields" -> fields,
-      "sort" -> sort)
+    val cmdBuilder = OrderedDocument.newBuilder
+    cmdBuilder ++= Seq("findandmodify" -> collection, "query" -> query, "fields" -> fields, "sort" -> sort)
 
     //if (remove && (update.isEmpty || update.get.isEmpty) && !getNew)
     //throw new IllegalArgumentException("Cannot mix update statements or getNew param with 'REMOVE' mode.")
 
     if (remove) {
       log.debug("FindAndModify 'remove' mode.")
-      cmd += "remove" -> true
+      cmdBuilder += "remove" -> true
     } else {
       log.debug("FindAndModify 'modify' mode.  GetNew? %s Upsert? %s", getNew, upsert)
       update.foreach(_up ⇒ {
@@ -246,15 +246,17 @@ abstract class MongoConnection extends Logging {
         // If first key does not start with a $, then the object must be inserted as is and should be checked.
         // TODO - FIX AND UNCOMMENT ME
         //if (_up.filterKeys(k => k.startsWith("$")).isEmpty) checkObject(_up)
-        cmd += "update" -> _up
+        cmdBuilder += "update" -> _up
         // TODO - Make sure an error is thrown here that forces its way out.
       })
-      cmd += "new" -> getNew
-      cmd += "upsert" -> upsert
+      cmdBuilder += "new" -> getNew
+      cmdBuilder += "upsert" -> upsert
     }
 
     implicit val valM = callback.m
     implicit val valDec = new SerializableFindAndModifyResult[callback.T]()(callback.decoder, valM)
+
+    val cmd = cmdBuilder.result()
 
     runCommand(db, cmd)(SimpleRequestFutures.command((reply: FindAndModifyResult[callback.T]) ⇒ {
       log.trace("Got a result from 'findAndModify' command: %s", reply)
