@@ -124,7 +124,7 @@ trait MongoConnectionHandler extends Logging {
             // Attempt to grab the document
             reply.documents.headOption match {
               case Some(b) ⇒ {
-                val doc = SerializableImmutableDocument.decode(b) // TODO - Extractors!
+                val doc = SerializableBSONDocument.decode(b) // TODO - Extractors!
                 log.debug("Document found: %s", doc)
                 val ok = boolCmdResult(doc, false)
                 // this is how the Java driver decides to throwOnError, !ok || "err"
