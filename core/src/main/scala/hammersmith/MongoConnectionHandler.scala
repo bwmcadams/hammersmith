@@ -17,14 +17,13 @@
 
 package hammersmith
 
-import hammersmith.bson.util.Logging
 import hammersmith.collection._
 import hammersmith.collection.Implicits._
 import hammersmith.wire._
 import hammersmith.futures._
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
-import hammersmith.util.ConnectionContext
+import hammersmith.util.{Logging, ConnectionContext}
 
 /**
 * Base trait for all connections, be it direct, replica set, etc

@@ -21,13 +21,13 @@ import org.bson.io.Bits
 import hammersmith.bson.types._
 import hammersmith.collection.mutable._
 import java.util.{ UUID, Date ⇒ JDKDate }
-import hammersmith.bson.util.{ Logging }
 import scala.collection.mutable.Stack
 import org.bson.BasicBSONDecoder
 import org.bson.BSONCallback
 import org.bson.BSONException
 import org.bson.BSONObject
 import org.bson.types.ObjectId
+import hammersmith.util.Logging
 
 /**
  * Deserialization handler which is expected to turn a BSON ByteStream into

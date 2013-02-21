@@ -18,9 +18,9 @@
 package hammersmith
 package util
 
-import hammersmith.bson.util.Logging
 import scala.annotation.tailrec
 import scala.collection.Set
+import hammersmith.util.Logging
 
 /**
  * Supports breaking down the MongoDB URI Format for connections.

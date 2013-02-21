@@ -19,8 +19,8 @@ package hammersmith
 package util
 
 import scala.ref.WeakReference
-import hammersmith.bson.util.Logging
 import scala.collection.mutable.{ WeakHashMap, HashSet }
+import hammersmith.util.Logging
 
 /**
  * Based on com.twitter.util.ReferenceCountedTimer

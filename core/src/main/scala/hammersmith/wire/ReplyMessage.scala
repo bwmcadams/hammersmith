@@ -18,12 +18,12 @@
 package hammersmith
 package wire
 
-import hammersmith.bson.util.Logging
 import java.io.{ ByteArrayInputStream, InputStream }
 import org.bson._
 import hammersmith.collection._
 import bson.BSONSerializer
 import bson.DefaultBSONDeserializer
+import hammersmith.util.Logging
 
 /**
  * OP_REPLY

@@ -17,7 +17,6 @@
 
 package hammersmith.bson
 
-import hammersmith.bson.util.Logging
 import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
 import java.lang.String
 import org.bson.BSON._
@@ -30,6 +29,7 @@ import scala.collection.Map
 import org.bson.BasicBSONEncoder
 import org.bson.BSONObject
 import org.bson.BSON
+import hammersmith.util.Logging
 
 abstract class BSONSerializer extends BasicBSONEncoder with Logging {
 

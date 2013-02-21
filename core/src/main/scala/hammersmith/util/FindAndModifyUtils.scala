@@ -20,7 +20,7 @@ package util
 
 import org.bson.types.ObjectId
 import scala.annotation.tailrec
-import hammersmith.bson.util.{ Logging, ThreadLocal }
+import hammersmith.bson.util.{ ThreadLocal }
 import scala.collection.mutable._
 import hammersmith.collection._
 import hammersmith.futures._

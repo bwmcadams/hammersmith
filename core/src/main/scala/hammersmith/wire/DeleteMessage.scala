@@ -20,9 +20,9 @@ package wire
 
 import org.bson._
 import hammersmith.collection._
-import hammersmith.bson.util.Logging
 import bson.BSONSerializer
 import bson.SerializableBSONObject
+import hammersmith.util.Logging
 
 /**
  * OP_DELETE Message

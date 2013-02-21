@@ -17,6 +17,6 @@
 
 package hammersmith
 
-class MongoException(msg: String, inner: Option[Throwable] = None, code: Int = -3) extends RuntimeException {
+class MongoException(msg: String, inner: Option[Throwable] = None, code: Int = -3) extends RuntimeException(msg, inner.getOrElse(null)) {
   override def toString = "MongoException(%d, '%s') { %s }".format(code, msg, inner)
 }

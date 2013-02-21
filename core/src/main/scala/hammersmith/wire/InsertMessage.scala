@@ -17,10 +17,10 @@
 package hammersmith
 package wire
 
-import hammersmith.bson.util.Logging
 import scala.collection.mutable.Queue
 import bson.BSONSerializer
 import bson.SerializableBSONObject
+import hammersmith.util.Logging
 
 /**
  * OP_INSERT Message

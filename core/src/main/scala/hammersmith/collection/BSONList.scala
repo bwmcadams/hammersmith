@@ -17,10 +17,10 @@
 
 package hammersmith.collection
 
-import hammersmith.bson.util.Logging
 import scala.collection.mutable.Builder
 import hammersmith.collection.immutable.{DBList => ImmutableDBList}
 import hammersmith.collection.immutable.Document
+import hammersmith.util.Logging
 
 trait BSONList extends Seq[Any]  with Logging {
 

@@ -16,12 +16,12 @@
  */
 package hammersmith.bson
 
-import hammersmith.bson.util.Logging
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.nio.ByteBuffer
 import java.net.NetworkInterface
 import math.BigDecimal.long2bigDecimal
+import hammersmith.util.Logging
 
 /**
  * Globally unique ID for Objects, typically used as a primary key.

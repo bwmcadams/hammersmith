@@ -20,9 +20,9 @@ package hammersmith.collection
 import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
 import java.io.InputStream
-import hammersmith.bson.util.Logging
 import hammersmith.bson.util.ThreadLocal
 import hammersmith.bson.{SerializableBSONObject, DefaultBSONDeserializer, DefaultBSONSerializer}
+import hammersmith.util.Logging
 
 trait Imports extends Logging {
   // TODO - do we still need this, migrating into the Casbah code? -bwm feb-3-13

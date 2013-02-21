@@ -30,15 +30,12 @@ import java.net.InetSocketAddress
 import java.io.OutputStream
 import java.nio.ByteOrder
 import org.jboss.netty.buffer.{ChannelBufferOutputStream, ChannelBuffers}
-import hammersmith.bson.util.Logging
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel._
 import org.jboss.netty.buffer._
 
 
 class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
-
-  type E = Executor
 
   log.info("Initializing Netty-based MongoDB connection on address '%s'", addr)
 
@@ -57,11 +54,10 @@ class NettyConnection(val addr: InetSocketAddress) extends MongoConnection {
 
     val handler = new NettyConnectionHandler(bootstrap)
 
-    log.trace("Event Loop: " + eventLoop + " empty? " + eventLoop.isEmpty + " getOrElse? " + eventLoop.getOrElse(defaultEventLoop))
-    
+
     bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
       private val appCallbackExecutionHandler =
-        new ExecutionHandler(eventLoop.getOrElse(defaultEventLoop))
+        new ExecutionHandler(defaultEventLoop)
 
       def getPipeline = {
         val p = Channels.pipeline(new ReplyMessageDecoder(),

@@ -1,11 +1,11 @@
 package hammersmith.test
 
-import hammersmith.bson.util.Logging
 import akka.util.ByteString
 import hammersmith.collection.immutable.Document
 import hammersmith.bson.DefaultBSONParser
 import org.bson.{BasicBSONDecoder, NewBSONDecoder}
 import java.util.regex.Pattern
+import hammersmith.util.Logging
 
 object BSONPerformanceTest extends App with Logging {
 

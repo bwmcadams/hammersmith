@@ -16,12 +16,11 @@
  */
 package hammersmith
 
-import hammersmith.bson.util.Logging
 import hammersmith.bson._
 import hammersmith.collection._
 import hammersmith.wire.{ GetMoreMessage, ReplyMessage }
 import hammersmith.futures.RequestFutures
-import hammersmith.util.{ConnectionContext, ConcurrentQueue, CountdownLatch}
+import hammersmith.util.{Logging, ConnectionContext, ConcurrentQueue, CountdownLatch}
 import scala.annotation.tailrec
 
 object Cursor extends Logging {

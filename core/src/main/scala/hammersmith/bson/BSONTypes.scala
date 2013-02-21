@@ -17,7 +17,6 @@
 package hammersmith.bson
 
 
-import hammersmith.bson.util.Logging
 import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
@@ -25,6 +24,7 @@ import scala.util.matching.Regex
 import scala.collection.immutable.Queue
 import akka.util.ByteIterator
 import hammersmith.collection.immutable.{Document, DBList}
+import hammersmith.util.Logging
 
 
 /*implicit def pimpByteString(str: ByteString): BSONByteString =
@@ -58,7 +58,7 @@ trait BSONParser[T] extends Logging {
   @tailrec
   protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
-    val _entries: Queue[(String, Any)] =  frame match {
+    val _entries: Queue[(String, Any)] = frame match {
       case BSONEndOfObjectType(eoo) =>
         log.trace("Got a BSON End of Object")
         entries

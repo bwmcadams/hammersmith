@@ -28,13 +28,13 @@ import hammersmith.futures._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{ ConcurrentHashMap, Executors, SynchronousQueue, ThreadPoolExecutor, TimeUnit }
 import scala.collection.mutable.{ ConcurrentMap, WeakHashMap }
-import hammersmith.util.{ ConcurrentQueue, CursorCleaningTimer }
-import org.bson.types.ObjectId
-import hammersmith.bson.util.Logging
 import hammersmith.util._
+import org.bson.types.ObjectId
 import hammersmith.netty.NettyConnection
 import hammersmith.collection.{BSONDocument, BSONList}
 import hammersmith.collection.immutable.{DBList, OrderedDocument, Document}
+import scala.Some
+import hammersmith.WriteResult
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -46,7 +46,6 @@ import hammersmith.collection.immutable.{DBList, OrderedDocument, Document}
  * @since 0.1
  */
 abstract class MongoConnection extends Logging {
-  type E
 
   MongoConnection.cleaningTimer.acquire(this)
   
@@ -54,7 +53,6 @@ abstract class MongoConnection extends Logging {
 
   def initialize: ConnectionContext
 
-  def eventLoop: Option[E] = None
 
   // Default, run at object init.
   def connect {
@@ -62,7 +60,6 @@ abstract class MongoConnection extends Logging {
     checkMaster(true, true)
   }
   
-  def defaultEventLoop: E
 
   protected implicit def context = initialize
 
@@ -391,6 +388,11 @@ abstract class MongoConnection extends Logging {
  *
  * NOTE: Connection instances are instances of a *POOL*, always.
  *
+ *
+ * TODO - We are maintaining a global state inside here and it MUST go away.
+ * Create a MongoConnectionManager instance which provides what you need and allows multiple instances,
+ * wrapping an ActorSystem
+ *
  * @since 0.1
  */
 object MongoConnection extends Logging {
@@ -466,8 +468,16 @@ object MongoConnection extends Logging {
     }
   }
 
+  // TODO - This is global state, which is bad. Have an overall manager tied to ActorSystem, fuckwit.
+  def getConnectionState(context: ConnectionContext): Boolean = connectionState.get(context) match {
+    case Some(b) => b.get()
+    case None =>
+      // TODO - GET RID OF GLOBAL FUCKING STATE
+      throw new IllegalStateException("This ConnectionContext isn't registered w/ the state monitor.")
+  }
+
   /** TODO - Support timing out of ops */
-  def setConnectionState(context: ConnectionContext, connected: Boolean) = {
+  def setConnectionState(context: ConnectionContext, connected: Boolean) {
     log.info("Setting a context state up to '%s' for '%s'", connected, context)
     val oldState = connectionState.getOrElseUpdate(context, new AtomicBoolean(false)).getAndSet(connected)
     if (oldState) connected match {

@@ -18,10 +18,10 @@
 package hammersmith.collection
 
 import scala.annotation.tailrec
-import hammersmith.bson.util.Logging
 import hammersmith.collection.immutable.{BSONDocument => ImmutableBSONDocument}
 import scala.collection._
 import scala.collection.mutable.Builder
+import hammersmith.util.Logging
 
 
 trait BSONDocument extends Map[String, Any] with Logging {

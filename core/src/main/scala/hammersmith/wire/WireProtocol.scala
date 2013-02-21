@@ -18,13 +18,13 @@
 package hammersmith
 package wire
 
-import hammersmith.bson.util.Logging
 import java.util.concurrent.atomic.AtomicInteger
 import org.bson._
 import java.io._
 import org.bson.io.{ OutputBuffer, PoolOutputBuffer }
 import bson.BSONSerializer
 import bson.DefaultBSONSerializer
+import hammersmith.util.Logging
 
 
 /**

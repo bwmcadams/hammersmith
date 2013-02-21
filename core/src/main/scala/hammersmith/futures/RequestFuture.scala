@@ -20,8 +20,8 @@ package futures
 
 import hammersmith.util._
 
-import hammersmith.bson.util.Logging
 import hammersmith.bson.SerializableBSONObject
+import hammersmith.WriteResult
 
 sealed trait RequestFuture {
   type T
