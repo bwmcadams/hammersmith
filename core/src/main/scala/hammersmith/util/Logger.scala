@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  */
-package hammersmith.bson
-package util
+package hammersmith.util
 
 import org.slf4j.{ Logger ⇒ SLFLogger, LoggerFactory ⇒ SLFLoggerFactory }
 

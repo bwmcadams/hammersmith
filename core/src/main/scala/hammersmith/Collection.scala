@@ -17,11 +17,11 @@
 package hammersmith
 
 import hammersmith.futures._
-import hammersmith.bson.util.Logging
 import hammersmith.bson._
 import hammersmith.collection.{BSONDocument, BSONList}
 import hammersmith.collection.Implicits._
 import hammersmith.collection.immutable.{DBList, OrderedDocument, Document}
+import hammersmith.util.Logging
 
 object Collection extends Logging {
 

@@ -22,12 +22,13 @@ import hammersmith.util._
 import hammersmith.futures.RequestFutures
 import hammersmith.collection._
 import org.specs2.time.Time._
-import hammersmith.bson.util.Logging
 import org.bson.types._
 import org.specs2.execute.Result
 import org.specs2.Specification
 import org.specs2.specification._
 import org.specs2.matcher._
+import hammersmith.util.MongoOptions
+import scala.Some
 
 class MongoURISpec extends Specification with ThrownExpectations with Logging {
   def is =

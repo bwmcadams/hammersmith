@@ -23,13 +23,13 @@ import hammersmith._
 import hammersmith.futures.RequestFutures
 import hammersmith.collection.Implicits._
 import org.specs2.time.Time._
-import hammersmith.bson.util.Logging
 import org.bson.types._
 import org.specs2.execute.Result
 import org.specs2.Specification
 import org.specs2.specification._
 import org.specs2.matcher._
 import hammersmith.collection.mutable.Document
+import hammersmith.util.Logging
 
 class ConcurrencyTestingSpec extends Specification
     with Logging

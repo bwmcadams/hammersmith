@@ -17,7 +17,6 @@
 
 package hammersmith
 
-import hammersmith.bson.util.Logging
 import hammersmith.bson._
 import hammersmith.collection._
 import hammersmith.collection.Implicits._
@@ -27,6 +26,7 @@ import java.security.MessageDigest
 import hammersmith.wire.{ InsertMessage, QueryMessage }
 import hammersmith.collection.{BSONDocument, BSONList}
 import hammersmith.collection.immutable.{OrderedDocument, Document}
+import hammersmith.util.Logging
 
 class DB(val name: String)(implicit val connection: MongoConnection) extends Logging {
 

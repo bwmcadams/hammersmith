@@ -18,11 +18,11 @@
 package hammersmith
 package wire
 
-import hammersmith.bson.util.Logging
 import hammersmith.collection._
 import hammersmith.collection.Implicits._
 import hammersmith.collection.mutable.Document
 import hammersmith.bson.BSONSerializer
+import hammersmith.util.Logging
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,

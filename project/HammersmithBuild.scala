@@ -46,7 +46,7 @@ object HammersmithBuild extends Build {
 
   lazy val defaultSettings = baseSettings ++ Seq(
     libraryDependencies ++= Seq(commonsPool, netty, slf4j, akkaActors, specs2, junit),
-    resolvers ++= Seq(sonaReleases, jbossRepo, twttrRepo, typesafeRepo),
+    resolvers ++= Seq(sonaReleases, jbossRepo, akkaSnapshots, typesafeRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
     testFrameworks += TestFrameworks.Specs2
@@ -100,8 +100,9 @@ object Dependencies {
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
 
-  // Akka
-  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.1.0"
+  // Akka 
+  // todo - possiby pin to a specific version
+  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.2-M1"
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
@@ -115,7 +116,7 @@ object Dependencies {
 object Resolvers {
 
   val typesafeRepo = "Typesafe Repository" at "http://repo.typesafe.com/typesafe/snapshots/"
+  val akkaSnapshots = "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/"
   val sonaReleases = "sonatype releases" at "https://oss.sonatype.org/content/repositories/releases"
   val jbossRepo = "JBoss Public Repo" at "https://repository.jboss.org/nexus/content/groups/public-jboss/"
-  val twttrRepo = "Twitter Public Repo" at "http://maven.twttr.com"
 }

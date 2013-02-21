@@ -19,13 +19,13 @@ package hammersmith
 package netty
 
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder
-import hammersmith.bson.util.Logging
 import org.jboss.netty.buffer.ChannelBuffer
 import org.jboss.netty.channel.ChannelHandlerContext
 import org.jboss.netty.channel.Channel
 import org.jboss.netty.buffer.ChannelBufferInputStream
 import hammersmith.wire.MongoMessage
 import hammersmith.wire.ReplyMessage
+import hammersmith.util.Logging
 
 /**
  * Decoder capable of safely decoding fragmented frames from BSON

@@ -18,7 +18,7 @@ package hammersmith
 package wire
 
 import hammersmith.bson.BSONSerializer
-import hammersmith.bson.util.Logging
+import hammersmith.util.Logging
 
 /**
  * OP_GET_MORE Message

@@ -17,7 +17,7 @@
 package hammersmith.collection.immutable
 
 import hammersmith.collection.BSONListFactory
-import hammersmith.bson.util.Logging
+import hammersmith.util.Logging
 
 class DBList protected[collection](protected[immutable] val underlying: scala.collection.mutable.Buffer[Any]) extends hammersmith.collection.BSONList
                                                                                        with scala.collection.immutable.Seq[Any] {

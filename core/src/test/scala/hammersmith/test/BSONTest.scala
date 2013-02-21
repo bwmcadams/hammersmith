@@ -32,8 +32,8 @@ import akka.util.ByteString
 import bson.BSONMinKey
 import bson.BSONMaxKey
 import hammersmith.collection.immutable.Document
-import hammersmith.bson.util.Logging
 import org.bson.{BasicBSONDecoder, BSONDecoder, NewBSONDecoder}
+import hammersmith.util.Logging
 
 @RunWith(classOf[JUnitRunner])
 class BSONTest extends Specification with Logging {

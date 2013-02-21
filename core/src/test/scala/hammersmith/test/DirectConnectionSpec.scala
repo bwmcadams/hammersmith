@@ -20,7 +20,6 @@ package test
 import hammersmith._
 import hammersmith.futures.RequestFutures
 import hammersmith.collection.Implicits._
-import hammersmith.bson.util.Logging
 import org.bson.types._
 import org.specs2.execute.Result
 import org.specs2.specification._
@@ -28,6 +27,7 @@ import org.junit.runner._
 import org.specs2.runner._
 import org.specs2.SpecificationWithJUnit
 import hammersmith.collection.mutable.Document
+import hammersmith.util.Logging
 
 trait HammersmithDefaultDBNames {
   val integrationTestDBName = "hammersmithIntegration"
