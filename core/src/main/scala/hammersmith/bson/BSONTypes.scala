@@ -40,12 +40,21 @@ class BSONParsingException(message: String, t: Throwable = null) extends Excepti
 trait BSONParser[T] extends Logging {
   implicit val thisParser = this
 
+  private def hexDump(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
+
   /** The "core" parse routine; should break down your BSON into T */
   def unapply(frame: ByteIterator): T = {
     // Extract the BSON doc
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
-    val data = frame.clone().take(len)
-    log.debug(s"Parsing a BSON doc of $len bytes")
+    val sz = frame.len
+    log.debug(s"Frame Size: $sz Doc Size: $len")
+    /* for the life of me i can't remember why i'm cloning
+     * but i suspect it's bad as it doesn't let us move forward on the stream.
+     * Clone outside here for stuff.
+     */
+    val data = frame.clone().take(len - 4)
+    frame.drop(len - 4) // advance the iterator for other blocks
+    log.debug(s"Parsing a BSON doc of $len bytes, with a data block of " + data.len)
     parseRootObject(parse(data))
   }
 

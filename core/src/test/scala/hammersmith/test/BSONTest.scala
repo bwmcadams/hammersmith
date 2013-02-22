@@ -34,6 +34,7 @@ import bson.BSONMaxKey
 import hammersmith.collection.immutable.Document
 import org.bson.{BasicBSONDecoder, BSONDecoder, NewBSONDecoder}
 import hammersmith.util.Logging
+import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[JUnitRunner])
 class BSONTest extends Specification with Logging {
@@ -69,12 +70,14 @@ class BSONTest extends Specification with Logging {
       "array" ! hasArray ^
       "binary" ! hasBytes ^
       "uuid" ! hasUUID ^
-      endp ^ /*
+      endp ^
+      "Parsing of a list of documents" ! testMultiParse
+
+      /*
       "Perform somewhat sanely" ^
         "Scala Parser Performs" ! scalaParserPerfTest ^
         "'New' Java Parser Performs" ! newJavaParserPerfTest ^
         "'Old' Java Parser Performs" ! oldJavaParserPerfTest ^*/
-    end
 
 
   def testBasicParse = {
@@ -235,4 +238,86 @@ class BSONTest extends Specification with Logging {
   private val newJavaParser = new NewBSONDecoder()
 
   private val oldJavaParser = new BasicBSONDecoder()
+
+  def testMultiParse = {
+    import scala.util.Random
+    val rand = new Random()
+
+    implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
+
+    val frameBuilder = ByteString.newBuilder
+
+    val encoder = new org.bson.BasicBSONEncoder
+
+    val b1 = com.mongodb.BasicDBObjectBuilder.start()
+    b1.add("document", 1)
+    b1.add("foo", "bar")
+    b1.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
+    b1.add("y", rand.nextLong)
+    val doc1 = b1.get()
+    val enc1 = encoder.encode(doc1)
+    //System.err.println("ENCODED #1: " + Hex.valueOf(enc1))
+    frameBuilder.putBytes(enc1)
+
+    val b2 = com.mongodb.BasicDBObjectBuilder.start()
+    b2.add("document", 2)
+    b2.add("foo", "bar")
+    b2.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
+    b2.add("y", rand.nextLong)
+    val doc2 = b2.get()
+    val enc2 = encoder.encode(doc2)
+    //System.err.println("ENCODED #2: " + Hex.valueOf(enc2))
+    frameBuilder.putBytes(enc2)
+
+    val b3 = com.mongodb.BasicDBObjectBuilder.start()
+    b3.add("document", 3)
+    b3.add("foo", "bar")
+    b3.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
+    b3.add("y", rand.nextLong)
+    val doc3 = b3.get()
+    val enc3 = encoder.encode(doc3)
+    //System.err.println("ENCODED #3: " + Hex.valueOf(enc3))
+    frameBuilder.putBytes(enc3)
+
+    val b4 = com.mongodb.BasicDBObjectBuilder.start()
+    b4.add("document", 4)
+    b4.add("foo", "bar")
+    b4.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
+    b4.add("y", rand.nextLong)
+    val doc4 = b4.get()
+    val enc4 = encoder.encode(doc4)
+    //System.err.println("ENCODED #4: " + Hex.valueOf(enc4))
+    frameBuilder.putBytes(enc4)
+
+    val b5 = com.mongodb.BasicDBObjectBuilder.start()
+    b5.add("document", 5)
+    b5.add("foo", "bar")
+    b5.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
+    b5.add("y", rand.nextLong)
+    val doc5 = b5.get()
+    val enc5 = encoder.encode(doc5)
+    //System.err.println("ENCODED #5: " + Hex.valueOf(enc5))
+    frameBuilder.putBytes(enc5)
+
+    val frame = frameBuilder.result()
+
+    val decoded = ArrayBuffer.empty[Document]
+    val iter = frame.iterator
+    //System.err.println(Hex.valueOf(iter.clone().toArray))
+    while (iter.hasNext) {
+      val dec = DefaultBSONParser.unapply(iter)
+      System.err.println("Decoded: " + dec)
+      decoded += dec
+      //System.err.println("Post Decode: " + iter + " Has " + iter.len + " Bytes left...")
+      //System.err.println(Hex.valueOf(iter.clone().toArray))
+    }
+
+    decoded must haveSize(5)
+  }
+  object Hex {
+
+    def valueOf(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
+
+
+  }
 }
