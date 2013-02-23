@@ -22,9 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.bson._
 import java.io._
 import org.bson.io.{ OutputBuffer, PoolOutputBuffer }
-import bson.BSONSerializer
-import bson.DefaultBSONSerializer
+import hammersmith.bson.{DefaultBSONParser, BSONSerializer, DefaultBSONSerializer}
 import hammersmith.util.Logging
+import akka.util.{ByteIterator, ByteString}
 
 
 /**
@@ -55,13 +55,12 @@ object OpCode extends Enumeration {
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-StandardMessageHeader
  */
-trait MessageHeader {
+case class MessageHeader(
   /**
    * Total message size, in bytes
    * including the 4 bytes to hold this length
    */
-  val messageLength: Int
-
+  messageLength: Int,
   /**
    * The client or DB generated identifier which uniquely
    * identifies this message.
@@ -71,24 +70,25 @@ trait MessageHeader {
    *
    * This should be used to associate responses w/ originating queries.
    */
-  val requestID: Int
-
+  requestID: Int,
   /**
    * For reply messages from the database, this contains the
    * requestId value from the original OpQuery/OpGetMore messages.
    *
    * It should be used to associate responses with the originating query.
    */
-  val responseTo: Int
-
+  responseTo: Int,
   /**
    * Request Type
    * @see OpCode
    */
-  val opCode: Int
-}
+  opCode: Int
+)
 
 object MongoMessage extends Logging {
+
+  implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
+
   val ID = new AtomicInteger(1)
 
   /**
@@ -117,6 +117,68 @@ object MongoMessage extends Logging {
    *
    * For the moment can only decode Reply messages
    * longterm we'll support all messages for testing purposes.
+   *
+   */
+  def apply(header: ByteIterator, frame: ByteIterator): MongoMessage = {
+    log.debug("Attempting to extract a coherent MongoDB Message")
+
+
+    val msgHeader = MessageHeader(
+      messageLength = header.getInt,
+      requestID = header.getInt,
+      responseTo = header.getInt,
+      opCode = header.getInt
+    )
+
+    log.debug(s"Message Header decoded '$msgHeader'")
+
+
+    OpCode(msgHeader.opCode) match {
+      case OpCode.OpReply ⇒ {
+        log.debug("[Incoming Message] OpCode is 'OP_REPLY'")
+        ReplyMessage(msgHeader, frame)
+      }
+      case OpCode.OpMsg ⇒ {
+        log.warn("[Incoming Message] Deprecated message type 'OP_MSG' received.")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpUpdate ⇒ {
+        log.debug("[Incoming Message] OpCode is 'OP_UPDATE'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpInsert ⇒ {
+        log.debug("[Incoming Message] OpCode is 'OP_INSERT'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpGetMore ⇒ {
+        log.debug("[Incoming Message] OpCode is 'OP_GET_MORE'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpDelete ⇒ {
+        log.debug("[Incoming Message] OpCode is 'OP_DELETE'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case OpCode.OpKillCursors ⇒ {
+        log.debug("[Incoming Message] OpCode is 'OP_KILL_CURSORS'")
+        throw new UnsupportedOperationException("Unsupported operation type for reads.")
+      }
+      case unknown ⇒ {
+        log.error("Unknown Message OpCode '%d'", unknown)
+        throw new UnsupportedOperationException("Invalid Message Type with OpCode '%d'".format(unknown))
+      }
+    }
+  }
+
+  /**
+   * Extractor method for incoming streams of
+   * MongoDB data.
+   *
+   * Attempts to decode them into a coherent message.
+   *
+   * For the moment can only decode Reply messages
+   * longterm we'll support all messages for testing purposes.
+   *
+   * @deprecated This is the old methods for Netty.
    */
   def unapply(in: InputStream): MongoMessage = {
     import org.bson.io.Bits._
@@ -127,17 +189,12 @@ object MongoMessage extends Logging {
     val rawHdr = new ByteArrayInputStream(b)
     log.trace("Message Header: %s", rawHdr.toString)
 
-    val header = new MessageHeader {
-      val messageLength: Int = readInt(rawHdr)
-      log.trace("Message Length: %d", messageLength)
-      // TODO - Validate message length
-      val requestID = readInt(rawHdr)
-      log.trace("Message ID: %d", requestID)
-      val responseTo = readInt(rawHdr)
-      log.trace("Message Response To (ID): %d", responseTo)
-      val opCode = readInt(rawHdr)
-      log.trace("Operation Code: %d", opCode)
-    }
+    val header = MessageHeader(
+      messageLength = readInt(rawHdr),
+      requestID = readInt(rawHdr),
+      responseTo = readInt(rawHdr),
+      opCode = readInt(rawHdr)
+    )
 
     OpCode(header.opCode) match {
       case OpCode.OpReply ⇒ {

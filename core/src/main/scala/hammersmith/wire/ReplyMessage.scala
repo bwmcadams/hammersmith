@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,12 +18,12 @@
 package hammersmith
 package wire
 
-import java.io.{ ByteArrayInputStream, InputStream }
+import java.io.{ByteArrayInputStream, InputStream}
 import org.bson._
-import hammersmith.collection._
-import bson.BSONSerializer
-import bson.DefaultBSONDeserializer
+import hammersmith.collection.immutable.Document
+import hammersmith.bson.{DefaultBSONParser, BSONSerializer, DefaultBSONDeserializer}
 import hammersmith.util.Logging
+import akka.util.{ByteIterator, ByteString}
 
 /**
  * OP_REPLY
@@ -34,28 +34,61 @@ import hammersmith.util.Logging
  * TODO - Come back to this.  We need to figure out how to lay down the 'implicit' deserializer on decode.
  *
  */
-abstract class ReplyMessage extends MongoServerMessage {
-  //val header: MessageHeader // Standard message header
+class ReplyMessage(val header: MessageHeader,
+                   val flags: Int, // bit vector of reply flags, available in ReplyFlag
+                   val cursorID: Long, // cursorID, for client to do getMores
+                   val startingFrom: Int, // Where in the cursor this reply starts at
+                   val numReturned: Int, // Number of documents in the reply.
+                   val documents: Stream[Document] // Sequence of documents TODO Definable T
+                   ) extends MongoServerMessage {
   val opCode = OpCode.OpReply
-  val header: MessageHeader
 
-  val flags: Int // bit vector of reply flags, available in ReplyFlag
   def cursorNotFound = (flags & ReplyFlag.CursorNotFound.id) > 0
+
   def queryFailure = (flags & ReplyFlag.QueryFailure.id) > 0
+
   def awaitCapable = (flags & ReplyFlag.AwaitCapable.id) > 0
-  val cursorID: Long // cursorID, for client to do getMores
-  val startingFrom: Int // Where in the cursor this reply starts at
-  val numReturned: Int // Number of documents in the reply.
-  val documents: Seq[Array[Byte]] // Sequence of documents
 
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) =
     throw new UnsupportedOperationException("This message is not capable of being written. "
       + "Replies come only from the server.")
 
+  /*
+   * And here comes the hairy part.  Ideally, we want to completely amortize the
+   * decoding of these docs.  It makes *zero* sense to me to wait for a whole
+   * block of documents to decode from BSON before I can begin iteration.
+   */
+  assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
+    "Wanted: %d Got: %d".format(numReturned, documents.length))
+  log.trace("Parsed Out '%d' Documents", documents.length)
+
+  override def toString = "ReplyMessage { " +
+    "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs: %d } ".
+      format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents.length)
+
 }
 
 object ReplyMessage extends Logging {
 
+
+  implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
+
+  def apply(_hdr: MessageHeader, frame: ByteIterator) = {
+    // TODO - Make it possible to dynamically set a decoder.
+    // _hdr is the generic 'every protocol message has it' header; another 20 bytes of reply header data
+    val b = frame.clone().take(20)
+    frame.drop(20)
+
+    log.trace("Offset data for rest of reply read: %s", b)
+    val flags = b.getInt
+    val cursorID = b.getLong
+    val startingFrom = b.getInt
+    val numReturned = b.getInt
+    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned,
+                    documents = DefaultBSONParser.asStream(numReturned, frame))
+  }
+
+  /** @deprecated this is the old netty era decoder. */
   def apply(_hdr: MessageHeader, in: InputStream) = {
     import org.bson.io.Bits._
     // TODO - Make it possible to dynamically set a decoder.
@@ -68,47 +101,44 @@ object ReplyMessage extends Logging {
     readFully(in, b)
     val bin = new ByteArrayInputStream(b)
     log.trace("Offset data for rest of reply read: %s", bin)
-    new ReplyMessage {
-      val header = _hdr
-      val flags = readInt(bin)
-      log.trace("[Reply] Flags: %d", flags)
-      val cursorID = readLong(bin)
-      log.debug("[Reply] Cursor ID: %d", cursorID)
-      val startingFrom = readInt(bin)
-      log.trace("[Reply] Starting From: %d", startingFrom)
-      val numReturned = readInt(bin)
-      log.debug("[Reply (%s)] Number of Documents Returned: %d", header.responseTo, numReturned)
-      /*
-       * And here comes the hairy part.  Ideally, we want to completely amortize the
-       * decoding of these docs.  It makes *zero* sense to me to wait for a whole
-       * block of documents to decode from BSON before I can begin iteration.
-       */
-      import org.bson.io.Bits
-      def _dec() = {
-        val l = Array.ofDim[Byte](4)
-        in.read(l)
-        val len = Bits.readInt(l)
-        log.debug("Decoding object, length: %d", len)
-        val b = Array.ofDim[Byte](len)
-        in.read(b, 4, len - 4)
-        // copy length to the full array
-        Array.copy(l, 0, b, 0, 4)
-        log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(b))
-        b
-      }
 
-      val documents = for (i ← 0 until numReturned) yield _dec
-
-      assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
-        "Wanted: %d Got: %d".format(numReturned, documents.length))
-      log.trace("Parsed Out '%d' Documents", documents.length)
-
-      override def toString = "ReplyMessage { " +
-        "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs: %d } ".
-        format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents.length)
+    val flags = readInt(bin)
+    val cursorID = readLong(bin)
+    val startingFrom = readInt(bin)
+    val numReturned = readInt(bin)
+    /*
+     * And here comes the hairy part.  Ideally, we want to completely amortize the
+     * decoding of these docs.  It makes *zero* sense to me to wait for a whole
+     *  block of documents to decode from BSON before I can begin iteration.
+     **/
+    import org.bson.io.Bits
+    def _dec() = {
+      val l = Array.ofDim[Byte](4)
+      in.read(l)
+      val len = Bits.readInt(l)
+      log.debug("Decoding object, length: %d", len)
+      val b = Array.ofDim[Byte](len)
+      in.read(b, 4, len - 4)
+      // copy length to the full array
+      Array.copy(l, 0, b, 0, 4)
+      log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(b))
+      DefaultBSONParser.apply(ByteString(b).iterator)
     }
-  }
 
+    val documents = for (i ← (0 until numReturned).toStream) yield _dec
+
+    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, documents)
+  }
+}
+
+class ReplyDocuments(numReturned: Int, docStream: ByteIterator) extends Stream[Document] {
+  override def isEmpty = numReturned <= 0
+
+  override def head = throw new NoSuchElementException("head of empty stream")
+
+  override def tail = throw new UnsupportedOperationException("tail of empty stream")
+
+  def tailDefined = false
 }
 
 object ReplyFlag extends Enumeration {

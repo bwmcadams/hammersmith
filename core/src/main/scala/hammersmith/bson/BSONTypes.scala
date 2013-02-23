@@ -45,7 +45,6 @@ trait BSONParser[T] extends Logging {
 
   private def hexDump(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
 
-
   /**
    * A "Core" parse routine when you expect your input contains multiple
    * documents, such as the documents* block of a protocol ReplyMessage.
@@ -55,10 +54,10 @@ trait BSONParser[T] extends Logging {
    *
    * In any case where you get documents*, you should also know the count.
    */
-  def asStream(count: Int, frame: ByteIterator) = for (i <- (0 until count).toStream) yield unapply(frame)
+  def asStream(count: Int, frame: ByteIterator) = for (i <- (0 until count).toStream) yield apply(frame)
 
   /** The "core" parse routine; should break down your BSON into T */
-  def unapply(frame: ByteIterator): T = {
+  def apply(frame: ByteIterator): T = {
     // Extract the BSON doc
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
     val sz = frame.len
@@ -72,6 +71,7 @@ trait BSONParser[T] extends Logging {
     log.debug(s"Parsing a BSON doc of $len bytes, with a data block of " + data.len)
     parseRootObject(parse(data))
   }
+
 
   /** Parses a sequence of entries into a Root object, which must be of type T
    * Separated from parseDocument to allow for discreet subdocument types (which may backfire on me)

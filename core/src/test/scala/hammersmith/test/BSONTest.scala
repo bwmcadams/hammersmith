@@ -310,7 +310,7 @@ class BSONTest extends Specification with Logging {
     val iter = frame.iterator
     //System.err.println(Hex.valueOf(iter.clone().toArray))
     while (iter.hasNext) {
-      val dec = DefaultBSONParser.unapply(iter)
+      val dec = DefaultBSONParser(iter)
       System.err.println("Decoded: " + dec)
       decoded += dec
       //System.err.println("Post Decode: " + iter + " Has " + iter.len + " Bytes left...")

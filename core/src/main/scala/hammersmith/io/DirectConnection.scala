@@ -94,8 +94,9 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       val msg = for {
         lenBytes <- IO take(4) // 4 bytes, if aligned will be int32 length of following doc.
         len = lenBytes.iterator.getInt
-        frame <- IO take(len - 4) // header includes itself with BSON, so don't overflow.
-      } yield frame
+        header <- IO take (16)
+        frame <- IO take(len - 16 - 4) // length of total doc includes itself with BSON, so don't overflow.
+      } yield MongoMessage(header.iterator, frame.iterator)
       log.info("Mongo Message: " + msg)
     case write: MongoClientMessage => connection match {
       case None =>
