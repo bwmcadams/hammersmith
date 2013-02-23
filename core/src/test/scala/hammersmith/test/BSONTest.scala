@@ -38,6 +38,8 @@ import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[JUnitRunner])
 class BSONTest extends Specification with Logging {
+  sequential
+
   def is =
 
     "This is a specification to test the functionality of BSON" ^
@@ -71,7 +73,8 @@ class BSONTest extends Specification with Logging {
       "binary" ! hasBytes ^
       "uuid" ! hasUUID ^
       endp ^
-      "Parsing of a list of documents" ! testMultiParse
+      "Parsing of a list of documents" ! testMultiParse ^
+      "Parsing a list of docs as a stream"  ! testMultiParseStream
 
       /*
       "Perform somewhat sanely" ^
@@ -239,9 +242,8 @@ class BSONTest extends Specification with Logging {
 
   private val oldJavaParser = new BasicBSONDecoder()
 
-  def testMultiParse = {
-    import scala.util.Random
-    val rand = new Random()
+  def multiTestDocs =  {
+    val rand = new scala.util.Random()
 
     implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
@@ -299,8 +301,11 @@ class BSONTest extends Specification with Logging {
     //System.err.println("ENCODED #5: " + Hex.valueOf(enc5))
     frameBuilder.putBytes(enc5)
 
-    val frame = frameBuilder.result()
+    frameBuilder.result()
+  }
 
+  def testMultiParse = {
+    val frame = multiTestDocs
     val decoded = ArrayBuffer.empty[Document]
     val iter = frame.iterator
     //System.err.println(Hex.valueOf(iter.clone().toArray))
@@ -314,10 +319,15 @@ class BSONTest extends Specification with Logging {
 
     decoded must haveSize(5)
   }
+
+  def testMultiParseStream = {
+    val frame = multiTestDocs
+    // validated to be deferred evaluation stream.
+    val decoded = DefaultBSONParser.asStream(5, frame.iterator)
+    decoded must haveSize(5)
+  }
+
   object Hex {
-
     def valueOf(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
-
-
   }
 }
