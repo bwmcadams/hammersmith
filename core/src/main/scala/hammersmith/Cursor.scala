@@ -150,7 +150,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
   }
 
   // TODO - Move to lazy decoding model
-  protected val docs = ConcurrentQueue(reply.documents.map(decoder.decode): _*) // ConcurrentQueue(_decoded: _*)
+  protected val docs = ConcurrentQueue(reply.documents: _*) // ConcurrentQueue(_decoded: _*)
 
   log.debug("Initializing a new cursor with cursorID: %d, startIndex: %d, docs: %s", cursorID, startIndex, docs)
 

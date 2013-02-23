@@ -140,7 +140,7 @@ object BSONPerformanceTest extends App with Logging {
 
   lazy val parsedBSON: Document = parseBSONWithScala
 
-  def parseBSONWithScala: Document = DefaultBSONParser.unapply(ByteString(javaBSON).iterator)
+  def parseBSONWithScala: Document = DefaultBSONParser(ByteString(javaBSON).iterator)
 
   // Test with the "New" Decoder which is probably the performance guideline going forward
   def parseBSONWithNewJava = {
