@@ -25,6 +25,9 @@ import scala.collection.immutable.Queue
 import akka.util.ByteIterator
 import hammersmith.collection.immutable.{Document, DBList}
 import hammersmith.util.Logging
+import scala.util.control.Exception._
+import java.util.NoSuchElementException
+import scala.NoSuchElementException
 
 
 /*implicit def pimpByteString(str: ByteString): BSONByteString =
@@ -41,6 +44,18 @@ trait BSONParser[T] extends Logging {
   implicit val thisParser = this
 
   private def hexDump(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
+
+
+  /**
+   * A "Core" parse routine when you expect your input contains multiple
+   * documents, such as the documents* block of a protocol ReplyMessage.
+   *
+   * Instead of decoding all documents ahead of time, this will amortize
+   * the decode when the stream is evaluated.
+   *
+   * In any case where you get documents*, you should also know the count.
+   */
+  def asStream(count: Int, frame: ByteIterator) = for (i <- (0 until count).toStream) yield unapply(frame)
 
   /** The "core" parse routine; should break down your BSON into T */
   def unapply(frame: ByteIterator): T = {
@@ -61,7 +76,7 @@ trait BSONParser[T] extends Logging {
   /** Parses a sequence of entries into a Root object, which must be of type T
    * Separated from parseDocument to allow for discreet subdocument types (which may backfire on me)
    */
-  def parseRootObject(entries: Seq[(String, Any)]): T 
+  def parseRootObject(entries: Seq[(String, Any)]): T
 
   /** Parse documents... */
   @tailrec
