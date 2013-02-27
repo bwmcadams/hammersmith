@@ -32,6 +32,8 @@ import akka.util.{ByteIterator, ByteString}
  * OP_GET_MORE message.
  *
  * TODO - Come back to this.  We need to figure out how to lay down the 'implicit' deserializer on decode.
+ * TODO - Test the living fuck out of me, not INTEGRATION but actual Unit tests. N<atch.
+ *
  *
  */
 class ReplyMessage(val header: MessageHeader,
@@ -73,6 +75,12 @@ object ReplyMessage extends Logging {
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
+  /**
+   * New AkkaIO based decoder hierarchy for an incoming reply message.
+   * @param _hdr An instance of a wire protocol MessageHeader containing the core details of all messages
+   * @param frame The ByteIterator representing the remainder of the network bytes for this reply following the ReplyMessage.
+   * @return An instance ofa  ReplyMessage representing the incoming datastream
+   */
   def apply(_hdr: MessageHeader, frame: ByteIterator) = {
     // TODO - Make it possible to dynamically set a decoder.
     // _hdr is the generic 'every protocol message has it' header; another 20 bytes of reply header data
@@ -84,8 +92,15 @@ object ReplyMessage extends Logging {
     val cursorID = b.getLong
     val startingFrom = b.getInt
     val numReturned = b.getInt
-    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned,
-                    documents = DefaultBSONParser.asStream(numReturned, frame))
+    /**
+     * My analysis shows that there's a definitive pause cycle when decoding all incoming documents
+     * for a given batch *up front* - that is, you get a batch of $n documents and decode the BSON completely
+     * before your operation such as a  cursor buffer replenishment proceeding.
+     *
+     * Instead, by breaking these down into a lazy stream we amortize costs:
+     */
+    val documents = DefaultBSONParser.asStream(numReturned, frame)
+    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, documents)
   }
 
   /** @deprecated this is the old netty era decoder. */

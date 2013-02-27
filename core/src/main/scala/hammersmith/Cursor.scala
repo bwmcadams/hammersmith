@@ -17,11 +17,12 @@
 package hammersmith
 
 import hammersmith.bson._
-import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import hammersmith.wire.{ GetMoreMessage, ReplyMessage }
 import hammersmith.futures.RequestFutures
 import hammersmith.util.{Logging, ConnectionContext, ConcurrentQueue, CountdownLatch}
 import scala.annotation.tailrec
+import hammersmith.collection.immutable.Document
 
 object Cursor extends Logging {
   trait IterState
@@ -129,25 +130,6 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
    */
   protected var startIndex = reply.startingFrom
 
-  log.trace("Decode %s docs.", reply.documents.length)
-  try {
-    val _d = Seq.newBuilder[T]
-    for (doc ← reply.documents) {
-      log.trace("Decoding: %s", doc)
-      try {
-        val x = decoder.decode(doc)
-        log.trace("Decoded: %s", x)
-        _d += x
-      } catch {
-        case e ⇒ log.warn("ERROR!!!!!!!!! %s", e)
-      }
-    }
-    val _decoded = _d.result
-    // reply.documents.map(decoder.decode)
-    log.debug("Decoded %s docs: %s", _decoded.length, _decoded)
-  } catch {
-    case e ⇒ log.error(e, "Document decode failure: %s", e)
-  }
 
   // TODO - Move to lazy decoding model
   protected val docs = ConcurrentQueue(reply.documents: _*) // ConcurrentQueue(_decoded: _*)
@@ -172,7 +154,7 @@ class Cursor[T](val namespace: String, protected val reply: ReplyMessage)(implic
       assume(hasMore, "GetMore should not be invoked on an empty Cursor.")
       log.trace("Invoking getMore(); cursorID: %s, queue size: %s", cursorID, docs.size)
       MongoConnection.send(GetMoreMessage(namespace, batchSize, cursorID),
-        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[T])]) ⇒ {
+        RequestFutures.getMore((reply: Either[Throwable, (Long, Seq[Document])]) ⇒ {
           reply match {
             case Right((id, batch)) ⇒ {
               log.trace("Got a result from 'getMore' command (id: %d).", id)
