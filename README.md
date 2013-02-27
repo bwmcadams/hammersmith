@@ -1,9 +1,11 @@
-Hammersmith 0.27.0
-==================
+Hammersmith 0.30.0 ("Zathrus")
+==============================
+
 
 A Scala-based, asynchronous Netty driver for MongoDB with type-class based fast custom object encoding.
 
 Stays crunchy in milk!
+
 
 DISCLAIMER
 -----------

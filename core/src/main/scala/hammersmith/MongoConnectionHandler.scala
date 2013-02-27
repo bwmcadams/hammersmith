@@ -46,8 +46,7 @@ trait MongoConnectionHandler extends Logging {
     log.trace("Query Failure")
     // Attempt to grab the $err document
     val err = reply.documents.headOption match {
-      case Some(b) ⇒ {
-        val errDoc = SerializableImmutableDocument.decode(b) // TODO - Extractors!
+      case Some(errDoc) ⇒ {
         log.trace("Error Document found: %s", errDoc)
         result(new Exception(errDoc.getAsOrElse[String]("$err", "Unknown Error.")))
       }
@@ -87,9 +86,8 @@ trait MongoConnectionHandler extends Logging {
               } else if (reply.queryFailure) {
                 queryFail(reply, singleResult)
               } else {
-                val doc = reply.documents.head
-                import org.bson.io.Bits._
-                singleResult(_r.decoder.decode(reply.documents.head).asInstanceOf[singleResult.T]) // TODO - Fix me!
+                //todo - check there's only one result?
+                singleResult(reply.documents.head)
               }
             }
             case CompletableCursorRequest(msg: QueryMessage, cursorResult: CursorQueryRequestFuture) ⇒ {
@@ -111,7 +109,7 @@ trait MongoConnectionHandler extends Logging {
               } else if (reply.queryFailure) {
                 queryFail(reply, getMoreResult)
               } else {
-                getMoreResult((reply.cursorID, reply.documents.map(_r.decoder.decode)).asInstanceOf[getMoreResult.T]) // TODO - Fix Me!
+                getMoreResult(reply.cursorID, reply.documents)
               }
             }
           }
@@ -122,8 +120,7 @@ trait MongoConnectionHandler extends Logging {
             // Check error state
             // Attempt to grab the document
             reply.documents.headOption match {
-              case Some(b) ⇒ {
-                val doc = SerializableBSONDocument.decode(b) // TODO - Extractors!
+              case Some(doc) ⇒ {
                 log.debug("Document found: %s", doc)
                 val ok = boolCmdResult(doc, false)
                 // this is how the Java driver decides to throwOnError, !ok || "err"
