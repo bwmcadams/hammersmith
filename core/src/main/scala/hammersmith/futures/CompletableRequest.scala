@@ -28,9 +28,9 @@ trait CompletableRequest {
 
 object CompletableRequest {
 
-  def apply(m: MongoClientMessage, f: RequestFuture): CompletableRequest = apply((m, f))
+  def apply[F](m: MongoClientMessage, f: RequestFuture): CompletableRequest = apply((m, f))
 
-  def apply: PartialFunction[(MongoClientMessage, RequestFuture), CompletableRequest] = {
+  def apply[F]: PartialFunction[(MongoClientMessage, RequestFuture), CompletableRequest] = {
     case (q: QueryMessage, f: SingleDocQueryRequestFuture) ⇒ CompletableSingleDocRequest(q, f)
     case (q: QueryMessage, f: CursorQueryRequestFuture) ⇒ CompletableCursorRequest(q, f)
     case (gm: GetMoreMessage, f: GetMoreRequestFuture) ⇒ CompletableGetMoreRequest(gm, f)

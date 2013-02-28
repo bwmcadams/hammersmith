@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.bson._
 import java.io._
 import org.bson.io.{ OutputBuffer, PoolOutputBuffer }
-import hammersmith.bson.{DefaultBSONParser, BSONSerializer, DefaultBSONSerializer}
+import hammersmith.bson.{ImmutableBSONDocumentParser, BSONSerializer, DefaultBSONSerializer}
 import hammersmith.util.Logging
 import akka.util.{ByteIterator, ByteString}
 

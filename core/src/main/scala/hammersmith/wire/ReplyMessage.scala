@@ -21,7 +21,7 @@ package wire
 import java.io.{ByteArrayInputStream, InputStream}
 import org.bson._
 import hammersmith.collection.immutable.Document
-import hammersmith.bson.{DefaultBSONParser, BSONSerializer, DefaultBSONDeserializer}
+import hammersmith.bson.{ImmutableBSONDocumentParser, BSONSerializer, DefaultBSONDeserializer}
 import hammersmith.util.Logging
 import akka.util.{ByteIterator, ByteString}
 
@@ -99,7 +99,7 @@ object ReplyMessage extends Logging {
      *
      * Instead, by breaking these down into a lazy stream we amortize costs:
      */
-    val documents = DefaultBSONParser.asStream(numReturned, frame)
+    val documents = ImmutableBSONDocumentParser.asStream(numReturned, frame)
     new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, documents)
   }
 
@@ -137,7 +137,7 @@ object ReplyMessage extends Logging {
       // copy length to the full array
       Array.copy(l, 0, b, 0, 4)
       log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(b))
-      DefaultBSONParser.apply(ByteString(b).iterator)
+      ImmutableBSONDocumentParser.apply(ByteString(b).iterator)
     }
 
     val documents = for (i ← (0 until numReturned).toStream) yield _dec

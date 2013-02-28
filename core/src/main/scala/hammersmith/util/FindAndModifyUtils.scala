@@ -66,7 +66,7 @@ class FindAndModifyBSONDeserializer[V: SerializableBSONObject: Manifest] extends
       require(t == org.bson.BSON.OBJECT, "findAndModify value field is not a BSONObject; decoding fails.")
       val _raw = _rawObject()
       // This trick of course only works if it's an object.
-      val _value = valueDecoder.decode(_raw)
+      val _value = valueDecoder.parse(_raw)
       callback.gotCustomObject(name, _value.asInstanceOf[AnyRef])
     }
     case default ⇒ super.decodeField(name, t)

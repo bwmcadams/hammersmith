@@ -31,6 +31,8 @@ import hammersmith.wire.{MongoClientMessage, MongoMessage}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import hammersmith.bson.{SerializableBSONObject, BSONParser}
+import hammersmith.collection.Imports.SerializableBSONDocumentLike
 
 /**
  *
@@ -138,4 +140,82 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 }
 
 
+// TODO - Move me into another package
+/**
+ * Base class and implementations for all 'results' of writes to MongoDB.
+ * Whereas the original hammersmith had custom futures, now we just have custom base types on
+ * the SIP-14 Futures. Which is a lot saner but we didn't have SIP-14 then...
+ *
+ */
+sealed trait MongoResponse {}
 
+// todo - apply method for convenience
+sealed trait QueryResponse extends MongoResponse  {
+  type DocType
+  def decoder: SerializableBSONObject[DocType]
+}
+
+/**
+ * Initial response to a query.
+ * TODO: Should we instantiate a cursor externally and just create a single CursorQueryResponse object?
+ *
+ */
+trait CursorQueryResponse extends QueryResponse {
+  // the type of the documents to be returned by the cursor
+  type T <: Cursor[DocType]
+}
+
+/**
+ * Fetch of additional cursor batches.
+ * TODO: Should we instantiate/manage a cursor externally and just create a single CursorQueryResponse object?
+ */
+trait CursorGetMoreResponse extends QueryResponse {
+  type T = (Long /* cursorID */, Stream[DocType] /** the batch */)
+}
+
+/**
+ * Response to a Single Document request, where user made clear they don't want a cursor.
+ */
+trait SingleDocQueryResponse extends QueryResponse {
+  type T = DocType
+  val m: Manifest[T] // todo: This is a carryover from the old code ... do we still need it?
+}
+
+/**
+ * Response to a FindAndModify request, which will only ever return a single docuent
+ */
+trait FindAndModifyResponse extends QueryResponse {
+  type T = DocType
+  val m: Manifest[T] // todo: This is a carryover from the old code ... do we still need it?
+}
+
+/**
+ * Will pass any *generated* _id along with any relevant getLastError information
+ * For an update, don't expect to get ObjectId
+ * TODO - this should include all ids even if we didn't generate
+ */
+trait WriteResponse extends MongoResponse {
+  type T <: (Option[AnyRef] /* ID Type */, WriteResult)
+}
+
+/**
+ * Will pass any *generated* _ids, in a Seq
+ * along with any relevant getLastError information
+ * For an update, don't expect to get ObjectId
+ *
+ * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
+ * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
+ * on your batch ---- not the first, or all of them.
+ *
+ * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
+ */
+trait BatchWriteResponse extends MongoResponse {
+  type T <: (Option[Seq[AnyRef]] /* ID Type */, WriteResult)
+}
+
+/**
+ * For NoOps - calls that don't return anything such as OP_KILL_CURSORS
+ *
+ * All we
+ */
+//case object NoOpResponse

@@ -21,8 +21,12 @@ import org.bson.io.OutputBuffer
 import org.bson.types.ObjectId
 import java.io.InputStream
 import hammersmith.bson.util.ThreadLocal
-import hammersmith.bson.{SerializableBSONObject, DefaultBSONDeserializer, DefaultBSONSerializer}
+import hammersmith.bson._
 import hammersmith.util.Logging
+import akka.util.{ByteString, ByteIterator}
+import scala.Some
+import hammersmith.collection.immutable.{OrderedDocument, Document}
+import hammersmith.collection.mutable
 
 trait Imports extends Logging {
   // TODO - do we still need this, migrating into the Casbah code? -bwm feb-3-13
@@ -73,30 +77,11 @@ trait Imports extends Logging {
   def defaultDeserializer = new ThreadLocal(new DefaultBSONDeserializer) 
 
   trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with Logging {
+    def parser: BSONParser[T]
 
-    def encode(doc: T, out: OutputBuffer) = {
-      log.trace("Reserving an encoder instance")
-      val serializer = defaultSerializer()
-      log.trace("Reserved an encoder instance")
-      serializer.encode(doc, out)
-      serializer.done
-    }
+    def parse(in: ByteIterator): T = parser(in)
 
-    def encode(doc: T): Array[Byte] = {
-      log.trace("Reserving an encoder instance")
-      val serializer = defaultSerializer()
-      log.trace("Reserved an encoder instance")
-      val bytes = serializer.encode(doc)
-      serializer.done
-      bytes
-    }
-
-    def decode(in: InputStream): T = {
-      val deserializer = defaultDeserializer()
-      val doc = deserializer.decodeAndFetch(in).asInstanceOf[T]
-      log.debug("DECODED DOC: %s as %s", doc, doc.getClass)
-      doc
-    }
+    def compose(doc: T): ByteString = throw new UnsupportedOperationException("No support yet implemented for BSON Encoding.")
 
     def checkObject(doc: T, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)
 
@@ -151,19 +136,29 @@ object Implicits {
 
 
   // todo - can we do this with Object instead of inside implicits?
-  implicit object SerializableBSONDocument extends SerializableBSONDocumentLike[BSONDocument]
+  implicit object SerializableBSONDocument extends SerializableBSONDocumentLike[BSONDocument]{
+    val parser = ImmutableBSONDocumentParser
+  }
 
   //implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
 
-  implicit object SerializableImmutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.Document]
+  implicit object SerializableImmutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.Document]{
+    def parser = ImmutableBSONDocumentParser
+  }
 
-  implicit object SerializableImmutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.OrderedDocument]
+  implicit object SerializableImmutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.OrderedDocument]{
+    def parser: BSONParser[OrderedDocument] = ImmutableOrderedBSONDocumentParser
+  }
 
   //implicit object SerializableImmutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.immutable.BSONList]
 
-  implicit object SerializableMutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.Document]
+  implicit object SerializableMutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.Document]{
+    def parser = MutableBSONDocumentParser
+  }
 
-  implicit object SerializableMutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.OrderedDocument]
+  implicit object SerializableMutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.OrderedDocument]{
+    def parser = MutableOrderedBSONDocumentParser
+  }
 
   //implicit object SerializableMutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.mutable.BSONList]
 }
