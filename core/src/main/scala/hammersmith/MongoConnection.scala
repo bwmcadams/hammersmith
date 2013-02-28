@@ -35,6 +35,8 @@ import hammersmith.collection.{BSONDocument, BSONList}
 import hammersmith.collection.immutable.{DBList, OrderedDocument, Document}
 import scala.Some
 import hammersmith.WriteResult
+import scala.concurrent.Future
+import scala.util.Try
 
 /**
  * Base trait for all connections, be it direct, replica set, etc
@@ -101,7 +103,9 @@ abstract class MongoConnection extends Logging {
     send(qMsg, f)
   }
 
-  protected[hammersmith] def send(msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
+  protected[hammersmith] def send[F](msg: MongoClientMessage)(implicit concern: WriteConcern = this.writeConcern): Future[F] =
+    MongoConnection.send(msg)
+  protected[hammersmith] def send[F](msg: MongoClientMessage, f: RequestFuture)(implicit concern: WriteConcern = this.writeConcern) =
     MongoConnection.send(msg, f)
 
   /**
@@ -397,7 +401,7 @@ abstract class MongoConnection extends Logging {
  */
 object MongoConnection extends Logging {
 
-  protected[hammersmith] val dispatcher: ConcurrentMap[Int, CompletableRequest] =
+  protected[hammersmith] val dispatcher: scala.collection.concurrent.Map[Int, CompletableRequest] =
     new ConcurrentHashMap[Int, CompletableRequest]()
 
   protected[hammersmith] val cleaningTimer = new CursorCleaningTimer()
@@ -501,7 +505,9 @@ object MongoConnection extends Logging {
     }
   }
 
-  protected[hammersmith] def send(msg: MongoClientMessage, f: RequestFuture, _overrideLiveCheck: Boolean = false)(implicit context: ConnectionContext, concern: WriteConcern = WriteConcern.Normal) = {
+
+
+  protected[hammersmith] def send[F : BSONParser](msg: MongoClientMessage, _overrideLiveCheck: Boolean = false)(f: Future[F])(implicit context: ConnectionContext, concern: WriteConcern = WriteConcern.Normal) {
     require(context.connected_?, "Connection is closed.")
     implicit val maxBSON = context.maxBSONObjectSize
     val isWrite = f.isInstanceOf[WriteRequestFuture]

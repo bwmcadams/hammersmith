@@ -226,7 +226,7 @@ class BSONTest extends Specification with Logging {
 
   lazy val parsedBSON: Document = parseBSONWithScala
 
-  def parseBSONWithScala: Document = DefaultBSONParser.unapply(ByteString(javaBSON).iterator)
+  def parseBSONWithScala: Document = ImmutableBSONDocumentParser(ByteString(javaBSON).iterator)
 
   // Test with the "New" Decoder which is probably the performance guideline going forward
   def parseBSONWithNewJava = {
@@ -310,7 +310,7 @@ class BSONTest extends Specification with Logging {
     val iter = frame.iterator
     //System.err.println(Hex.valueOf(iter.clone().toArray))
     while (iter.hasNext) {
-      val dec = DefaultBSONParser(iter)
+      val dec = ImmutableBSONDocumentParser(iter)
       System.err.println("Decoded: " + dec)
       decoded += dec
       //System.err.println("Post Decode: " + iter + " Has " + iter.len + " Bytes left...")
@@ -323,7 +323,7 @@ class BSONTest extends Specification with Logging {
   def testMultiParseStream = {
     val frame = multiTestDocs
     // validated to be deferred evaluation stream.
-    val decoded = DefaultBSONParser.asStream(5, frame.iterator)
+    val decoded = ImmutableBSONDocumentParser.asStream(5, frame.iterator)
     decoded must haveSize(5)
   }
 

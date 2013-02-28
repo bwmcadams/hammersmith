@@ -54,7 +54,8 @@ abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWrite
     // TODO - test recursion
     for (doc ← q) {
       val total = enc.size
-      val n = enc.encodeObject(implicitly[SerializableBSONObject[T]].encode(doc))
+      // todo - fix me.
+      val n = enc.encodeObject(implicitly[SerializableBSONObject[T]].compose(doc))
       log.debug("Total: %d, Last Doc Size: %d", total, n)
       // If we went over the size, backtrack and start a new message
       if (total >= (4 * maxBSON)) {
@@ -68,9 +69,28 @@ abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWrite
   }
 }
 
+/**
+ * Insert for a single document
+ */
+class SingleInsertMessage[T : SerializableBSONObject](val namespace: String, docs: T) extends InsertMessage {
+  val documents = Seq(docs) // should only be one
+}
+
+/**
+ * Insert for multiple documents
+ *
+ */
+class BatchInsertMessage[T : SerializableBSONObject](val namespace: String, val documents: T*) extends InsertMessage {
+
+}
+
 object InsertMessage extends Logging {
-  def apply[T: SerializableBSONObject](ns: String, docs: T*) = new InsertMessage {
-    val namespace = ns
-    val documents = docs
+  def apply[T: SerializableBSONObject](ns: String, docs: T*) = {
+    assume(docs.length > 0, "Cannot insert 0 documents.")
+    if (docs.length > 1) {
+      new BatchInsertMessage(ns, docs)
+    } else {
+      new SingleInsertMessage(ns, docs)
+    }
   }
 }

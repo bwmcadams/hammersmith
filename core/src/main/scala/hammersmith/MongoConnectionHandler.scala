@@ -30,7 +30,6 @@ import hammersmith.util.{Logging, ConnectionContext}
 *
 * This contains common code for any type of connection.
 *
-* NOTE: Connection instances are instances of a *POOL*, always.
 *
 * @since 0.1
 */

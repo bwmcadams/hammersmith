@@ -17,10 +17,9 @@
 
 package hammersmith.bson
 
-import org.bson.io.{ BasicOutputBuffer, OutputBuffer }
 import scala.annotation.implicitNotFound
 
-import java.io.{ InputStream, ByteArrayInputStream }
+import akka.util.{ByteIterator, ByteString}
 
 /**
  * Type class base for anything you want to be serialized or deserialized
@@ -28,15 +27,12 @@ import java.io.{ InputStream, ByteArrayInputStream }
 @implicitNotFound(msg = "Cannot find SerializableBSONObject type class for ${T}")
 trait SerializableBSONObject[T] {
 
-  def encode(doc: T, out: OutputBuffer)
+  def compose(doc: T): ByteString
 
-  def encode(doc: T): Array[Byte]
+  @deprecated("You should pass ByteIterators for sanity/safety, not ByteStrings.")
+  def parse(in: ByteString): T = parse(in.iterator)
 
-  def decode(in: InputStream): T
-
-  def decode(bytes: Seq[Array[Byte]]): Seq[T] = for (b ← bytes) yield decode(b)
-
-  def decode(b: Array[Byte]): T = decode(new ByteArrayInputStream(b))
+  def parse(in: ByteIterator): T
 
   /**
    * These methods are used to validate documents in certain cases.
@@ -59,6 +55,5 @@ trait SerializableBSONObject[T] {
   def checkID(doc: T): T
 
   def _id(doc: T): Option[AnyRef]
-
 }
 
