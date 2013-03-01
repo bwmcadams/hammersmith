@@ -34,7 +34,7 @@ import hammersmith.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-abstract class UpdateMessage[Upd: SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class UpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObject] extends MongoClientWriteMessage {
 
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
@@ -51,31 +51,43 @@ abstract class UpdateMessage[Upd: SerializableBSONObject] extends MongoClientWri
   val upsert: Boolean
   val multiUpdate: Boolean
 
-  val query: BSONDocument // The query document to select from mongo
+  val query: Q // The query document to select from mongo
 
   val update: Upd // The document specifying the update to perform
 
   // TODO - Can we actually get some useful info here?
   def ids: Seq[Option[AnyRef]] = List(None)
 
+  // todo - fix me
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)
     // TODO - Check against Max BSON Size
     enc.putObject(query)
+    // todo - fix me
     enc.encodeObject(implicitly[SerializableBSONObject[Upd]].compose(update))
   }
 }
 
+class BatchUpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObject](val namespace: String, val query: Q, val update: Upd, val upsert: Boolean = false) extends UpdateMessage {
+  val multiUpdate = true
+}
+
+class SingleUpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObject](val namespace: String, val query: Q, val update: Upd, val upsert: Boolean = false) extends UpdateMessage {
+  val multiUpdate = false
+}
+
 object UpdateMessage extends Logging {
-  def apply[Upd: SerializableBSONObject](ns: String, q: BSONDocument, updateSpec: Upd, _upsert: Boolean = false, multi: Boolean = false) = new UpdateMessage {
-    val namespace = ns
-    val query = q
-    val update = updateSpec
-    val upsert = _upsert
-    val multiUpdate = multi
+  def apply[Q: SerializableBSONObject, Upd: SerializableBSONObject](ns: String, q: Q, updateSpec: Upd, _upsert: Boolean = false, multi: Boolean = false) = {
+    if (multi) {
+      new BatchUpdateMessage(ns, q, updateSpec, _upsert)
+    } else {
+      new SingleUpdateMessage(ns, q, updateSpec, _upsert)
+    }
   }
+
+
 
 }
 
