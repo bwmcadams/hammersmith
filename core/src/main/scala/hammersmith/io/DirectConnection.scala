@@ -27,12 +27,19 @@ import akka.io.Tcp.Connected
 import akka.io.Tcp.Received
 import akka.io.Tcp.Connect
 import akka.io.Tcp.CommandFailed
-import hammersmith.wire.{MongoClientMessage, MongoMessage}
+import hammersmith.wire._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import hammersmith.bson.{SerializableBSONObject, BSONParser}
 import hammersmith.collection.Imports.SerializableBSONDocumentLike
+import akka.io.Tcp.Connected
+import akka.io.Tcp.Register
+import akka.io.Tcp.Connect
+import akka.io.Tcp.CommandFailed
+import scala.Some
+import akka.io.Tcp.ErrorClosed
+import akka.io.Tcp.Received
 
 /**
  *
@@ -141,81 +148,71 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
 
 // TODO - Move me into another package
-/**
- * Base class and implementations for all 'results' of writes to MongoDB.
- * Whereas the original hammersmith had custom futures, now we just have custom base types on
- * the SIP-14 Futures. Which is a lot saner but we didn't have SIP-14 then...
- *
- */
-sealed trait MongoResponse {}
 
-// todo - apply method for convenience
-sealed trait QueryResponse extends MongoResponse  {
-  type DocType
-  def decoder: SerializableBSONObject[DocType]
+// todo - how do we instantiate/manage the cursor?
+case class QueryRequest[T : SerializableBSONObject](msg: QueryMessage) {
+  val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
- * Initial response to a query.
- * TODO: Should we instantiate a cursor externally and just create a single CursorQueryResponse object?
- *
+ * A cursor "getMore" - next batch fetch.
+ * @tparam T Document type to return
  */
-trait CursorQueryResponse extends QueryResponse {
-  // the type of the documents to be returned by the cursor
-  type T <: Cursor[DocType]
+case class GetMoreRequest[T : SerializableBSONObject](msg: GetMoreMessage) {
+  val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
- * Fetch of additional cursor batches.
- * TODO: Should we instantiate/manage a cursor externally and just create a single CursorQueryResponse object?
+ * A request for a single document, where user has said to skip the cursor.
+ * TODO: Bake a specific "findOne" client message so that this guarantees type safety on the call
+ * @tparam T Document type to return
  */
-trait CursorGetMoreResponse extends QueryResponse {
-  type T = (Long /* cursorID */, Stream[DocType] /** the batch */)
+case class FindOneRequest[T : SerializableBSONObject](msg: QueryMessage) {
+  val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
- * Response to a Single Document request, where user made clear they don't want a cursor.
+ * FindAndModify Command, only ever returns one doc.
  */
-trait SingleDocQueryResponse extends QueryResponse {
-  type T = DocType
-  val m: Manifest[T] // todo: This is a carryover from the old code ... do we still need it?
+case class FindAndModifyRequest[T : SerializableBSONObject](msg: QueryMessage) {
+  val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
- * Response to a FindAndModify request, which will only ever return a single docuent
+ * Insert a *single* document.
  */
-trait FindAndModifyResponse extends QueryResponse {
-  type T = DocType
-  val m: Manifest[T] // todo: This is a carryover from the old code ... do we still need it?
+case class InsertRequest[T : SerializableBSONObject](msg: SingleInsertMessage, writeConcern: WriteConcern) {
+  val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
- * Will pass any *generated* _id along with any relevant getLastError information
- * For an update, don't expect to get ObjectId
- * TODO - this should include all ids even if we didn't generate
- */
-trait WriteResponse extends MongoResponse {
-  type T <: (Option[AnyRef] /* ID Type */, WriteResult)
-}
-
-/**
- * Will pass any *generated* _ids, in a Seq
- * along with any relevant getLastError information
- * For an update, don't expect to get ObjectId
+ * Insert multiple documents.
  *
  * Keep in mind, that WriteConcern behavior may be wonky if you do a batchInsert
  * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
  * on your batch ---- not the first, or all of them.
- *
- * The WriteRequest used here returns a Seq[] of every generated ID, not a single ID
  */
-trait BatchWriteResponse extends MongoResponse {
-  type T <: (Option[Seq[AnyRef]] /* ID Type */, WriteResult)
+case class BatchInsertRequest[T : SerializableBSONObject](msg: BatchInsertMessage, writeConcern: WriteConcern) {
+  val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
- * For NoOps - calls that don't return anything such as OP_KILL_CURSORS
- *
- * All we
+ * Update a *single* document.
  */
-//case object NoOpResponse
+case class UpdateRequest[T : SerializableBSONObject](msg: SingleUpdateMessage, writeConcern: WriteConcern) {
+  val decoder = implicitly[SerializableBSONObject[T]]
+}
+
+/**
+ * Update multiple documents.
+ *
+ */
+case class BatchUpdateRequest[T : SerializableBSONObject](msg: BatchUpdateMessage, writeConcern: WriteConcern) {
+  val decoder = implicitly[SerializableBSONObject[T]]
+}
+
+/**
+ * Delete (multiple, by default) documents.
+ * There is no response to a MongoDB Delete.
+ */
+case class DeleteRequest(msg: DeleteMessage, writeConcern: WriteConcern)
