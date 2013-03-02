@@ -93,21 +93,10 @@ object MongoMessage extends Logging {
 
   /**
    * For servers incapable of specifying BSON Size (< 1.8), what's their max size?
+   *  TODO - we aren't going to support these, at all.
    */
   val DefaultMaxBSONObjectSize = 1024 * 1024 * 4
 
-  def readFromOffset(in: InputStream, b: Array[Byte], offset: Int) {
-    readFromOffset(in, b, offset, b.length)
-  }
-
-  def readFromOffset(in: InputStream, b: Array[Byte], offset: Int, len: Int) {
-    var x = offset
-    while (x < len) {
-      val n = in.read(b, x, len - x)
-      if (n < 0) throw new EOFException
-      x += n
-    }
-  }
 
   /**
    * Extractor method for incoming streams of
@@ -179,6 +168,7 @@ object MongoMessage extends Logging {
    * longterm we'll support all messages for testing purposes.
    *
    * @deprecated This is the old methods for Netty.
+   * TODO - DELETE ME
    */
   def unapply(in: InputStream): MongoMessage = {
     import org.bson.io.Bits._
@@ -234,14 +224,35 @@ object MongoMessage extends Logging {
 }
 
 abstract class MongoMessage extends Logging {
+
+  implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
   /* Standard Message Header */
   //val header: MessageHeader
   val opCode: OpCode.Value
   val requestID = MongoMessage.ID.getAndIncrement
   log.trace("Generated Message ID '%s'", requestID)
 
-  //  def apply(channel: Channel) = write
+  def serialize()(implicit maxBSON: Int): ByteString = {
+    val head = serializeHeader()
+    val tail = serializeMessage()
+    val msg = head ++ tail
+    val b = ByteString.newBuilder
+    b.putInt(msg.length)
+    val len = b.result()
+    // todo - should we compact this????
+    len ++ msg
+  }
 
+  /**
+   * Serialize the message header.
+   * @param maxBSON
+   * @return
+   */
+  protected def serializeHeader()(implicit maxBSON: Int): ByteString = {
+    throw new UnsupportedOperationException("BSON Composition not yet supported.")
+  }
+
+  /*
   def write(out: OutputStream)(implicit maxBSON: Int) = {
     // TODO - Reuse / pool Serializers for performance via reset()
     val buf = new PoolOutputBuffer()
@@ -264,14 +275,14 @@ abstract class MongoMessage extends Logging {
 
     writeMessage(enc)
   }
-
+  */
   /**
    * Message specific implementation.
    *
-   * write() puts in the header, writeMessage does a message
+   * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int)
+  protected def serializeMessage()(implicit maxBSON: Int): ByteString
 }
 
 /**

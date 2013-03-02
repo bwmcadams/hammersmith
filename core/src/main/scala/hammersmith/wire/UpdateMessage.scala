@@ -34,7 +34,12 @@ import hammersmith.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPUPDATE
  */
-abstract class UpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class UpdateMessage extends MongoClientWriteMessage {
+  type Q
+  type Upd
+
+  implicit val qM: SerializableBSONObject[Q]
+  implicit val uM: SerializableBSONObject[Upd]
 
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
@@ -70,20 +75,23 @@ abstract class UpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObj
   }
 }
 
-class BatchUpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObject](val namespace: String, val query: Q, val update: Upd, val upsert: Boolean = false) extends UpdateMessage {
-  val multiUpdate = true
-}
+abstract class BatchUpdateMessage(val namespace: String, val upsert: Boolean = false) extends UpdateMessage { val multiUpdate = true }
 
-class SingleUpdateMessage[Q: SerializableBSONObject, Upd: SerializableBSONObject](val namespace: String, val query: Q, val update: Upd, val upsert: Boolean = false) extends UpdateMessage {
-  val multiUpdate = false
-}
+abstract class SingleUpdateMessage(val namespace: String, val upsert: Boolean = false) extends UpdateMessage { val multiUpdate = false }
 
 object UpdateMessage extends Logging {
-  def apply[Q: SerializableBSONObject, Upd: SerializableBSONObject](ns: String, q: Q, updateSpec: Upd, _upsert: Boolean = false, multi: Boolean = false) = {
-    if (multi) {
-      new BatchUpdateMessage(ns, q, updateSpec, _upsert)
-    } else {
-      new SingleUpdateMessage(ns, q, updateSpec, _upsert)
+  def apply[QT: SerializableBSONObject, UpdT: SerializableBSONObject](ns: String, q: QT, updateSpec: UpdT, _upsert: Boolean = false, multi: Boolean = false) = {
+    if (multi)  new BatchUpdateMessage(ns, _upsert) {
+        val query = q
+        val qM = implicitly[SerializableBSONObject[QT]]
+        val update = updateSpec
+        val uM = implicitly[SerializableBSONObject[UpdT]]
+    }
+    else new SingleUpdateMessage(ns, _upsert) {
+        val query = q
+        val qM = implicitly[SerializableBSONObject[QT]]
+        val update = updateSpec
+        val uM = implicitly[SerializableBSONObject[UpdT]]
     }
   }
 

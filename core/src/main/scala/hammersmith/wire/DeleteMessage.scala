@@ -34,7 +34,9 @@ import hammersmith.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPDELETE
  */
-abstract class DeleteMessage[T: SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class DeleteMessage extends MongoClientWriteMessage {
+  type D
+  implicit val dM: SerializableBSONObject[D]
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use
@@ -47,7 +49,7 @@ abstract class DeleteMessage[T: SerializableBSONObject] extends MongoClientWrite
 
   val removeSingle: Boolean // Remove only first matching document
 
-  val query: T // Query object for what to delete
+  val query: D // Query object for what to delete
 
   def ids: Seq[Option[AnyRef]] = List(None)
 
@@ -55,12 +57,13 @@ abstract class DeleteMessage[T: SerializableBSONObject] extends MongoClientWrite
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)
-    enc.encodeObject(implicitly[SerializableBSONObject[T]].compose(query))
+    enc.encodeObject(dM.compose(query))
   }
 }
 
 object DeleteMessage extends Logging {
   def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) = new DeleteMessage {
+    val tM = implicitly[SerializableBSONObject[T]]
     val namespace = ns
     val query = q
     val removeSingle = onlyRemoveOne

@@ -31,8 +31,7 @@ import hammersmith.wire._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import hammersmith.bson.{SerializableBSONObject, BSONParser}
-import hammersmith.collection.Imports.SerializableBSONDocumentLike
+import hammersmith.bson.{ImmutableBSONDocumentParser, SerializableBSONObject, BSONParser}
 import akka.io.Tcp.Connected
 import akka.io.Tcp.Register
 import akka.io.Tcp.Connect
@@ -49,13 +48,19 @@ import akka.io.Tcp.Received
 // TODO - Should there be one handler instance per connection? Or a pool of handlers/single handler shared? (One message at a time as actor...)
 case class InitializeConnection(addr: InetSocketAddress)
 
+case class PendingOp(sender: ActorRef, request: MongoRequest)
+
 /**
  * The actor that actually proxies connection
  */
 class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor with Stash {
   val log = Logging(context.system, this)
   val tcpManager = IOFaçade(Tcp)(context.system)
-
+  /**
+   * map of ops to be completed.
+   * todo - some kind of cleanup mechanism , maybe involving weakMap, for futures that have timed out.
+   */
+  private val dispatcher = scala.collection.mutable.HashMap.empty[Int /** requestID */, PendingOp]
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
   /* this is an odd one. it seems iteratees from the old IO package ARENT deprecated
@@ -75,6 +80,7 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
   override def postStop = {
     tcpManager ! Close
+
     // reset the Iteratee state
     state(IO.EOF)
   }
@@ -107,14 +113,20 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
         frame <- IO take(len - 16 - 4) // length of total doc includes itself with BSON, so don't overflow.
       } yield MongoMessage(header.iterator, frame.iterator)
       log.info("Mongo Message: " + msg)
-    case write: MongoClientMessage => connection match {
+      // TODO - Dispatch!
+    // a non-mutating operation
+    case r: MongoRequest => connection match {
       case None =>
         // stash the message for later
         stash()
       case Some(conn) =>
-        // TODO - we need to sort out how we'll handle "blocking" type requests e.g. that need a reply ... queue their future?
-        // TODO - IMPLEMENT ME
-        throw new UnsupportedOperationException("Write Support not yet implemented...")
+    }
+    // a mutating operation
+    case w: MongoMutationRequest => connection match {
+      case None =>
+        // stash the message for later
+        stash()
+      case Some(conn) =>
     }
 
     case CommandFailed(cmd) =>
@@ -138,6 +150,7 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
   }
 
+
   def send(cmd: Tcp.Command) = connection match {
     case Some(conn) =>
       conn ! cmd
@@ -148,9 +161,15 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
 
 // TODO - Move me into another package
+trait MongoRequest {
+  type DocType
+  def msg: MongoClientMessage
+  def requestID = msg.requestID
+  def decoder: SerializableBSONObject[DocType]
+}
 
 // todo - how do we instantiate/manage the cursor?
-case class QueryRequest[T : SerializableBSONObject](msg: QueryMessage) {
+case class QueryRequest[T : SerializableBSONObject](val msg: QueryMessage) extends MongoRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -158,7 +177,7 @@ case class QueryRequest[T : SerializableBSONObject](msg: QueryMessage) {
  * A cursor "getMore" - next batch fetch.
  * @tparam T Document type to return
  */
-case class GetMoreRequest[T : SerializableBSONObject](msg: GetMoreMessage) {
+case class GetMoreRequest[T : SerializableBSONObject](val msg: GetMoreMessage) extends MongoRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -167,21 +186,34 @@ case class GetMoreRequest[T : SerializableBSONObject](msg: GetMoreMessage) {
  * TODO: Bake a specific "findOne" client message so that this guarantees type safety on the call
  * @tparam T Document type to return
  */
-case class FindOneRequest[T : SerializableBSONObject](msg: QueryMessage) {
+case class FindOneRequest[T : SerializableBSONObject](val msg: QueryMessage) extends MongoRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
  * FindAndModify Command, only ever returns one doc.
  */
-case class FindAndModifyRequest[T : SerializableBSONObject](msg: QueryMessage) {
+case class FindAndModifyRequest[T : SerializableBSONObject](val msg: QueryMessage) extends MongoRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
+}
+
+
+/**
+ * Anything that mutates data on the server,
+ * specifically where a WriteConcern is necessary.
+ *
+ * This doesn't include commands such as findAndModify as they
+ * don't have a sane place in the protocol and we can't WriteConcern them.
+ */
+trait MongoMutationRequest extends MongoRequest {
+  override def msg: MongoClientWriteMessage
+  def writeConcern: WriteConcern
 }
 
 /**
  * Insert a *single* document.
  */
-case class InsertRequest[T : SerializableBSONObject](msg: SingleInsertMessage, writeConcern: WriteConcern) {
+case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -192,14 +224,14 @@ case class InsertRequest[T : SerializableBSONObject](msg: SingleInsertMessage, w
  * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
  * on your batch ---- not the first, or all of them.
  */
-case class BatchInsertRequest[T : SerializableBSONObject](msg: BatchInsertMessage, writeConcern: WriteConcern) {
+case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
  * Update a *single* document.
  */
-case class UpdateRequest[T : SerializableBSONObject](msg: SingleUpdateMessage, writeConcern: WriteConcern) {
+case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -207,12 +239,14 @@ case class UpdateRequest[T : SerializableBSONObject](msg: SingleUpdateMessage, w
  * Update multiple documents.
  *
  */
-case class BatchUpdateRequest[T : SerializableBSONObject](msg: BatchUpdateMessage, writeConcern: WriteConcern) {
+case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
 /**
  * Delete (multiple, by default) documents.
- * There is no response to a MongoDB Delete.
+ * There is no response to a MongoDB Delete, so hardcoded response to Immutable
  */
-case class DeleteRequest(msg: DeleteMessage, writeConcern: WriteConcern)
+case class DeleteRequest(val msg: DeleteMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+  val decoder = ImmutableBSONDocumentParser
+}
