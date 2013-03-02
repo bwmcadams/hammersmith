@@ -32,16 +32,18 @@ import hammersmith.util.Logging
  *
  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-OPINSERT
  */
-abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWriteMessage {
+abstract class InsertMessage extends MongoClientWriteMessage {
+  type T
+  implicit val tM: SerializableBSONObject[T]
+
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpInsert
 
   val ZERO: Int = 0 // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[T] // One or more documents to insert into the collection
-  val m = implicitly[SerializableBSONObject[T]]
 
-  def ids: Seq[Option[AnyRef]] = documents.map(m._id(_))
+  def ids: Seq[Option[AnyRef]] = documents.map(tM._id(_))
 
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)
@@ -55,14 +57,14 @@ abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWrite
     for (doc ← q) {
       val total = enc.size
       // todo - fix me.
-      val n = enc.encodeObject(implicitly[SerializableBSONObject[T]].compose(doc))
+      val n = enc.encodeObject(tM.compose(doc))
       log.debug("Total: %d, Last Doc Size: %d", total, n)
       // If we went over the size, backtrack and start a new message
       if (total >= (4 * maxBSON)) {
         log.info("Exceeded MaxBSON [%s] (total: %s), kicking in a new batch.", maxBSON, total)
         enc.seek(-n)
         /* TODO - This recursion may be bad and wonky... */
-        InsertMessage(namespace, (doc +: q): _*).build(enc)
+        InsertMessage(namespace, (doc +: q): _*)//.build(enc)
       }
     }
 
@@ -72,25 +74,27 @@ abstract class InsertMessage[T: SerializableBSONObject] extends MongoClientWrite
 /**
  * Insert for a single document
  */
-class SingleInsertMessage[T : SerializableBSONObject](val namespace: String, docs: T) extends InsertMessage {
-  val documents = Seq(docs) // should only be one
-}
+abstract class SingleInsertMessage(val namespace: String) extends InsertMessage
 
 /**
  * Insert for multiple documents
  *
  */
-class BatchInsertMessage[T : SerializableBSONObject](val namespace: String, val documents: T*) extends InsertMessage {
-
-}
+abstract class BatchInsertMessage(val namespace: String) extends InsertMessage
 
 object InsertMessage extends Logging {
-  def apply[T: SerializableBSONObject](ns: String, docs: T*) = {
+  def apply[DocType: SerializableBSONObject](ns: String, docs: DocType*) = {
     assume(docs.length > 0, "Cannot insert 0 documents.")
     if (docs.length > 1) {
-      new BatchInsertMessage(ns, docs)
+      new BatchInsertMessage(ns) {
+        val tM = implicitly[SerializableBSONObject[DocType]]
+        val documents = docs
+      }
     } else {
-      new SingleInsertMessage(ns, docs)
+      new SingleInsertMessage(ns) {
+        val tM = implicitly[SerializableBSONObject[DocType]]
+        val documents = Seq(docs.head)
+      }
     }
   }
 }

@@ -19,7 +19,6 @@ package hammersmith
 package util
 
 import hammersmith.collection._
-import hammersmith.futures._
 import hammersmith.bson.SerializableBSONObject
 import hammersmith.bson.util.{ ThreadLocal }
 import java.io.InputStream
