@@ -57,7 +57,7 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
     enc.writeInt(ZERO)
     enc.writeCString(namespace)
     enc.writeInt(flags)
-    enc.encodeObject(dM.compose(query))
+    //enc.encodeObject(dM.compose(query))
   }
 }
 

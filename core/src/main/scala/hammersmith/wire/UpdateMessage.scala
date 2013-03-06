@@ -69,9 +69,9 @@ abstract class UpdateMessage extends MongoClientWriteMessage {
     enc.writeCString(namespace)
     enc.writeInt(flags)
     // TODO - Check against Max BSON Size
-    enc.putObject(query)
+    //enc.putObject(query)
     // todo - fix me
-    enc.encodeObject(implicitly[SerializableBSONObject[Upd]].compose(update))
+    //enc.encodeObject(implicitly[SerializableBSONObject[Upd]].compose(update))
   }
 }
 

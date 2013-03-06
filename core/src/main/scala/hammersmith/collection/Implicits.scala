@@ -137,27 +137,27 @@ object Implicits {
 
   // todo - can we do this with Object instead of inside implicits?
   implicit object SerializableBSONDocument extends SerializableBSONDocumentLike[BSONDocument]{
-    val parser = ImmutableBSONDocumentParser
+    val parser = GenericBSONDocumentParser
   }
 
   //implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
 
   implicit object SerializableImmutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.Document]{
-    def parser = ImmutableBSONDocumentParser
+    val parser = ImmutableBSONDocumentParser
   }
 
   implicit object SerializableImmutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.immutable.OrderedDocument]{
-    def parser: BSONParser[OrderedDocument] = ImmutableOrderedBSONDocumentParser
+    val parser: BSONParser[OrderedDocument] = ImmutableOrderedBSONDocumentParser
   }
 
   //implicit object SerializableImmutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.immutable.BSONList]
 
   implicit object SerializableMutableDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.Document]{
-    def parser = MutableBSONDocumentParser
+    val parser = MutableBSONDocumentParser
   }
 
   implicit object SerializableMutableOrderedDocument extends SerializableBSONDocumentLike[hammersmith.collection.mutable.OrderedDocument]{
-    def parser = MutableOrderedBSONDocumentParser
+    val parser = MutableOrderedBSONDocumentParser
   }
 
   //implicit object SerializableMutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.mutable.BSONList]
