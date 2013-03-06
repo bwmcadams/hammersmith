@@ -64,6 +64,15 @@ class ReplyMessage(val header: MessageHeader,
     "Wanted: %d Got: %d".format(numReturned, documents.length))
   log.trace("Parsed Out '%d' Documents", documents.length)
 
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
+
   override def toString = "ReplyMessage { " +
     "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs: %d } ".
       format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents.length)

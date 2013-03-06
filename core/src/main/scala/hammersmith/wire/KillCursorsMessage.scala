@@ -42,6 +42,14 @@ trait KillCursorsMessage extends MongoClientMessage {
     enc.writeInt(numCursors)
     for (_id ← cursorIDs) enc.writeLong(_id)
   }
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
 }
 
 object KillCursorsMessage extends Logging {
