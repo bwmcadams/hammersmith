@@ -103,7 +103,7 @@ trait BSONParser[T] extends Logging {
         log.trace("Got a BSON Boolean '%s' for field '%s'", value, field)
         // Until someone proves otherwise to me, don't see a reason for custom Bool
         entries :+ (field, value)
-      case BSONUTCDateTimeType(field, value) =>
+      case BSONDateTimeType(field, value) =>
         log.trace("Got a BSON UTC Timestamp '%s' for field '%s'", value, field)
         entries :+ (field, parseDateTime(field, value))
       case BSONRegExType(field, value) =>
@@ -117,7 +117,7 @@ trait BSONParser[T] extends Logging {
         log.trace("Got a BSON JSCode for field '%s'", field)
         // no custom parsing for now
         entries :+ (field, value)
-      case BSONJSCodeWScopeType(field, value) =>
+      case BSONScopedJSCodeType(field, value) =>
         log.trace("Got a BSON JSCode W/ Scope for field '%s'", field)
         // no custom parsing for now
         entries :+ (field, value)
