@@ -67,7 +67,7 @@ trait BSONListFactory[T <: BSONList] extends Logging {
   def empty: BSONList
   def newBuilder: BSONListBuilder[T]
 
-  def apply(elems: Any*): BSONList = {
+  def apply(elems: Any*) = {
     val b = newBuilder
     for (xs <- elems) xs match {
       case p: Tuple2[String, _] => b += Document(p)

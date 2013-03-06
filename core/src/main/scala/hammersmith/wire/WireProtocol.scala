@@ -174,7 +174,7 @@ object MongoMessage extends Logging {
     import org.bson.io.Bits._
     log.debug("Attempting to extract a coherent MongoDB Message from '%s'", in)
     val b = new Array[Byte](16) // Message header
-    log.trace("Raw HDR Allocated to %d", b.length)
+    log.trace("Native HDR Allocated to %d", b.length)
     readFully(in, b)
     val rawHdr = new ByteArrayInputStream(b)
     log.trace("Message Header: %s", rawHdr.toString)

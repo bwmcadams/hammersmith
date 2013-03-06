@@ -28,7 +28,6 @@ import hammersmith.util.Logging
 import scala.util.control.Exception._
 import java.util.NoSuchElementException
 import scala.NoSuchElementException
-import hammersmith.bson.primitive.{BSONBinarySubtypeFlag, BSONTypeFlag}
 
 
 trait BSONType extends Logging {
@@ -277,7 +276,7 @@ object BSONBooleanType extends BSONType {
 }
 
 /** BSON Timestamp, UTC  - because MongoDB still doesn't support timezones */
-object BSONUTCDateTimeType extends BSONType {
+object BSONDateTimeType extends BSONType {
   val typeCode: Byte = 0x09
 
   /**
@@ -419,7 +418,7 @@ object BSONMaxKeyType extends BSONType {
 case class BSONCodeWScope(code: String, scope: Map[String, Any])
 
 /** BSON JS Code with a scope ... basically a block of javascript stored in DB */
-object BSONJSCodeWScopeType extends BSONType {
+object BSONScopedJSCodeType extends BSONType {
   val typeCode: Byte = 0x0F
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, BSONCodeWScope)] =

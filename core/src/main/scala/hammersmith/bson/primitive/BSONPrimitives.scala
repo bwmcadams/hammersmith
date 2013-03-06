@@ -17,24 +17,27 @@
 
 package hammersmith.bson.primitive
 
+import hammersmith.bson._
+import hammersmith.collection.BSONDocument
+
 /**
  * A Container for BSON Primitive types
  *
  */
 sealed trait BSONPrimitive {
   /**
-   * The "raw" type – what we call it in Scala.
+   * The "Native" type – what we call it in Scala.
    */
-  type Raw <: Any
+  type Native <: Any
 
   /**
    * The "container" type for this...
    * basically the Scala side primitives
    * represented.
-   * For example, a BSONDatePrimitive's Primitive
+   * For example, a BSONDateTimePrimitive's Primitive
    * is a Long , holding the milliseconds
    *
-   * This is, essentially, the MOST RAW type representation
+   * This is, essentially, the MOST Native type representation
    * rather than a specific instantiation.
    */
   type Primitive <: Any
@@ -42,84 +45,84 @@ sealed trait BSONPrimitive {
   /**
    * The type represented by this primitive
    */
-  def typeCode: BSONTypeFlag.TypeCode
+  def typeCode: Byte
 
   /**
-   * The bson "container" value, from the raw type
+   * The bson "container" value, from the Native type
    *
    * e.g. Int -> BSON Representation of an Int
    *
    */
-  def bsonValue(raw: Raw): Primitive
+  def toBSON(native: Native): Primitive
 
   /**
-   * The "raw" type, read from the BSON Primitive
+   * The "Native" type, read from the BSON Primitive
    *
    * e.g. BSON Integer -> JVM Int
    */
-  def rawValue(bson: Primitive): Raw
+  def fromBSON(bson: Primitive): Native
 
 }
 // EOO is not a valid type container ;)
 
 trait BSONDoublePrimitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Double
-  val typeCode = BSONTypeFlag.Double
+  val typeCode = BSONDoubleType.typeCode
 }
 
 trait BSONStringPrimitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = String
-  val typeCode = BSONTypeFlag.String
+  val typeCode = BSONStringType.typeCode
 }
 
-trait BSONObjectPrimitive[T] extends BSONPrimitive {
-  type Raw = T
-  // TODO - Hmm... this could be a Map[String, Any], no?
-  type Primitive = org.bson.BSONObject
-  val typeCode = BSONTypeFlag.Object
+trait BSONDocumentPrimitive[T] extends BSONPrimitive {
+  type Native = T
+  // Best way to represent this is as a Native set of Keys/Values
+  type Primitive = Seq[(String, Any)]
+  val typeCode = BSONDocumentType.typeCode
 }
 
-trait BSONArrayPrimitive[A, T] extends BSONPrimitive {
-  type Raw = T
-  type Primitive = Seq[A]
-  val typeCode = BSONTypeFlag.Array
+trait BSONArrayPrimitive[T] extends BSONPrimitive {
+  type Native = T
+  type Primitive = Seq[Any]
+  val typeCode = BSONArrayType.typeCode
 }
 
 sealed trait BSONBinaryPrimitive extends BSONPrimitive {
-  val typeCode = BSONTypeFlag.Binary
-  def subtypeCode: BSONBinarySubtypeFlag.SubtypeCode
+  val typeCode = BSONBinaryType.typeCode
+  def subtypeCode: Byte
 }
 
 trait BSONGenericBinaryPrimitive[T] extends BSONBinaryPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Array[Byte]
-  val subtypeCode = BSONBinarySubtypeFlag.Generic
+  val subtypeCode = BSONBinaryType.Binary_Generic
 }
 
 trait BSONBinaryFunctionPrimitive[T] extends BSONBinaryPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Array[Byte] // TODO - Better type repr?
-  val subtypeCode = BSONBinarySubtypeFlag.Function
+  val subtypeCode = BSONBinaryType.Binary_Function
 }
 
 trait BSONOldBinaryPrimitive[T] extends BSONBinaryPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Array[Byte]
-  val subtypeCode = BSONBinarySubtypeFlag.OldBinary
+  val subtypeCode = BSONBinaryType.Binary_Old
 }
 
 trait BSONUUIDPrimitive[T] extends BSONBinaryPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = (Long /* most sig bits */, Long /* least sig bits */)
-  val subtypeCode = BSONBinarySubtypeFlag.UUID
+  val subtypeCode = BSONBinaryType.Binary_UUID
 }
 
 trait BSONOldUUIDPrimitive[T] extends BSONBinaryPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = (Long /* most sig bits */, Long /* least sig bits */)
-  val subtypeCode = BSONBinarySubtypeFlag.OldUUID
+  val subtypeCode = BSONBinaryType.Binary_UUID_Old
 }
 
 /**
@@ -131,30 +134,31 @@ trait BSONOldUUIDPrimitive[T] extends BSONBinaryPrimitive {
  * sealed for safety/sanity
  */
 trait BSONCustomBinaryPrimitive[T] extends BSONBinaryPrimitive {
-  type Raw = T
+  type Native = T
 }
 
+// TODO - we have no real reason for a 'custom' objectid
 trait BSONObjectIdPrimitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = (Int /* time */, Int /* machineID */, Int /* Increment */)
-  val typeCode = BSONTypeFlag.ObjectId
+  val typeCode = BSONObjectIDType.typeCode
 }
 
 trait BSONBooleanPrimitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Boolean
-  val typeCode = BSONTypeFlag.Boolean
+  val typeCode = BSONBooleanType.typeCode
 }
 
-trait BSONDatePrimitive[T] extends BSONPrimitive {
-  type Raw = T
+trait BSONDateTimePrimitive[T] extends BSONPrimitive {
+  type Native = T
   type Primitive = Long /* the UTC milliseconds since the Unix Epoch. */
-  val typeCode = BSONTypeFlag.DateTime
+  val typeCode = BSONDateTimeType.typeCode
 }
 
 trait BSONRegexPrimitive[T] extends BSONPrimitive {
-  type Raw = T
-  val typeCode = BSONTypeFlag.RegEx
+  type Native = T
+  val typeCode = BSONRegExType.typeCode
   /**
    * [Regular expression]
    *
@@ -179,41 +183,41 @@ trait BSONRegexPrimitive[T] extends BSONPrimitive {
  * Skip support for the deprecated DBPointer
  */
 
-trait BSONCodePrimitive[T] extends BSONPrimitive {
-  type Raw = T
+trait BSONJSCodePrimitive[T] extends BSONPrimitive {
+  type Native = T
   type Primitive = String
-  val typeCode = BSONTypeFlag.JSCode
+  val typeCode = BSONJSCodeType.typeCode
 }
 
 trait BSONSymbolPrimitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   /** Stored as a string */
   type Primitive = String
-  val typeCode = BSONTypeFlag.Symbol
+  val typeCode = BSONSymbolType.typeCode
 }
 
-trait BSONScopedCodePrimitive[T] extends BSONPrimitive {
-  type Raw = T
+trait BSONScopedJSCodePrimitive[T] extends BSONPrimitive {
+  type Native = T
   type Primitive = (String /* code */, org.bson.BSONObject /* Scope */)
-  val typeCode = BSONTypeFlag.ScopedJSCode
+  val typeCode = BSONScopedJSCodeType.typeCode
 }
 
 trait BSONInt32Primitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Int
-  val typeCode = BSONTypeFlag.Int32
+  val typeCode = BSONInt32Type.typeCode
 }
 
 trait BSONTimestampPrimitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = (Int /* Time */, Int /* Increment */)
-  val typeCode = BSONTypeFlag.Timestamp
+  val typeCode = BSONTimestampType.typeCode
 }
 
 trait BSONInt64Primitive[T] extends BSONPrimitive {
-  type Raw = T
+  type Native = T
   type Primitive = Long /* Yes, Billy. We represent Longs as Longs! */
-  val typeCode = BSONTypeFlag.Int64
+  val typeCode = BSONInt64Type.typeCode
 }
 
 /** No hard representation of MinKey and MaxKey */
