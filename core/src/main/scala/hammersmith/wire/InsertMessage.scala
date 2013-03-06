@@ -57,7 +57,8 @@ abstract class InsertMessage extends MongoClientWriteMessage {
     for (doc ← q) {
       val total = enc.size
       // todo - fix me.
-      val n = enc.encodeObject(tM.compose(doc))
+      //val n = enc.encodeObject(tM.compose(doc))
+      val n = 0
       log.debug("Total: %d, Last Doc Size: %d", total, n)
       // If we went over the size, backtrack and start a new message
       if (total >= (4 * maxBSON)) {
