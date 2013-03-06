@@ -92,6 +92,15 @@ abstract class QueryMessage extends MongoClientMessage {
     enc.putObject(returnFields.getOrElse(Document.empty))
   }
 
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
+
   override def toString = "{ QueryMessage ns: %s, numSkip: %d, numReturn: %d, query: %s, fields: %s }".format(
     namespace, numberToSkip, numberToReturn, query, returnFields)
 }

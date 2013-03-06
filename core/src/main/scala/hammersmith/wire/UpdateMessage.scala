@@ -73,6 +73,14 @@ abstract class UpdateMessage extends MongoClientWriteMessage {
     // todo - fix me
     //enc.encodeObject(implicitly[SerializableBSONObject[Upd]].compose(update))
   }
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
 }
 
 abstract class BatchUpdateMessage(val namespace: String, val upsert: Boolean = false) extends UpdateMessage { val multiUpdate = true }
@@ -82,12 +90,16 @@ abstract class SingleUpdateMessage(val namespace: String, val upsert: Boolean = 
 object UpdateMessage extends Logging {
   def apply[QT: SerializableBSONObject, UpdT: SerializableBSONObject](ns: String, q: QT, updateSpec: UpdT, _upsert: Boolean = false, multi: Boolean = false) = {
     if (multi)  new BatchUpdateMessage(ns, _upsert) {
+        type Q = QT
+        type Upd = UpdT
         val query = q
         val qM = implicitly[SerializableBSONObject[QT]]
         val update = updateSpec
         val uM = implicitly[SerializableBSONObject[UpdT]]
     }
     else new SingleUpdateMessage(ns, _upsert) {
+        type Q = QT
+        type Upd = UpdT
         val query = q
         val qM = implicitly[SerializableBSONObject[QT]]
         val update = updateSpec

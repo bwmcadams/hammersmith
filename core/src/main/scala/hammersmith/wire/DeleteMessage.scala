@@ -36,7 +36,7 @@ import hammersmith.util.Logging
  */
 abstract class DeleteMessage extends MongoClientWriteMessage {
   type D
-  implicit val dM: SerializableBSONObject[D]
+  implicit val dM: SerializableBSONObject[D] = implicitly[SerializableBSONObject[D]]
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use
@@ -59,11 +59,19 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
     enc.writeInt(flags)
     //enc.encodeObject(dM.compose(query))
   }
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
 }
 
 object DeleteMessage extends Logging {
   def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) = new DeleteMessage {
-    val tM = implicitly[SerializableBSONObject[T]]
+    type D = T
     val namespace = ns
     val query = q
     val removeSingle = onlyRemoveOne

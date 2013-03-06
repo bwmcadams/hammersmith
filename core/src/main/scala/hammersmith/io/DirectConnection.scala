@@ -32,6 +32,7 @@ import hammersmith.wire._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import hammersmith.bson.{ImmutableBSONDocumentParser, SerializableBSONObject, BSONParser}
+import hammersmith.collection.immutable.{Document => ImmutableDocument}
 import akka.io.Tcp.Connected
 import akka.io.Tcp.Register
 import akka.io.Tcp.Connect
@@ -39,6 +40,7 @@ import akka.io.Tcp.CommandFailed
 import scala.Some
 import akka.io.Tcp.ErrorClosed
 import akka.io.Tcp.Received
+import hammersmith.collection.Implicits.SerializableImmutableDocument
 
 /**
  *
@@ -170,6 +172,7 @@ trait MongoRequest {
 
 // todo - how do we instantiate/manage the cursor?
 case class QueryRequest[T : SerializableBSONObject](val msg: QueryMessage) extends MongoRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -178,6 +181,7 @@ case class QueryRequest[T : SerializableBSONObject](val msg: QueryMessage) exten
  * @tparam T Document type to return
  */
 case class GetMoreRequest[T : SerializableBSONObject](val msg: GetMoreMessage) extends MongoRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -187,6 +191,7 @@ case class GetMoreRequest[T : SerializableBSONObject](val msg: GetMoreMessage) e
  * @tparam T Document type to return
  */
 case class FindOneRequest[T : SerializableBSONObject](val msg: QueryMessage) extends MongoRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -194,6 +199,7 @@ case class FindOneRequest[T : SerializableBSONObject](val msg: QueryMessage) ext
  * FindAndModify Command, only ever returns one doc.
  */
 case class FindAndModifyRequest[T : SerializableBSONObject](val msg: QueryMessage) extends MongoRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -214,6 +220,7 @@ trait MongoMutationRequest extends MongoRequest {
  * Insert a *single* document.
  */
 case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -225,6 +232,7 @@ case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessag
  * on your batch ---- not the first, or all of them.
  */
 case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -232,6 +240,7 @@ case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMe
  * Update a *single* document.
  */
 case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -240,6 +249,7 @@ case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessag
  *
  */
 case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+  type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
@@ -248,5 +258,6 @@ case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMe
  * There is no response to a MongoDB Delete, so hardcoded response to Immutable
  */
 case class DeleteRequest(val msg: DeleteMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
-  val decoder = ImmutableBSONDocumentParser
+  type DocType = ImmutableDocument
+  val decoder = SerializableImmutableDocument
 }

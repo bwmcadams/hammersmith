@@ -70,6 +70,14 @@ abstract class InsertMessage extends MongoClientWriteMessage {
     }
 
   }
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
 }
 
 /**
@@ -86,14 +94,17 @@ abstract class BatchInsertMessage(val namespace: String) extends InsertMessage
 object InsertMessage extends Logging {
   def apply[DocType: SerializableBSONObject](ns: String, docs: DocType*) = {
     assume(docs.length > 0, "Cannot insert 0 documents.")
+    val m = implicitly[SerializableBSONObject[DocType]]
     if (docs.length > 1) {
       new BatchInsertMessage(ns) {
-        val tM = implicitly[SerializableBSONObject[DocType]]
+        type T = DocType
+        implicit val tM = m
         val documents = docs
       }
     } else {
       new SingleInsertMessage(ns) {
-        val tM = implicitly[SerializableBSONObject[DocType]]
+        type T = DocType
+        implicit val tM = m
         val documents = Seq(docs.head)
       }
     }

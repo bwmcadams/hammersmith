@@ -43,6 +43,14 @@ trait GetMoreMessage extends MongoClientMessage {
     enc.writeInt(numberToReturn)
     enc.writeLong(cursorID)
   }
+
+  /**
+   * Message specific implementation.
+   *
+   * serializeHeader() writes the header, serializeMessage does a message
+   * specific writeout
+   */
+  protected def serializeMessage()(implicit maxBSON: Int) = ???
 }
 
 object GetMoreMessage extends Logging {

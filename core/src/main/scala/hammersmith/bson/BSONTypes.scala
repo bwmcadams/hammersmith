@@ -32,7 +32,7 @@ import hammersmith.bson.primitive.{BSONBinarySubtypeFlag, BSONTypeFlag}
 
 
 trait BSONType extends Logging {
-  def typeCode: BSONTypeFlag.TypeCode
+  def typeCode: Byte
 
   val littleEndian = ByteOrder.LITTLE_ENDIAN
   val bigEndian = ByteOrder.BIG_ENDIAN
@@ -141,7 +141,7 @@ trait BSONType extends Logging {
 
 /** BSON End of Object Marker - indicates a Doc / BSON Block has ended */
 object BSONEndOfObjectType extends BSONType {
-  val typeCode = BSONTypeFlag.EOO
+  val typeCode: Byte = 0x00
 
   def unapply(frame: ByteIterator): Option[Boolean] =
     if (frame.head == typeCode) Some(true) else None
@@ -151,21 +151,21 @@ object BSONEndOfObjectType extends BSONType {
 
 /** BSON null value */
 object BSONNullType extends BSONType {
-  val typeCode = BSONTypeFlag.Null
+  val typeCode: Byte = 0x0A
 
   def unapply(frame: ByteIterator) = noopUnapply(frame)
 }
 
 /** BSON Undefined value - deprecated in the BSON Spec; use null*/
 object BSONUndefType extends BSONType {
-  val typeCode = BSONTypeFlag.Undefined
+  val typeCode: Byte = 0x06
 
   def unapply(frame: ByteIterator) = noopUnapply(frame)
 }
 
 /** BSON Floating point Number */
 object BSONDoubleType extends BSONType {
-  val typeCode = BSONTypeFlag.Double
+  val typeCode: Byte = 0x01
 
   def unapply(frame: ByteIterator): Option[(String, Double)] =
     if (frame.head == typeCode) {
@@ -175,7 +175,7 @@ object BSONDoubleType extends BSONType {
 
 /** BSON String - UTF8 Encoded with length at beginning */
 object BSONStringType extends BSONType {
-  val typeCode = BSONTypeFlag.String
+  val typeCode: Byte = 0x02
 
   // TODO - Performant UTF8 parsing
   def unapply(frame: ByteIterator): Option[(String, String)] = 
@@ -197,7 +197,15 @@ case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinaryContainer
  * TODO - User customised container classes for subtypes 
  */
 object BSONBinaryType extends BSONType with Logging {
-  val typeCode = BSONTypeFlag.Binary
+  val typeCode: Byte = 0x05
+
+  val Binary_Generic: Byte = 0x00
+  val Binary_Function: Byte = 0x01
+  val Binary_Old: Byte = 0x02
+  val Binary_UUID_Old: Byte = 0x03
+  val Binary_UUID: Byte = 0x04
+  val Binary_MD5: Byte = 0x05
+  val Binary_UserDefined: Byte = 0x80.toByte
 
   def unapply(frame: ByteIterator): Option[(String, BSONBinaryContainer)] =
     if (frame.head == typeCode) {
@@ -209,7 +217,7 @@ object BSONBinaryType extends BSONType with Logging {
       val bin = new Array[Byte](_binLen)
 
       // TODO - Efficiency!
-      if (_subType == BSONBinarySubtypeFlag.OldBinary) {
+      if (_subType == Binary_Old) {
         // Old binary format contained an extra length header 
         // parse out before passing 
         frame.drop(4) // drop the extra length header
@@ -218,20 +226,20 @@ object BSONBinaryType extends BSONType with Logging {
       frame.getBytes(bin)
 
       _subType match {
-        case BSONBinarySubtypeFlag.UUID =>
+        case Binary_UUID =>
           // "NEW" UUID Format uses big endianness, not little 
           Some((name, parseUUID(bin)))
-        case BSONBinarySubtypeFlag.OldUUID=>
+        case Binary_UUID_Old =>
           // "Old" UUID format used little endianness which is NOT how UUIDs are encoded
           Some((name, parseUUID(bin, littleEndian)))
-        case BSONBinarySubtypeFlag.MD5 =>
+        case Binary_MD5 =>
           if (_binLen != 16) 
             throw new BSONParsingException("Invalid MD5 Length in Binary. Expected 16, got " + _binLen)
           // TODO - parse MD5
           Some((name, BSONBinaryMD5(bin)))
-        case BSONBinarySubtypeFlag.Generic | BSONBinarySubtypeFlag.OldBinary =>
+        case Binary_Generic | Binary_Old =>
           Some((name, BSONBinary(bin)))
-        case BSONBinarySubtypeFlag.UserDefined =>
+        case Binary_UserDefined =>
           Some((name, BSONBinaryUserDefined(bin)))
         case other => 
           Some((name, BSONBinaryUserDefined(bin)))
@@ -241,7 +249,7 @@ object BSONBinaryType extends BSONType with Logging {
 
 /** BSON ObjectID */
 object BSONObjectIDType extends BSONType {
-  val typeCode = BSONTypeFlag.ObjectId
+  val typeCode: Byte = 0x07
 
   def unapply(frame: ByteIterator): Option[(String, ObjectID)] =
     if (frame.head == typeCode) {
@@ -258,7 +266,7 @@ object BSONObjectIDType extends BSONType {
 
 /** BSON Boolean */
 object BSONBooleanType extends BSONType {
-  val typeCode = BSONTypeFlag.Boolean
+  val typeCode: Byte = 0x08
 
   def unapply(frame: ByteIterator): Option[(String, Boolean)] =
     if (frame.head == typeCode) {
@@ -270,7 +278,7 @@ object BSONBooleanType extends BSONType {
 
 /** BSON Timestamp, UTC  - because MongoDB still doesn't support timezones */
 object BSONUTCDateTimeType extends BSONType {
-  val typeCode = BSONTypeFlag.DateTime
+  val typeCode: Byte = 0x09
 
   /**
    * Because different users will have different desired types
@@ -284,7 +292,7 @@ object BSONUTCDateTimeType extends BSONType {
 
 /** BSON Regular Expression */
 object BSONRegExType extends BSONType {
-  val typeCode = BSONTypeFlag.RegEx
+  val typeCode: Byte = 0x0B
 
   def unapply(frame: ByteIterator): Option[(String, Regex)] =
     if (frame.head == typeCode) {
@@ -301,7 +309,7 @@ case class DBRef(namespace: String, oid: ObjectID)
 
 /** BSON DBRefs */
 object BSONDBRefType extends BSONType {
-  val typeCode = BSONTypeFlag.DBPointer
+  val typeCode: Byte = 0x0C
 
   def unapply(frame: ByteIterator): Option[(String, DBRef)] =
     if (frame.head == typeCode) {
@@ -324,7 +332,7 @@ case class BSONCode(code: String)
 
 /** BSON JS Code ... basically a block of javascript stored in DB */
 object BSONJSCodeType extends BSONType {
-  val typeCode = BSONTypeFlag.JSCode
+  val typeCode: Byte = 0x0D
 
 
   def unapply(frame: ByteIterator): Option[(String, BSONCode)] = 
@@ -338,7 +346,7 @@ object BSONJSCodeType extends BSONType {
 
 /** BSON Symbol - not used a lot, but for languages that support symbol */
 object BSONSymbolType extends BSONType {
-  val typeCode = BSONTypeFlag.Symbol
+  val typeCode: Byte = 0x0E
 
   def unapply(frame: ByteIterator): Option[(String, Symbol)] = 
     if (frame.head == typeCode) {
@@ -350,7 +358,7 @@ object BSONSymbolType extends BSONType {
 
 /** BSON 32 Bit Integer */
 object BSONInt32Type extends BSONType {
-  val typeCode = BSONTypeFlag.Int32
+  val typeCode: Byte = 0x10
 
   def unapply(frame: ByteIterator): Option[(String, Int)] = 
     if (frame.head == typeCode) {
@@ -361,7 +369,7 @@ object BSONInt32Type extends BSONType {
 
 /** BSON 64 Bit Integer  - aka a long */
 object BSONInt64Type extends BSONType {
-  val typeCode = BSONTypeFlag.Int64
+  val typeCode: Byte = 0x12
 
   def unapply(frame: ByteIterator): Option[(String, Long)] =
     if (frame.head == typeCode) {
@@ -374,7 +382,7 @@ case class BSONTimestamp(time: Int, increment: Int)
 
 /** BSON Timestamp - this is a special type for sharding, oplog etc */
 object BSONTimestampType extends BSONType {
-  val typeCode = BSONTypeFlag.Timestamp
+  val typeCode: Byte = 0x11
 
   def unapply(frame: ByteIterator): Option[(String, BSONTimestamp)] = 
     if (frame.head == typeCode) {
@@ -388,7 +396,7 @@ case class BSONMinKey
 case class BSONMaxKey 
 
 object BSONMinKeyType extends BSONType {
-  val typeCode = BSONTypeFlag.MinKey
+  val typeCode: Byte = 0xFF.toByte
 
   def unapply(frame: ByteIterator): Option[(String, BSONMinKey)] = 
     if (frame.head == typeCode) {
@@ -398,7 +406,7 @@ object BSONMinKeyType extends BSONType {
 }
 
 object BSONMaxKeyType extends BSONType {
-  val typeCode = BSONTypeFlag.MaxKey
+  val typeCode: Byte = 0x7F
 
   def unapply(frame: ByteIterator): Option[(String, BSONMaxKey)] = 
     if (frame.head == typeCode) {
@@ -412,7 +420,7 @@ case class BSONCodeWScope(code: String, scope: Map[String, Any])
 
 /** BSON JS Code with a scope ... basically a block of javascript stored in DB */
 object BSONJSCodeWScopeType extends BSONType {
-  val typeCode = BSONTypeFlag.ScopedJSCode
+  val typeCode: Byte = 0x0F
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, BSONCodeWScope)] =
     if (frame.head == typeCode) {
@@ -432,7 +440,7 @@ object BSONJSCodeWScopeType extends BSONType {
   * return a list of key/value pairs
   */
 object BSONDocumentType extends BSONType {
-  val typeCode = BSONTypeFlag.Object
+  val typeCode: Byte = 0x03
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[(String, Any)])] =
     if (frame.head == typeCode) {
@@ -450,7 +458,7 @@ object BSONDocumentType extends BSONType {
 /** BSON Array 
   * return a list of entries */
 object BSONArrayType extends BSONType {
-  val typeCode = BSONTypeFlag.Array
+  val typeCode: Byte = 0x04
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[Any])] =
    if (frame.head == typeCode) {
