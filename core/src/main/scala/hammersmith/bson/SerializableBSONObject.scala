@@ -27,12 +27,48 @@ import akka.util.{ByteIterator, ByteString}
 @implicitNotFound(msg = "Cannot find SerializableBSONObject type class for ${T}")
 trait SerializableBSONObject[T] {
 
-  def compose(doc: T): ByteString
+  /**
+   * A BSONParser capable of extracting T from a BSON Byte Stream.
+   *
+   * @return A new instance of T
+   */
+  def parser: BSONParser[T]
 
+  /**
+   * A BSONComposer capable of transmogrifying an instance of T into a BSON Object (document) in bytes.
+   * @return
+   */
+  def composer: BSONComposer[T]
+
+  /**
+   * Compose this document into BSON (aka Serialize).
+   *
+   * This is hardcoded logic internally - if you want to be able to
+   * compose your custom object of T into BSON, you need to provide
+   * a BSONComposer[T] that knows how to do the job.
+   *
+   * @param doc
+   * @return an Akka ByteString representing the document in BSON
+   */
+  final def compose(doc: T): ByteString = ???
+
+
+  /**
+   * Parse BSON, returning an instance of this Type.
+   *
+   * TODO - should we even expose this, or should they just provide a composer and parser?
+   *
+   */
   @deprecated("You should pass ByteIterators for sanity/safety, not ByteStrings.")
   def parse(in: ByteString): T = parse(in.iterator)
 
-  def parse(in: ByteIterator): T
+  /**
+   * Parse BSON, returning an instance of this Type.
+   *
+   * TODO - should we even expose this, or should they just provide a composer and parser?
+   *
+   */
+  final def parse(in: ByteIterator): T = parser(in)
 
   /**
    * These methods are used to validate documents in certain cases.
@@ -42,6 +78,16 @@ trait SerializableBSONObject[T] {
   def checkObject(doc: T, isQuery: Boolean = false): Unit
 
   def checkKeys(doc: T): Unit
+
+  /**
+   * Provides an iterator over all of the entries in the document
+   * this is crucial for composition (serialization) to work effectively
+   * if you have a custom object.
+   *
+   * @param doc
+   * @return
+   */
+  def iterator(doc: T): Iterator[(String, Any)]
 
   /**
    * Checks for an ID and generates one, returning a new doc with the id.
@@ -54,6 +100,11 @@ trait SerializableBSONObject[T] {
    */
   def checkID(doc: T): T
 
+  /**
+   * Returns t
+   * @param doc
+   * @return
+   */
   def _id(doc: T): Option[AnyRef]
 }
 
