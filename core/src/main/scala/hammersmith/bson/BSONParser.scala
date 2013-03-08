@@ -69,6 +69,7 @@ trait BSONParser[T] extends Logging {
   @tailrec
   protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
+    // TODO - Big performance boost if we move this to a @switch implementation
     val _entries: Queue[(String, Any)] = frame match {
       case BSONEndOfObjectType(eoo) =>
         log.trace("Got a BSON End of Object")

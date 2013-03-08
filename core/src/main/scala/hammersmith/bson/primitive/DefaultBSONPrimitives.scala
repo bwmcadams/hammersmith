@@ -21,6 +21,9 @@ package primitive
 import hammersmith.collection.immutable.{Document => ImmutableDocument, DBList => ImmutableDBList, OrderedDocument => ImmutableOrderedDocument}
 import hammersmith.collection.mutable.{Document => MutableDocument, DBList => MutableDBList, OrderedDocument => MutableOrderedDocument}
 import hammersmith.collection.BSONDocument
+import akka.util.ByteString
+
+// Mostly provided as examples... we hardcode where possible for performance.
 
 // todo - should/can these by value classes?
 object DefaultBSONDoublePrimitive extends BSONDoublePrimitive[Double] {
@@ -107,4 +110,109 @@ object ImmutableDBListPrimitive extends BSONArrayPrimitive[ImmutableDBList] {
    *
    */
   def toBSON(native: ImmutableDBList) = native.toSeq
+}
+
+object MutableDBListPrimitive extends BSONArrayPrimitive[MutableDBList] {
+  /**
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
+  def fromBSON(bson: Seq[Any]) = MutableDBList(bson: _*)
+
+  /**
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
+  def toBSON(native: MutableDBList) = native.toSeq
+}
+
+// TODO - Binary handlers.
+
+object DefaultBSONUUIDPrimitive extends BSONUUIDPrimitive[java.util.UUID] {
+  /**
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
+  def fromBSON(bson: BSONBinaryUUID) = new java.util.UUID(bson.mostSignificant, bson.leastSignificant)
+
+  /**
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
+  def toBSON(native: java.util.UUID) = new BSONBinaryUUID(native.getMostSignificantBits, native.getLeastSignificantBits)
+}
+
+object DefaultBSONOldUUIDPrimitive extends BSONOldUUIDPrimitive[java.util.UUID] {
+  /**
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
+  def fromBSON(bson: BSONBinaryUUID) = new java.util.UUID(bson.mostSignificant, bson.leastSignificant)
+
+  /**
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
+  def toBSON(native: java.util.UUID) = new BSONBinaryUUID(native.getMostSignificantBits, native.getLeastSignificantBits)
+}
+
+// TODO - JodaTime
+object DefaultBSONDateTimePrimitive extends BSONDateTimePrimitive[java.util.Date] {
+  /**
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
+  def fromBSON(bson: Long) = new java.util.Date(bson)
+
+  /**
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
+  def toBSON(native: java.util.Date) = native.getTime
+}
+
+object DefaultInt32Primitive extends BSONInt32Primitive[Int] {
+  /**
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
+  def fromBSON(bson: Int) = bson
+
+  /**
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
+  def toBSON(native: Int) = native
+}
+
+object DefaultInt64Primitive extends BSONInt64Primitive[Long] {
+  /**
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
+  def fromBSON(bson: Long) = bson
+
+  /**
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
+  def toBSON(native: Long) = native
 }

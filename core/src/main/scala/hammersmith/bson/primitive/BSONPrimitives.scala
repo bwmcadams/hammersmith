@@ -115,13 +115,13 @@ trait BSONOldBinaryPrimitive[T] extends BSONBinaryPrimitive {
 
 trait BSONUUIDPrimitive[T] extends BSONBinaryPrimitive {
   type Native = T
-  type Primitive = (Long /* most sig bits */, Long /* least sig bits */)
+  type Primitive = BSONBinaryUUID
   val subtypeCode = BSONBinaryType.Binary_UUID
 }
 
 trait BSONOldUUIDPrimitive[T] extends BSONBinaryPrimitive {
   type Native = T
-  type Primitive = (Long /* most sig bits */, Long /* least sig bits */)
+  type Primitive = BSONBinaryUUID
   val subtypeCode = BSONBinaryType.Binary_UUID_Old
 }
 

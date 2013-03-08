@@ -46,13 +46,13 @@ trait BSONDocument extends Map[String, Any] with Logging {
   }
 
   /** Lazy utility method to allow typing without conflicting with Map's required get() method and causing ambiguity */
-  def getAs[A : NotNothing : Manifest](key: String): Option[A] = get(key) match {
+  def getAs[A : NotNothing](key: String): Option[A] = get(key) match {
     case None => None
     case Some(value) => Some(value.asInstanceOf[A]) // recast as requested type.
   }
 
 
-  def getAsOrElse[A : NotNothing : Manifest](key: String, default: => A): A = getAs[A](key) match {
+  def getAsOrElse[A : NotNothing](key: String, default: => A): A = getAs[A](key) match {
     case Some(v) => v
     case None => default
   }
