@@ -289,9 +289,26 @@ object BSONDateTimeType extends BSONType {
     } else None
 }
 
+
 /** BSON Regular Expression */
 object BSONRegExType extends BSONType {
   val typeCode: Byte = 0x0B
+
+  import java.util.regex.Pattern
+
+  object Flags extends Enumeration {
+    case class Flag(javaCode: Int, charCode: Char)
+    protected final def Value(javaCode: Int, charCode: Char): Flag = Flag(javaCode, charCode)
+    val CanonEq = Flag(Pattern.CANON_EQ, 'c')
+    val UnixLines = Flag(Pattern.UNIX_LINES, 'd')
+    val Global = Flag(256, 'g')
+    val CaseInsensitive = Flag(Pattern.CASE_INSENSITIVE, 'i')
+    val Multiline = Flag(Pattern.MULTILINE, 'm')
+    val DotAll = Flag(Pattern.DOTALL, 's')
+    val Literal = Flag(Pattern.LITERAL, 't')
+    val UnicodeCase = Flag(Pattern.UNICODE_CASE, 'u')
+    val Comments = Flag(Pattern.COMMENTS, 'x')
+  }
 
   def unapply(frame: ByteIterator): Option[(String, Regex)] =
     if (frame.head == typeCode) {
@@ -300,6 +317,8 @@ object BSONRegExType extends BSONType {
       val options = readCString(frame)
       Some(name, "(?%s)%s".format(options, pattern).r)
     } else None
+
+  def flags(flags: Int): String =  ??? // convert java flags int to a viable string
 
 }
 
