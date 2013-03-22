@@ -113,7 +113,7 @@ object ObjectID extends Logging {
 		val buf = ByteBuffer.wrap(bytes)
 		new ObjectID(buf.getInt(), buf.getInt(), buf.getInt(), false)
 	}
-	
+
 	private val increment = new AtomicInteger(new java.util.Random().nextInt())
 
 	/** 
