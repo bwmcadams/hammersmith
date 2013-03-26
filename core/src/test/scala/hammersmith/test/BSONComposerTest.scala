@@ -47,7 +47,7 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
 
 
   def testBasicCompose = {
-    scalaBSON must haveClass[ByteString] and not beNull
+    scalaBSON must beAnInstanceOf[ByteString] and not beNull
   }
 
 
