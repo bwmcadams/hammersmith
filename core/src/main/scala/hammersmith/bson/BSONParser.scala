@@ -263,6 +263,7 @@ object GenericBSONDocumentParser extends BSONParser[BSONDocument] {
   def parseRootObject(entries: Seq[(String, Any)]) = ImmutableDocument(entries: _*)
 }
 
+
 object ImmutableBSONDocumentParser extends BSONParser[ImmutableDocument] {
   def parseRootObject(entries: Seq[(String, Any)]) = ImmutableDocument(entries: _*)
 }

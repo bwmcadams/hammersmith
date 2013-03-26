@@ -25,10 +25,12 @@ import java.util.{Date, UUID}
 import java.nio.ByteOrder
 import scala.util.matching.Regex
 import java.util.regex.Pattern
+import hammersmith.collection.immutable.{Document => ImmutableDocument, DBList => ImmutableDBList, OrderedDocument => ImmutableOrderedDocument}
+import hammersmith.collection.mutable.{Document => MutableDocument, DBList => MutableDBList, OrderedDocument => MutableOrderedDocument}
+import hammersmith.collection.BSONDocument
 
 trait BSONComposer[T] extends Logging {
 
-  implicit val tM: SerializableBSONObject[T]
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
@@ -46,6 +48,11 @@ trait BSONComposer[T] extends Logging {
   def primitives: Map[Class[_], BSONPrimitive]
 
   /**
+   * Produces an elements iterator from T
+   */
+  def elements(doc: T): Iterator[(String, Any)]
+
+  /**
    * Encodes a document of type T down into BSON via a ByteString
    * This method is concrete, in that it invokes "composeDocument",
    * which you'll need to provide a concrete version of for T.
@@ -54,7 +61,7 @@ trait BSONComposer[T] extends Logging {
    */
   def apply(doc: T): ByteString = {
     implicit val b = ByteString.newBuilder
-    val sz = composeBSONObject(None, tM.iterator(doc))
+    val sz = composeBSONObject(None, elements(doc))
     // todo - make sure we compose the total document length ahead of it before return
     b.result()
   }
@@ -608,3 +615,38 @@ trait BSONComposer[T] extends Logging {
     calc(value, 0)
   }
 }
+
+/**
+ * Default no frills BSONDocumentComposer
+ */
+object GenericBSONDocumentComposer extends BSONComposer[BSONDocument] {
+  def primitives = Map.empty[Class[_], BSONPrimitive]
+
+  def elements(doc: BSONDocument) = doc.iterator
+}
+
+object ImmutableBSONDocumentComposer extends BSONComposer[ImmutableDocument] {
+  def primitives = Map.empty[Class[_], BSONPrimitive]
+
+  def elements(doc: ImmutableDocument) = doc.iterator
+}
+
+object ImmutableOrderedBSONDocumentComposer extends BSONComposer[ImmutableOrderedDocument] {
+  def primitives = Map.empty[Class[_], BSONPrimitive]
+
+  def elements(doc: ImmutableOrderedDocument) = doc.iterator
+}
+
+object MutableBSONDocumentComposer extends BSONComposer[MutableDocument] {
+  def primitives = Map.empty[Class[_], BSONPrimitive]
+
+  def elements(doc: MutableDocument) = doc.iterator
+}
+
+object MutableOrderedBSONDocumentComposer extends BSONComposer[MutableOrderedDocument] {
+  def primitives = Map.empty[Class[_], BSONPrimitive]
+
+  def elements(doc: MutableOrderedDocument) = doc.iterator
+}
+
+class BSONCompositionException(message: String, t: Throwable = null) extends Exception(message, t)
