@@ -129,7 +129,12 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
 
 
     val bson = SerializableBSONDocument.compose(doc)
-    log.trace("BSON: " + bson)
+    log.trace("BSON: " + Hex.valueOf(bson.toArray))
     bson
+  }
+
+
+  object Hex {
+    def valueOf(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
   }
 }

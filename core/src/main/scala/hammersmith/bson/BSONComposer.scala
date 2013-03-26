@@ -481,7 +481,7 @@ trait BSONComposer[T] extends Logging {
     len += composeCStringValue(key)
     // field value
     b.putDouble(value)
-    len + 4 // doubles are 4 bytes
+    len + 8 // doubles are 64 bit - 8 bytes
   }
 
   /**
