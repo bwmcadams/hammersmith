@@ -100,6 +100,7 @@ trait BSONDocumentFactory[T <: BSONDocument] {
 
 }
 
+// TODO - Default BSONDocument factory that produces an immutable
 /*object BSONDocument extends BSONDocumentFactory[Document] {
   def empty: Document = hammersmith.collection.immutable.Document.empty
 

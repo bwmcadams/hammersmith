@@ -37,15 +37,15 @@ import hammersmith.util.Logging
 import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[JUnitRunner])
-class BSONTest extends Specification with Logging {
+class BSONParserTest extends Specification with Logging {
   sequential
 
   def is =
 
-    "This is a specification to test the functionality of BSON" ^
+    "This is a specification to test the functionality of the new BSON Parser" ^
       p ^
       "Parsing of BSON should" ^
-      "Provide clear, valid, and sane interop w/ old Java driver" ^
+      "Provide clear, valid, and sane interop w/ old 10gen Java driver" ^
       "Parsing returns a valid document, checking fields" ! testBasicParse ^
       "_id" ! hasOID ^
       "null" ! hasNull ^
@@ -84,8 +84,6 @@ class BSONTest extends Specification with Logging {
 
 
   def testBasicParse = {
-    System.err.println("Doc: " + parsedBSON)
-    System.err.println("*** List : " + parsedBSON.get("array"))
     parsedBSON must haveClass[Document] and not beNull
   }
 
@@ -258,7 +256,6 @@ class BSONTest extends Specification with Logging {
     b1.add("y", rand.nextLong)
     val doc1 = b1.get()
     val enc1 = encoder.encode(doc1)
-    //System.err.println("ENCODED #1: " + Hex.valueOf(enc1))
     frameBuilder.putBytes(enc1)
 
     val b2 = com.mongodb.BasicDBObjectBuilder.start()
@@ -268,7 +265,6 @@ class BSONTest extends Specification with Logging {
     b2.add("y", rand.nextLong)
     val doc2 = b2.get()
     val enc2 = encoder.encode(doc2)
-    //System.err.println("ENCODED #2: " + Hex.valueOf(enc2))
     frameBuilder.putBytes(enc2)
 
     val b3 = com.mongodb.BasicDBObjectBuilder.start()
@@ -278,7 +274,6 @@ class BSONTest extends Specification with Logging {
     b3.add("y", rand.nextLong)
     val doc3 = b3.get()
     val enc3 = encoder.encode(doc3)
-    //System.err.println("ENCODED #3: " + Hex.valueOf(enc3))
     frameBuilder.putBytes(enc3)
 
     val b4 = com.mongodb.BasicDBObjectBuilder.start()
@@ -288,7 +283,6 @@ class BSONTest extends Specification with Logging {
     b4.add("y", rand.nextLong)
     val doc4 = b4.get()
     val enc4 = encoder.encode(doc4)
-    //System.err.println("ENCODED #4: " + Hex.valueOf(enc4))
     frameBuilder.putBytes(enc4)
 
     val b5 = com.mongodb.BasicDBObjectBuilder.start()
@@ -298,7 +292,6 @@ class BSONTest extends Specification with Logging {
     b5.add("y", rand.nextLong)
     val doc5 = b5.get()
     val enc5 = encoder.encode(doc5)
-    //System.err.println("ENCODED #5: " + Hex.valueOf(enc5))
     frameBuilder.putBytes(enc5)
 
     frameBuilder.result()
@@ -308,13 +301,9 @@ class BSONTest extends Specification with Logging {
     val frame = multiTestDocs
     val decoded = ArrayBuffer.empty[Document]
     val iter = frame.iterator
-    //System.err.println(Hex.valueOf(iter.clone().toArray))
     while (iter.hasNext) {
       val dec = ImmutableBSONDocumentParser(iter)
-      System.err.println("Decoded: " + dec)
       decoded += dec
-      //System.err.println("Post Decode: " + iter + " Has " + iter.len + " Bytes left...")
-      //System.err.println(Hex.valueOf(iter.clone().toArray))
     }
 
     decoded must haveSize(5)
