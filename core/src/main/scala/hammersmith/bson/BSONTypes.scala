@@ -58,6 +58,7 @@ trait BSONType extends Logging {
   final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
     val c = frame.next().toChar
 
+    log.trace("[c] " + c)
     if (c == 0x00) {
       buffer.toString
     } else {
