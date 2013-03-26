@@ -40,8 +40,8 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
     "This specification is to test the functionality of the new BSON Composer" ^
     p ^
     "Composing BSON should" ^
-    "Provide clear, valid, and sane interop w/ the old 10gen Java Driver" ^
-    "A document produced with all possible fields, can be parsed by the Java Driver, checking fields" ! testBasicCompose ^
+    "Function without blowing up" ! testBasicCompose ^
+    "Interoperate with the Parser, i.e. be parseable" ! testBasicParse ^
     endp
     // TODO - Test Multi-level docs as much as possibl
 
@@ -50,8 +50,16 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
     scalaBSON must beAnInstanceOf[ByteString] and not beNull
   }
 
+  def testBasicParse = {
+    parsedBSON must beAnInstanceOf[Document] and not beNull
+  }
+
 
   // -- Setup Definitions
+  lazy val parsedBSON: Document = parseBSONWithScala
+
+  def parseBSONWithScala: Document = ImmutableBSONDocumentParser(scalaBSON.iterator)
+
   lazy val oid = ObjectID()
 
   lazy val testOID = ObjectID()
@@ -120,6 +128,8 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
     val doc = b.result
 
 
-    SerializableBSONDocument.compose(doc)
+    val bson = SerializableBSONDocument.compose(doc)
+    log.trace("BSON: " + bson)
+    bson
   }
 }

@@ -611,9 +611,10 @@ trait BSONComposer[T] extends Logging {
         b.putByte((0x80 + (code & 0x3F)).toByte)
       }
       val x = Character.charCount(code)
-      assume(x <= len, "UTF8 Loop issue, exceeded total expected character length.")
-      if (x < len) write(i + x)
+      assume(i + x <= len, "UTF8 Loop issue, exceeded total expected character length.")
+      if (i + x < len) write(i + x)
     }
+    write(0)
     // Last byte, the trailer.
     b.putByte(0x00.toByte)
     if (asCString)
