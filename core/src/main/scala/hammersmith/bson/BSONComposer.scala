@@ -199,9 +199,9 @@ trait BSONComposer[T] extends Logging {
     // Things we treat as Regular Expressions
     case re: Regex =>
       val p = re.pattern
-      composeBSONRegex(key, p.pattern, BSONRegExType.flags(p.flags))
+      composeBSONRegex(key, p.pattern, BSONRegExType.parseFlags(p.flags))
     case p: Pattern =>
-      composeBSONRegex(key, p.pattern, BSONRegExType.flags(p.flags))
+      composeBSONRegex(key, p.pattern, BSONRegExType.parseFlags(p.flags))
     // Things we treat as a DBRef NOT as a deprecated DBPointer
     case d: DBRef => ???
     // Things we treat as JSCode
