@@ -149,7 +149,7 @@ trait BSONComposer[T] extends Logging {
     case dbl: Double =>
       composeBSONDouble(key, dbl)
     case flt: Float =>
-      log.warn("Converting Float (32-bit) to a Double (64-bit) may result in some precision loss")
+      log.warn("['%s'] Converting Float (32-bit) to a Double (64-bit) may result in some precision loss".format(key))
       composeBSONDouble(key, flt)
     /* We should NOT blindly encode BigDecimal */
     case bd: BigDecimal =>
@@ -158,26 +158,26 @@ trait BSONComposer[T] extends Logging {
     case str: String =>
       composeBSONString(key, str)
     // things we handle as embedded docs
-    case m: Map[String, Any] =>
-      log.warn("Writing raw Maps to BSON is inadvisable; all values will be encoded as Any, and type erasure may wreak havoc. " +
-               "Please consider creating a BSONDocument.")
-      composeBSONObject(Some(key), m.iterator)
     case doc: BSONDocument =>
       // todo - guarantee if this is Ordered that its iterator provides ordering guarantees on iteration
       composeBSONObject(Some(key), doc.iterator)
+    case m: Map[String, Any] =>
+      log.warn("['%s'] Writing raw Maps to BSON is inadvisable; all values will be encoded as Any, and type erasure may wreak havoc. ".format(key) +
+               "Please consider creating a BSONDocument.")
+      composeBSONObject(Some(key), m.iterator)
     // Things we handle as arrays
     case lst: BSONList =>
       composeBSONArray(key, lst.iterator)
     case arr: Array[Any] =>
-      log.warn("Got an Array, which due to type erasure is being treated as a BSON Array. If you meant to store Binary data, " +
+      log.warn("['%s'] Got an Array , which due to type erasure is being treated as a BSON Array. If you meant to store Binary data, ".format(key) +
                " Please construct an instance of BSONBinaryContainer for serialization.")
       composeBSONArray(key, arr.iterator)
+    case set: Set[Any] =>
+      log.warn("['%s'] WARNING: MongoDB does NOT provide storage guarantees around Sets, only allowing arrays to be treated as Sets during atomic updates. ".format(key) +
+        " Please see: http://docs.mongodb.org/manual/reference/operator/set/#_S_set")
+      composeBSONArray(key, set.iterator)
     case seq: Seq[Any] =>
       composeBSONArray(key, seq.iterator)
-    case set: Set[Any] =>
-      log.warn("WARNING: MongoDB does NOT provide storage guarantees around Sets, only allowing arrays to be treated as Sets during atomic updates. " +
-               " Please see: http://docs.mongodb.org/manual/reference/operator/set/#_S_set")
-      composeBSONArray(key, set.iterator)
     // Things we handle as binary data
     case u: UUID =>
       composeBSONUUID(key, u)
