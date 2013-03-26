@@ -143,6 +143,7 @@ trait BSONComposer[T] extends Logging {
   protected def primitiveFieldComposition(key: String, primitive: BSONPrimitive, value: Any)(implicit b: ByteStringBuilder) = ???
 
 
+
   protected def defaultFieldComposition(key: String, value: Any)(implicit b: ByteStringBuilder) = value match {
     // things we handle as Double
     case dbl: Double =>
@@ -201,12 +202,14 @@ trait BSONComposer[T] extends Logging {
       composeBSONRegex(key, p.pattern, BSONRegExType.flags(p.flags))
     case p: Pattern =>
       composeBSONRegex(key, p.pattern, BSONRegExType.flags(p.flags))
-    // Things we treat as a DBRef
+    // Things we treat as a DBRef NOT as a deprecated DBPointer
     case d: DBRef => ???
     // Things we treat as JSCode
-    case code: BSONCode => ???
+    case code: BSONCode =>
+      composeBSONCode(key, code.code)
     // Things we treat as Scoped JSCode
-    case scoped: BSONCodeWScope => ???
+    case scoped: BSONCodeWScope =>
+      composeBSONScopedCode(key, scoped.code, scoped.scope)
     // Things we treat as a Symbol
     case s: Symbol =>
       composeBSONString(key, s.name)
@@ -259,6 +262,29 @@ trait BSONComposer[T] extends Logging {
     var len = 1 // type code is 1
     // field name
     len += composeCStringValue(key)
+    len
+  }
+
+  protected def composeBSONCode(key: String, code: String)(implicit b: ByteStringBuilder): Int = {
+    // type code
+    b.putByte(BSONJSCodeType.typeCode)
+    var len = 1 // type code is 1
+    // field name
+    len += composeCStringValue(key)
+    // code
+    len += composeUTF8StringValue(code)
+    len
+  }
+
+  protected def composeBSONScopedCode(key: String, code: String, scope: Map[String, Any])(implicit b: ByteStringBuilder): Int = {
+    // type code
+    b.putByte(BSONScopedJSCodeType.typeCode)
+    var len = 1 // type code is 1
+    // field name
+    len += composeCStringValue(key)
+    // code
+    len += composeUTF8StringValue(code)
+    len += composeBSONObject(None, scope.iterator)
     len
   }
 

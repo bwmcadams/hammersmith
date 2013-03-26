@@ -50,7 +50,7 @@ trait SerializableBSONObject[T] {
    * @param doc
    * @return an Akka ByteString representing the document in BSON
    */
-  final def compose(doc: T): ByteString = ???
+  final def compose(doc: T): ByteString = composer(doc)
 
 
   /**

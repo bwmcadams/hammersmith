@@ -110,7 +110,7 @@ trait BSONParser[T] extends Logging {
       case BSONRegExType(field, value) =>
         log.trace("Got a BSON Regex '%s' for field '%s'", value, field)
         entries :+ (field, parseRegEx(field, value))
-      case BSONDBRefType(field, value) =>
+      case BSONDBPointerType(field, value) =>
         log.trace("Got a BSON DBRef '%s' for field '%s'", value, field)
         // no custom parsing for dbRef until necessity is proven
         entries :+ (field, value)
