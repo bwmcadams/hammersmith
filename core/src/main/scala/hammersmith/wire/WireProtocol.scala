@@ -295,7 +295,7 @@ abstract class MongoClientMessage extends MongoMessage
  */
 abstract class MongoClientWriteMessage extends MongoClientMessage {
   val namespace: String // Full collection name (dbname.collectionname)
-  def ids: Seq[Option[AnyRef]] // All IDs  this message is writing... used for callback fun
+  def ids: Seq[Option[Any]] // All IDs  this message is writing... used for callback fun
 }
 
 /**

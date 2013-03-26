@@ -43,7 +43,7 @@ abstract class InsertMessage extends MongoClientWriteMessage {
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[T] // One or more documents to insert into the collection
 
-  def ids: Seq[Option[AnyRef]] = documents.map(tM._id(_))
+  def ids: Seq[Option[Any]] = documents.map(tM._id(_))
 
   protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
     enc.writeInt(ZERO)

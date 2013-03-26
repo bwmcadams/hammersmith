@@ -105,6 +105,6 @@ trait SerializableBSONObject[T] {
    * @param doc
    * @return
    */
-  def _id(doc: T): Option[AnyRef]
+  def _id(doc: T): Option[Any]
 }
 
