@@ -119,7 +119,7 @@ trait Imports extends Logging {
     }
 
 
-    def _id(doc: T): Option[AnyRef] = doc.getAs[AnyRef]("_id")
+    def _id(doc: T): Option[Any] = doc.get("_id")
 
     /**
      * Provides an iterator over all of the entries in the document
