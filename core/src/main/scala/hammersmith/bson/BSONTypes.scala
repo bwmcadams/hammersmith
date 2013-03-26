@@ -325,8 +325,8 @@ object BSONRegExType extends BSONType {
 // Currently no dereferencing support, etc. (not a fan anyway)
 case class DBRef(namespace: String, oid: ObjectID) 
 
-/** BSON DBRefs */
-object BSONDBRefType extends BSONType {
+/** BSON DBPointers are deprecated, in favor of a 'parsed aware' DBRef which is stupid and slows parsers down. */
+object BSONDBPointerType extends BSONType {
   val typeCode: Byte = 0x0C
 
   def unapply(frame: ByteIterator): Option[(String, DBRef)] =

@@ -30,6 +30,7 @@ import hammersmith.bson.BSONTimestamp
 import hammersmith.bson.BSONMinKey
 import hammersmith.bson.BSONMaxKey
 import akka.util.{ByteString, ByteIterator}
+import hammersmith.collection.Implicits.SerializableBSONDocument
 
 @RunWith(classOf[JUnitRunner])
 class BSONComposerTest extends Specification with ThrownExpectations with Logging {
@@ -119,6 +120,6 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
     val doc = b.result
 
 
-    DefaultBSONComposer.apply(doc)
+    SerializableBSONDocument.compose(doc)
   }
 }
