@@ -47,6 +47,8 @@ trait BSONParser[T] extends Logging {
   def apply(frame: ByteIterator): T = {
     // Extract the BSON doc
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
+    require(len < BSONDocumentType.MaxSize,
+      "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
     val sz = frame.len
     log.debug(s"Frame Size: $sz Doc Size: $len")
     /* for the life of me i can't remember why i'm cloning
@@ -146,6 +148,7 @@ trait BSONParser[T] extends Logging {
         entries :+ (field, value)
       case unknown =>
         log.warning(s"Unknown or unsupported BSON Type '$typ' / $unknown")
+        log.trace("Remaining data: " + hexDump(frame.toArray))
         throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown ")
       }
     if (BSONEndOfObjectType.typeCode == typ) {

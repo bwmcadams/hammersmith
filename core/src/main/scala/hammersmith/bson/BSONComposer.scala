@@ -104,25 +104,80 @@ trait BSONComposer[T] extends Logging {
    */
   protected def composeBSONObject(fieldName: Option[String], values: Iterator[(String, Any)])(implicit b: ByteStringBuilder): Int = {
     implicit val innerB = ByteString.newBuilder
+
+
+    // TODO - Validate there's an ID (there's a hook in serializablebsonobject for this) and that it is written to the doc.
+    // Now write out ze fields
+    for ((k, v) <- values) composeField(k, v)(innerB)
+    innerB += BSONEndOfObjectType.typeCode
+
+    val hdr = innerB.length + 4 /* include int32 bytes as header*/
     /**
      * If no name, this is a toplevel object, which gets no type written
      * Otherwise, write our typecode and field name (e.g. embedded object)
      */
     fieldName match {
       case Some(name) =>
-        innerB.putByte(BSONDocumentType.typeCode) // typeCode
-        composeCStringValue(name)(innerB) // fieldName
+        b.putByte(BSONDocumentType.typeCode) // typeCode
+        composeCStringValue(name)(b) // fieldName
       case None => // noop
     }
-
-    // TODO - Validate there's an ID (there's a hook in serializablebsonobject for this) and that it is written to the doc.
-    // Now write out ze fields
-    val len = values.foldLeft(0) { (_len, kv) => _len + composeField(kv._1, kv._2)(innerB) }
-    innerB += BSONEndOfObjectType.typeCode
-    val hdr = innerB.length + 4 /* include int32 bytes as header*/
     b.putInt(hdr) ++= innerB.result() // not as elegant as i'd like but we need to compose on a separate inner bytestringbuilder.
     hdr
   }
+
+  /**
+   * Write out a BSON Array as bytes.
+   *
+   * Note this comes after any conversions/separations etc.
+   * This is just "Convert Iterator[(String, Any)] to BSON".
+   *
+   * Fundamentally, under the covers a BSON Array is just an Int indexed BSON Document,
+   * which means we will recurse back on the whole encoder as it is possible for Arrays to
+   * contain other arrays, Documents, etc. So encoding of any types is dealt with elsewhee.
+   *
+   * From the BSON Spec a BSON Object (aka Document) is
+   *
+   *    document ::= int32 e_list "\x00"
+   *
+   *  int32 represents the total number of bytes comprising the following document – *inclusive* of the int32's 4 bytes
+   *  e_list is a list of possible elements, where:
+   *
+   *    e_list ::= element e_list
+   *
+   *  As a sequence of elements, wherein an element is
+   *
+   *    element ::= typeCode fieldName typeValue
+   *
+   *  The above of which (typeCode and typeValue) are defined for each possible BSON type.
+   *  For arrays, fieldName will always be an Int32.
+   *
+   * \x00 terminates the document (somewhat redundant given a fixed length header but what the hell)..
+   *  it wouldn't be so bad if \x00 wasn't used a million other places inside BSON, thereby precluding "scanahead" parsing
+   *
+   * For the curious, Array has a representation in the element section of the BNF grammar is:
+   *
+   *    document_element ::= "\x04" e_name document
+   *
+   * @param key The field name to write the array into
+   * @param values An Iterator of Any, representing the values of the Array
+   */
+  def composeBSONArray(key: String, values: Iterator[Any])(implicit b: ByteStringBuilder): Int = {
+    require(values.length < Integer.MAX_VALUE, "MongoDB Arrays use Int indexing and cannot exceed MAX_INT entries.")
+    implicit val innerB = ByteString.newBuilder
+
+
+    // Now write out ze fields
+    val (_, len) = values.foldLeft((0, 0)) { (last, entry) => (last._1 + 1, last._2 + composeField(last._1.toString, entry)(innerB)) }
+    innerB += BSONEndOfObjectType.typeCode
+    val hdr = innerB.length + 4 /* include int32 bytes as header*/
+    b.putByte(BSONArrayType.typeCode) // typeCode
+    composeCStringValue(key)(b) // fieldName
+    b.putInt(hdr) ++= innerB.result() // not as elegant as i'd like but we need to compose on a separate inner bytestringbuilder.
+    hdr
+  }
+
+
 
   protected def composeField(key: String, value: Any)(implicit b: ByteStringBuilder): Int = {
     log.debug(s"Composing field $key with value of type '" + value.getClass + "'")
@@ -514,57 +569,6 @@ trait BSONComposer[T] extends Logging {
     // field value
     len += composeUTF8StringValue(value)
     len
-  }
-
-  /**
-   * Write out a BSON Array as bytes.
-   *
-   * Note this comes after any conversions/separations etc.
-   * This is just "Convert Iterator[(String, Any)] to BSON".
-   *
-   * Fundamentally, under the covers a BSON Array is just an Int indexed BSON Document,
-   * which means we will recurse back on the whole encoder as it is possible for Arrays to
-   * contain other arrays, Documents, etc. So encoding of any types is dealt with elsewhee.
-   *
-   * From the BSON Spec a BSON Object (aka Document) is
-   *
-   *    document ::= int32 e_list "\x00"
-   *
-   *  int32 represents the total number of bytes comprising the following document – *inclusive* of the int32's 4 bytes
-   *  e_list is a list of possible elements, where:
-   *
-   *    e_list ::= element e_list
-   *
-   *  As a sequence of elements, wherein an element is
-   *
-   *    element ::= typeCode fieldName typeValue
-   *
-   *  The above of which (typeCode and typeValue) are defined for each possible BSON type.
-   *  For arrays, fieldName will always be an Int32.
-   *
-   * \x00 terminates the document (somewhat redundant given a fixed length header but what the hell)..
-   *  it wouldn't be so bad if \x00 wasn't used a million other places inside BSON, thereby precluding "scanahead" parsing
-   *
-   * For the curious, Array has a representation in the element section of the BNF grammar is:
-   *
-   *    document_element ::= "\x04" e_name document
-   *
-   * @param key The field name to write the array into
-   * @param values An Iterator of Any, representing the values of the Array
-   */
-  def composeBSONArray(key: String, values: Iterator[Any])(implicit b: ByteStringBuilder): Int = {
-    require(values.length < Integer.MAX_VALUE, "MongoDB Arrays use Int indexing and cannot exceed MAX_INT entries.")
-    implicit val innerB = ByteString.newBuilder
-
-    innerB.putByte(BSONArrayType.typeCode) // typeCode
-    composeCStringValue(key)(innerB) // fieldName
-
-    // Now write out ze fields
-    val (_, len) = values.foldLeft((0, 0)) { (last, entry) => (last._1 + 1, last._2 + composeField(last._1.toString, entry)(innerB)) }
-    innerB += BSONEndOfObjectType.typeCode
-    val hdr = innerB.length + 4 /* include int32 bytes as header*/
-    b.putInt(hdr) ++= innerB.result() // not as elegant as i'd like but we need to compose on a separate inner bytestringbuilder.
-    hdr
   }
 
 

@@ -120,11 +120,11 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
     b += "float324_582" -> 324.582f
     b += "double245_6289" -> 245.6289
     b += "oid" -> testOID
-    //b += "code" -> testCode
+    b += "code" -> testCode
     //b += "codeScoped" -> testCodeWScope
     b += "str" -> testStr
     //b += "ref" -> DBRef
-    //b += "embeddedDocument" -> testDoc
+    b += "embeddedDocument" -> testDoc
     //b += "embeddedDBList" -> testDBList
     //b += "embeddedArray" -> testArray
     //b += "embeddedVector" -> testVector
