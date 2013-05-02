@@ -74,6 +74,8 @@ trait BSONType extends Logging {
   def readUTF8String(frame: ByteIterator): String = {
     val size = frame.getInt
     //log.trace(s"Attempting to read a UTF8 string of '$size' bytes.")
+    require(size < BSONDocumentType.MaxSize,
+      "Invalid UTF8 String. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, size))
     val buf = new Array[Byte](size)
     frame.getBytes(buf)
     // TODO - Catching is heavy on the profiler.. lets try to leave it out for now (though may hav runtime blowup :/)
@@ -474,11 +476,14 @@ object BSONScopedJSCodeType extends BSONType {
   */
 object BSONDocumentType extends BSONType {
   val typeCode: Byte = 0x03
+  val MaxSize = 16 * 1024
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[(String, Any)])] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val subLen = frame.getInt - 4
+      require(subLen < BSONDocumentType.MaxSize,
+        "Invalid embedded document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
       val bytes = frame.clone().take(subLen)
       frame.drop(subLen)
       log.trace("Reading an embedded BSON object of '%s' bytes.", subLen)
@@ -497,6 +502,8 @@ object BSONArrayType extends BSONType {
    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val subLen = frame.getInt - 4
+      require(subLen < BSONDocumentType.MaxSize,
+       "Invalid embedded array. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
       val bytes = frame.clone().take(subLen)
       frame.drop(subLen)
       log.trace("Reading a BSON Array of '%s' bytes.", subLen)
