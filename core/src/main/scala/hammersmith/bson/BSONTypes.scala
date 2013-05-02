@@ -73,6 +73,7 @@ trait BSONType extends Logging {
    */
   def readUTF8String(frame: ByteIterator): String = {
     val size = frame.getInt
+    //log.trace(s"Attempting to read a UTF8 string of '$size' bytes.")
     val buf = new Array[Byte](size)
     frame.getBytes(buf)
     // TODO - Catching is heavy on the profiler.. lets try to leave it out for now (though may hav runtime blowup :/)
@@ -380,7 +381,9 @@ object BSONSymbolType extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, Symbol)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
+      log.trace("Symbol Name: '%s'  / %d", name, frame.len)
       val sym = readUTF8String(frame)
+      log.trace("Symbol Value: '%s'", sym)
       Some((name, Symbol(sym)))
     } else None
 }
@@ -402,7 +405,8 @@ object BSONInt64Type extends BSONType {
 
   def unapply(frame: ByteIterator): Option[(String, Long)] =
     if (frame.head == typeCode) {
-      val name = readCString(frame.drop(1))
+      val rest = frame.drop(1)
+      val name = readCString(rest)
       Some((name, frame.getLong))
     } else None
 }
