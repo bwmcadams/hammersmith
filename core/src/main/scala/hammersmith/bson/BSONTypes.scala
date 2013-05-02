@@ -476,7 +476,7 @@ object BSONScopedJSCodeType extends BSONType {
   */
 object BSONDocumentType extends BSONType {
   val typeCode: Byte = 0x03
-  val MaxSize = 16 * 1024
+  val MaxSize = 16 * 1024 * 1024 // 16 MB
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[(String, Any)])] =
     if (frame.head == typeCode) {
