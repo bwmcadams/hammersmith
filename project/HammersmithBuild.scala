@@ -102,7 +102,7 @@ object Dependencies {
 
   // Akka 
   // todo - possiby pin to a specific version
-  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.2-M1"
+  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.2-M3"
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
