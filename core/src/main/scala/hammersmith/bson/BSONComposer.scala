@@ -332,15 +332,20 @@ trait BSONComposer[T] extends Logging {
   }
 
   protected def composeBSONScopedCode(key: String, code: String, scope: Map[String, Any])(implicit b: ByteStringBuilder): Int = {
+    implicit val innerB = ByteString.newBuilder
     // type code
     b.putByte(BSONScopedJSCodeType.typeCode)
-    var len = 1 // type code is 1
+    var totalLen = 1 // with byte
     // field name
-    len += composeCStringValue(key)
+    totalLen += composeCStringValue(key)(b)
     // code
-    len += composeUTF8StringValue(code)
-    len += composeBSONObject(None, scope.iterator)
-    len
+    var len = 0 //type code doesn't count
+    len += composeUTF8StringValue(code)(innerB)
+    len += composeBSONObject(None, scope.iterator)(innerB)
+    len += 4 // (Itself)
+    b.putInt(len) ++= innerB.result()
+    totalLen += len // for outside, type code counts, + 4 for the internal length
+    totalLen
   }
 
   /**
