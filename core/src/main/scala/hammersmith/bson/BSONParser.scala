@@ -69,6 +69,7 @@ trait BSONParser[T] extends Logging {
   @tailrec
   protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
+    //log.trace("{%d} DECODING TYPE '%s' len [%d]", System.nanoTime(), typ.toByte, frame.len)
     // TODO - Big performance boost if we move this to a @switch implementation
     val _entries: Queue[(String, Any)] = frame match {
       case BSONEndOfObjectType(eoo) =>
@@ -145,7 +146,7 @@ trait BSONParser[T] extends Logging {
         entries :+ (field, value)
       case unknown =>
         log.warning(s"Unknown or unsupported BSON Type '$typ' / $unknown")
-        throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown")
+        throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown ")
       }
     if (BSONEndOfObjectType.typeCode == typ) {
       log.trace("***** EOO")
@@ -153,7 +154,20 @@ trait BSONParser[T] extends Logging {
       _entries
     } else parse(frame, _entries)
   }
-
+//
+//  // TEMP FOR DEBUG REMOVE ME
+//  @tailrec
+//  final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
+//    val c = frame.next().toChar
+//    //log.trace("[c] '" + c + "'")
+//    if (c == 0x00) {
+//      buffer.toString
+//    } else {
+//      buffer.append(c)
+//      readCString(frame, buffer)
+//    }
+//  }
+//  // TEMP FOR DEBUG REMOVE ME
   /**
    * Overridable method for how to handle adding a int32 entry
    *

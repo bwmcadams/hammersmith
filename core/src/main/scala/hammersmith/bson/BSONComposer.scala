@@ -118,7 +118,8 @@ trait BSONComposer[T] extends Logging {
     // TODO - Validate there's an ID (there's a hook in serializablebsonobject for this) and that it is written to the doc.
     // Now write out ze fields
     val len = values.foldLeft(0) { (_len, kv) => _len + composeField(kv._1, kv._2)(innerB) }
-    val hdr = len + 4 /* include int32 bytes as header*/
+    innerB += BSONEndOfObjectType.typeCode
+    val hdr = innerB.length + 4 /* include int32 bytes as header*/
     b.putInt(hdr) ++= innerB.result() // not as elegant as i'd like but we need to compose on a separate inner bytestringbuilder.
     hdr
   }
@@ -128,10 +129,9 @@ trait BSONComposer[T] extends Logging {
     // todo - performance tune/tweak this
     // todo - support ancestry, possibly w/ code atlassian contributed to java driver.
     // todo - capture length
-    if (primitives.isEmpty)
+    if (primitives.isEmpty) {
       defaultFieldComposition(key, value)
-
-    primitives.get(value.getClass) match {
+    } else primitives.get(value.getClass) match {
       case Some(prim) =>
         primitiveFieldComposition(key, prim, value)
       case None =>
@@ -212,7 +212,7 @@ trait BSONComposer[T] extends Logging {
       composeBSONScopedCode(key, scoped.code, scoped.scope)
     // Things we treat as a Symbol
     case s: Symbol =>
-      composeBSONString(key, s.name)
+      composeBSONSymbol(key, s.name)
     // Things we treat as a Int32
     case i: Int =>
       composeBSONInt32(key, i)
@@ -401,7 +401,7 @@ trait BSONComposer[T] extends Logging {
     var len = 1 // type code is 1
     // field name
     len += composeCStringValue(key)
-    b.putByte(if (value) 0x00 else 0x01)
+    b.putByte(if (value) 0x01 else 0x00)
     len + 1 // 1 byte for boolean value
   }
 
@@ -485,6 +485,22 @@ trait BSONComposer[T] extends Logging {
   }
 
   /**
+   * A BSON Symbol - same as String just diff. type; for immutable stuff.
+   * String is encoded in UTF8 (not the cStrings sometimes used)
+   *
+   *    string_element ::= "\x0E" e_name string
+   */
+  protected def composeBSONSymbol(key: String, value: String)(implicit b: ByteStringBuilder): Int = {
+    // type code
+    b.putByte(BSONSymbolType.typeCode)
+    var len = 1 // type code is 1
+    // field name
+    len += composeCStringValue(key)
+    // field value
+    len += composeUTF8StringValue(value)
+    len
+  }
+  /**
    * A BSON String is encoded in UTF8 (not the cStrings sometimes used)
    *
    *    string_element ::= "\x02" e_name string
@@ -545,7 +561,8 @@ trait BSONComposer[T] extends Logging {
 
     // Now write out ze fields
     val (_, len) = values.foldLeft((0, 0)) { (last, entry) => (last._1 + 1, last._2 + composeField(last._1.toString, entry)(innerB)) }
-    val hdr = len + 4 /* include int32 bytes as header*/
+    innerB += BSONEndOfObjectType.typeCode
+    val hdr = innerB.length + 4 /* include int32 bytes as header*/
     b.putInt(hdr) ++= innerB.result() // not as elegant as i'd like but we need to compose on a separate inner bytestringbuilder.
     hdr
   }
