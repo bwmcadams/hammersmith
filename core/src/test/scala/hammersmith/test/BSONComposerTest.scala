@@ -34,9 +34,9 @@ import hammersmith.collection.Implicits.SerializableBSONDocument
 
 @RunWith(classOf[JUnitRunner])
 class BSONComposerTest extends Specification with ThrownExpectations with Logging {
-  sequential
 
   def is =
+    sequential ^
     "This specification is to test the functionality of the new BSON Composer" ^
     p ^
     "Composing BSON should" ^
@@ -81,7 +81,7 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
 
   lazy val testJavaRE = Pattern.compile("^test.*regex.*xyz$", Pattern.CASE_INSENSITIVE)
 
-  lazy val testScalaRE = "(?i)^test.*regex.*xyz$"
+  lazy val testScalaRE = "(?i)^test.*regex.*xyz$".r
 
   lazy val testSymbol = 'Foobar
 
