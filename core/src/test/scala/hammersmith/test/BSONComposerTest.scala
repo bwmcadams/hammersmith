@@ -125,9 +125,9 @@ class BSONComposerTest extends Specification with ThrownExpectations with Loggin
     b += "str" -> testStr
     //b += "ref" -> DBRef
     b += "embeddedDocument" -> testDoc
-    //b += "embeddedDBList" -> testDBList
-    //b += "embeddedArray" -> testArray
-    //b += "embeddedVector" -> testVector
+    b += "embeddedDBList" -> testDBList
+    b += "embeddedArray" -> testArray
+    b += "embeddedVector" -> testVector
     b += "binary" -> testBin
     b += "uuid" -> testUUID
     b += "javaRegex" -> testJavaRE
