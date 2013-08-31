@@ -10,7 +10,7 @@ object HammersmithBuild extends Build {
   lazy val buildSettings = Seq(
     organization := "net.evilmonkeylabs",
     version := "0.3.0-SNAPSHOT",
-    scalaVersion := "2.10.0"/*,
+    scalaVersion := "2.10.2"/*,
     crossScalaVersions := Seq("2.9.2", "2.9.1")*/
   )
 
@@ -45,7 +45,7 @@ object HammersmithBuild extends Build {
  */
 
   lazy val defaultSettings = baseSettings ++ Seq(
-    libraryDependencies ++= Seq(commonsPool, netty, slf4j, akkaActors, specs2, junit),
+    libraryDependencies ++= Seq(netty, slf4j, akkaActors, specs2, junit),
     resolvers ++= Seq(sonaReleases, jbossRepo, akkaSnapshots, typesafeRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
@@ -88,7 +88,7 @@ object Dependencies {
   //val bsonJava = "org.mongodb" % "bson" % "2.7.1"  // currently broken for just bson
   val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.9.3" 
   // Connection Pooling
-  val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
+  //val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
   // Netty
   val netty = "org.jboss.netty" % "netty" % "3.2.6.Final"
@@ -101,8 +101,7 @@ object Dependencies {
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
 
   // Akka 
-  // todo - possiby pin to a specific version
-  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.2-M3"
+  val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.2.1"
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
