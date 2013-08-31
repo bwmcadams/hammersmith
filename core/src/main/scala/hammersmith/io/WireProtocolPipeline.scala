@@ -11,9 +11,9 @@ import akka.actor.ActorLogging
 import hammersmith.util.Logging
 
 class WireProtocolFrame(maxSize: Int = BSONDocumentType.MaxSize)
-  extends PipelineStage[PipelineContext, MongoMessage, ByteString, MongoMessage, ByteString]
+  extends SymmetricPipelineStage[PipelineContext, MongoMessage, ByteString]
   with Logging {
-  override def apply(ctx: PipelineContext) = new PipePair[MongoMessage, ByteString, MongoMessage, ByteString] {
+  override def apply(ctx: PipelineContext) = new SymmetricPipePair[MongoMessage, ByteString] {
     var buffer = None: Option[ByteString]
     implicit val byteOrder = ByteOrder.LITTLE_ENDIAN
 
@@ -53,7 +53,7 @@ class WireProtocolFrame(maxSize: Int = BSONDocumentType.MaxSize)
      * appends the received ByteString to the buffer (if any) and extracts the frames
      * from the result.
      */
-    override val eventPipeline: ByteString =>  Iterable[Either[MongoMessage, MongoMessage]] = {
+    override val eventPipeline = {
       bs: ByteString ⇒
 
       val data = if (buffer.isEmpty) bs else buffer.get ++ bs
