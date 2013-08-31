@@ -98,6 +98,8 @@ object MongoMessage extends Logging {
   val DefaultMaxBSONObjectSize = 1024 * 1024 * 4
 
 
+  def apply(header: ByteString, frame: ByteString): MongoMessage =  apply(header.iterator, frame.iterator)
+
   /**
    * Extractor method for incoming streams of
    * MongoDB data.

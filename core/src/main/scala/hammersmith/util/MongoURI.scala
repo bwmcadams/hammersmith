@@ -20,7 +20,6 @@ package util
 
 import scala.annotation.tailrec
 import scala.collection.Set
-import hammersmith.util.Logging
 
 /**
  * Supports breaking down the MongoDB URI Format for connections.

@@ -2,52 +2,71 @@
 package hammersmith.io
 
 import akka.io._
-import hammersmith.wire.{MongoClientWriteMessage, MongoServerMessage}
+import hammersmith.wire.{MongoMessage, MongoClientWriteMessage, MongoServerMessage}
 import akka.util.ByteString
 import hammersmith.bson.BSONDocumentType
 import java.nio.ByteOrder
 import scala.annotation.tailrec
+import akka.actor.ActorLogging
+import hammersmith.util.Logging
 
-class WireProtocolFrame(maxSize: Int = BSONDocumentType.MaxSize) extends PipelineStage[PipelineContext, MongoClientWriteMessage, ByteString, MongoServerMessage, ByteString] {
-  override def apply(ctx: PipelineContext) = new PipePair[MongoClientWriteMessage, ByteString, MongoServerMessage, ByteString] {
+class WireProtocolFrame(maxSize: Int = BSONDocumentType.MaxSize)
+  extends PipelineStage[PipelineContext, MongoMessage, ByteString, MongoMessage, ByteString]
+  with Logging {
+  override def apply(ctx: PipelineContext) = new PipePair[MongoMessage, ByteString, MongoMessage, ByteString] {
     var buffer = None: Option[ByteString]
     implicit val byteOrder = ByteOrder.LITTLE_ENDIAN
 
-    /**
-     * Extract completed frames from the given ByteString
-     * @param bs
-     * @param acc
-     */
-    @tailrec
-    def extractFrames(bs: ByteString, acc: List[ByteString]) = ???
 
     /**
      * Commands (writes) transformed to the wire.
      */
-    def commandPipeline: (MongoClientWriteMessage) => Iterable[this.type#Result] = ???
+    def commandPipeline: (MongoMessage) => Iterable[this.type#Result] = ???
+
+
+    @tailrec
+    def extractFrames(bs: ByteString, acc: List[MongoMessage]): (Option[ByteString], Seq[MongoMessage]) = {
+      if (bs.isEmpty) {
+        (None, acc)
+      } else if (bs.length < 4 /* header size */) {
+        (Some(bs.compact), acc)
+      } else {
+        val len = bs.iterator.getInt // 4 bytes, if aligned will be int32 length of following doc
+        require(len > 0 && len < maxSize,
+                s"Received an invalid BSON frame size of '$len' bytes (Min: 'more than 4 bytes' Max: '$maxSize' bytes")
+
+        log.debug(s"Decoding a ByteStream of '$len' bytes.")
+
+        if (bs.length >= len) {
+          val header = bs take 16 // Headers are exactly 16 bytes
+          val frame = bs take (len - 16 - 4) /* subtract header;  length of total doc
+                                                includes itself w/ BSON - don't overflow!!! */
+          extractFrames(bs drop len, MongoMessage(header, frame) :: acc)
+        } else {
+          (Some(bs.compact), acc)
+        }
+      }
+    }
 
     /**
      * Reads from the wire.
+     * appends the received ByteString to the buffer (if any) and extracts the frames
+     * from the result.
      */
-    def eventPipeline = { bs: ByteString =>
-      /*
-      state(IO.Chunk(bytes))
-      log.debug("Decoding bytestream")
-      val msg = for {
-        lenBytes <- IO take(4) // 4 bytes, if aligned will be int32 length of following doc.
-        len = lenBytes.iterator.getInt
-        header <- IO take (16)
-        frame <- IO take(len - 16 - 4) // length of total doc includes itself with BSON, so don't overflow.
-      } yield MongoMessage(header.iterator, frame.iterator)    }
-    */
+    override val eventPipeline: ByteString =>  Iterable[Either[MongoMessage, MongoMessage]] = {
+      bs: ByteString ⇒
+
       val data = if (buffer.isEmpty) bs else buffer.get ++ bs
       val (nb, frames) = extractFrames(data, Nil)
       buffer = nb
+
       frames match {
-        case Nil        => Nil
-        case one :: Nil => ctx.singleEvent(one)
-        case many       => many.reverse map (Left(_))
+        case Nil => Nil
+        case one :: Nil => ctx singleEvent one
+        case many => many reverseMap (Left(_))
       }
+
+
     }
   }
 }

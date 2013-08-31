@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.JavaConversions._
 import scala.util.control.Exception._
 import scala.collection.mutable.{ ArrayBuffer, Queue }
-import hammersmith.util.Logging
 
 /**
  * Wrapper for Java ConcurrentLinkedQueue
