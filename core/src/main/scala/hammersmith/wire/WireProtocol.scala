@@ -19,10 +19,8 @@ package hammersmith
 package wire
 
 import java.util.concurrent.atomic.AtomicInteger
-import org.bson._
 import java.io._
-import org.bson.io.{ OutputBuffer, PoolOutputBuffer }
-import hammersmith.bson.{ImmutableBSONDocumentParser, BSONSerializer, DefaultBSONSerializer}
+import hammersmith.bson.{ImmutableBSONDocumentParser}
 import hammersmith.util.Logging
 import akka.util.{ByteIterator, ByteString}
 
@@ -160,69 +158,6 @@ object MongoMessage extends Logging {
     }
   }
 
-  /**
-   * Extractor method for incoming streams of
-   * MongoDB data.
-   *
-   * Attempts to decode them into a coherent message.
-   *
-   * For the moment can only decode Reply messages
-   * longterm we'll support all messages for testing purposes.
-   *
-   * @deprecated This is the old methods for Netty.
-   * TODO - DELETE ME
-   */
-  def unapply(in: InputStream): MongoMessage = {
-    import org.bson.io.Bits._
-    log.debug("Attempting to extract a coherent MongoDB Message from '%s'", in)
-    val b = new Array[Byte](16) // Message header
-    log.trace("Native HDR Allocated to %d", b.length)
-    readFully(in, b)
-    val rawHdr = new ByteArrayInputStream(b)
-    log.trace("Message Header: %s", rawHdr.toString)
-
-    val header = MessageHeader(
-      messageLength = readInt(rawHdr),
-      requestID = readInt(rawHdr),
-      responseTo = readInt(rawHdr),
-      opCode = readInt(rawHdr)
-    )
-
-    OpCode(header.opCode) match {
-      case OpCode.OpReply ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_REPLY'")
-        ReplyMessage(header, in)
-      }
-      case OpCode.OpMsg ⇒ {
-        log.warn("[Incoming Message] Deprecated message type 'OP_MSG' received.")
-        throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpUpdate ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_UPDATE'")
-        throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpInsert ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_INSERT'")
-        throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpGetMore ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_GET_MORE'")
-        throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpDelete ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_DELETE'")
-        throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpKillCursors ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_KILL_CURSORS'")
-        throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case unknown ⇒ {
-        log.error("Unknown Message OpCode '%d'", unknown)
-        throw new UnsupportedOperationException("Invalid Message Type with OpCode '%d'".format(unknown))
-      }
-    }
-  }
 }
 
 abstract class MongoMessage extends Logging {

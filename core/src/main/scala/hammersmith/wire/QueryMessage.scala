@@ -21,7 +21,6 @@ package wire
 import hammersmith.collection._
 import hammersmith.collection.Implicits._
 import hammersmith.collection.mutable.Document
-import hammersmith.bson.BSONSerializer
 import hammersmith.util.Logging
 
 object QueryMessage extends Logging {
@@ -82,15 +81,6 @@ abstract class QueryMessage extends MongoClientMessage {
   val query: BSONDocument // BSON Document representing the query
   val returnFields: Option[BSONDocument] = None // Optional BSON Document for fields to return
 
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
-    enc.writeInt(flags)
-    enc.writeCString(namespace)
-    enc.writeInt(numberToSkip)
-    enc.writeInt(numberToReturn)
-    enc.putObject(query)
-    // TDOO - Not sure what to write for None as this is optional
-    enc.putObject(returnFields.getOrElse(Document.empty))
-  }
 
 
   /**

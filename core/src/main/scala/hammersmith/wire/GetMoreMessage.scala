@@ -17,7 +17,6 @@
 package hammersmith
 package wire
 
-import hammersmith.bson.BSONSerializer
 import hammersmith.util.Logging
 
 /**
@@ -36,13 +35,6 @@ trait GetMoreMessage extends MongoClientMessage {
   val namespace: String // Full collection name (dbname.collectionname)
   val numberToReturn: Int // number of docs to return in first OP_REPLY batch
   val cursorID: Long // CursorID from the OP_REPLY (DB Genned value)
-
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
-    enc.writeInt(ZERO)
-    enc.writeCString(namespace)
-    enc.writeInt(numberToReturn)
-    enc.writeLong(cursorID)
-  }
 
   /**
    * Message specific implementation.

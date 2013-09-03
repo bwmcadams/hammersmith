@@ -19,9 +19,8 @@ package hammersmith
 package wire
 
 import java.io.{ByteArrayInputStream, InputStream}
-import org.bson._
 import hammersmith.collection.immutable.Document
-import hammersmith.bson.{ImmutableBSONDocumentParser, BSONSerializer, DefaultBSONDeserializer}
+import hammersmith.bson.{ImmutableBSONDocumentParser}
 import hammersmith.util.Logging
 import akka.util.{ByteIterator, ByteString}
 
@@ -50,10 +49,6 @@ class ReplyMessage(val header: MessageHeader,
   def queryFailure = (flags & ReplyFlag.QueryFailure.id) > 0
 
   def awaitCapable = (flags & ReplyFlag.AwaitCapable.id) > 0
-
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) =
-    throw new UnsupportedOperationException("This message is not capable of being written. "
-      + "Replies come only from the server.")
 
   /*
    * And here comes the hairy part.  Ideally, we want to completely amortize the
@@ -112,47 +107,6 @@ object ReplyMessage extends Logging {
     new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, documents)
   }
 
-  /** @deprecated this is the old netty era decoder. */
-  def apply(_hdr: MessageHeader, in: InputStream) = {
-    import org.bson.io.Bits._
-    // TODO - Make it possible to dynamically set a decoder.
-    /**
-     * TODO - It turned out to NOT be safe to share this directly and we'll need a pool.
-     */
-    val decoder = new DefaultBSONDeserializer
-    log.debug("Finishing decoding Reply Message with Header of '%s'", _hdr)
-    val b = new Array[Byte](20) // relevant non-document stream bytes from the reply content.
-    readFully(in, b)
-    val bin = new ByteArrayInputStream(b)
-    log.trace("Offset data for rest of reply read: %s", bin)
-
-    val flags = readInt(bin)
-    val cursorID = readLong(bin)
-    val startingFrom = readInt(bin)
-    val numReturned = readInt(bin)
-    /*
-     * And here comes the hairy part.  Ideally, we want to completely amortize the
-     * decoding of these docs.  It makes *zero* sense to me to wait for a whole
-     *  block of documents to decode from BSON before I can begin iteration.
-     **/
-    import org.bson.io.Bits
-    def _dec() = {
-      val l = Array.ofDim[Byte](4)
-      in.read(l)
-      val len = Bits.readInt(l)
-      log.debug("Decoding object, length: %d", len)
-      val b = Array.ofDim[Byte](len)
-      in.read(b, 4, len - 4)
-      // copy length to the full array
-      Array.copy(l, 0, b, 0, 4)
-      log.trace("Len: %s L: %s / %s, Header: %s", len, l, readInt(l), readInt(b))
-      ImmutableBSONDocumentParser.apply(ByteString(b).iterator)
-    }
-
-    val documents = for (i ← (0 until numReturned).toStream) yield _dec
-
-    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, documents)
-  }
 }
 
 class ReplyDocuments(numReturned: Int, docStream: ByteIterator) extends Stream[Document] {
