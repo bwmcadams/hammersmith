@@ -18,9 +18,7 @@
 package hammersmith
 package wire
 
-import org.bson._
 import hammersmith.collection._
-import bson.BSONSerializer
 import bson.SerializableBSONObject
 import hammersmith.util.Logging
 
@@ -52,13 +50,6 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
   val query: D // Query object for what to delete
 
   def ids: Seq[Option[AnyRef]] = List(None)
-
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
-    enc.writeInt(ZERO)
-    enc.writeCString(namespace)
-    enc.writeInt(flags)
-    //enc.encodeObject(dM.compose(query))
-  }
 
   /**
    * Message specific implementation.

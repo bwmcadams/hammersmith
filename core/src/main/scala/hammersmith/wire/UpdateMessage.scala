@@ -18,10 +18,9 @@
 package hammersmith
 package wire
 
-import org.bson._
 import hammersmith.collection._
 import hammersmith.collection.BSONDocument
-import hammersmith.bson.{BSONSerializer, SerializableBSONObject}
+import hammersmith.bson.{SerializableBSONObject}
 import hammersmith.util.Logging
 
 /**
@@ -63,16 +62,6 @@ abstract class UpdateMessage extends MongoClientWriteMessage {
   // TODO - Can we actually get some useful info here?
   def ids: Seq[Option[AnyRef]] = List(None)
 
-  // todo - fix me
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
-    enc.writeInt(ZERO)
-    enc.writeCString(namespace)
-    enc.writeInt(flags)
-    // TODO - Check against Max BSON Size
-    //enc.putObject(query)
-    // todo - fix me
-    //enc.encodeObject(implicitly[SerializableBSONObject[Upd]].compose(update))
-  }
 
   /**
    * Message specific implementation.

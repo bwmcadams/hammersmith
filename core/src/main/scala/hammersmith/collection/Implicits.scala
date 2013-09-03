@@ -17,8 +17,6 @@
 
 package hammersmith.collection
 
-import org.bson.io.OutputBuffer
-import org.bson.types.ObjectId
 import java.io.InputStream
 import hammersmith.bson.util.ThreadLocal
 import hammersmith.bson._
@@ -72,10 +70,6 @@ trait Imports extends Logging {
     }
   }
 
-  def defaultSerializer = new ThreadLocal(new DefaultBSONSerializer)
-
-  def defaultDeserializer = new ThreadLocal(new DefaultBSONDeserializer) 
-
   trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with Logging {
 
     def checkObject(doc: T, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)
@@ -99,18 +93,17 @@ trait Imports extends Logging {
      */
     def checkID(doc: T): T = {
       doc.get("_id") match {
-        case Some(oid: ObjectId) ⇒ {
+        case Some(oid: ObjectID) ⇒ {
           log.debug("Found an existing OID")
-          oid.notNew()
-          //oid
+          oid
         }
         case Some(other) ⇒ {
           log.debug("Found a non-OID ID")
-          //other
+          other
         }
         case None ⇒ {
           // TODO - Replace me with new ObjectID Implementation
-          val oid = new ObjectId()
+          val oid = ObjectID()
           log.trace("no ObjectId. Generated: %s", doc.get("_id"))
           doc + "_id" -> oid
         }
@@ -177,17 +170,14 @@ abstract class ValidBSONType[T]
 
 // todo - refactor types for Hammersmith's
 object ValidBSONType {
-  implicit object BasicBSONList extends ValidBSONType[org.bson.types.BasicBSONList]
-  implicit object BasicDBList extends ValidBSONType[com.mongodb.BasicDBList]
-  implicit object Binary extends ValidBSONType[org.bson.types.Binary]
-  implicit object BSONTimestamp extends ValidBSONType[org.bson.types.BSONTimestamp]
-  implicit object Code extends ValidBSONType[org.bson.types.Code]
-  implicit object CodeWScope extends ValidBSONType[org.bson.types.CodeWScope]
-  implicit object ObjectId extends ValidBSONType[org.bson.types.ObjectId]
-  implicit object Symbol extends ValidBSONType[org.bson.types.Symbol]
-  implicit object BSONObject extends ValidBSONType[org.bson.BSONObject]
-  implicit object BasicDBObject extends ValidBSONType[com.mongodb.BasicDBObject]
-  implicit object DBObject extends ValidBSONType[com.mongodb.DBObject]
+  implicit object BSONList extends ValidBSONType[BSONList]
+  implicit object Binary extends ValidBSONType[BSONBinary]
+  implicit object BSONTimestamp extends ValidBSONType[BSONTimestamp]
+  implicit object Code extends ValidBSONType[BSONCode]
+  implicit object CodeWScope extends ValidBSONType[BSONCodeWScope]
+  implicit object ObjectId extends ValidBSONType[ObjectID]
+  implicit object Symbol extends ValidBSONType[Symbol]
+  implicit object BSONDocument extends ValidBSONType[BSONDocument]
 }
 
 /**

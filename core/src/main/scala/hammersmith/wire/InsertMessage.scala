@@ -18,7 +18,6 @@ package hammersmith
 package wire
 
 import scala.collection.mutable.Queue
-import bson.BSONSerializer
 import bson.SerializableBSONObject
 import hammersmith.util.Logging
 
@@ -44,32 +43,6 @@ abstract class InsertMessage extends MongoClientWriteMessage {
   val documents: Seq[T] // One or more documents to insert into the collection
 
   def ids: Seq[Option[Any]] = documents.map(tM._id(_))
-
-  protected def writeMessage(enc: BSONSerializer)(implicit maxBSON: Int) {
-    enc.writeInt(ZERO)
-    enc.writeCString(namespace)
-    /**
-     * The limit for batch insert is 4 x MaxBSON
-     */
-    log.debug("Docs Length: %s", documents.length)
-    val q = Queue(documents: _*)
-    // TODO - test recursion
-    for (doc ← q) {
-      val total = enc.size
-      // todo - fix me.
-      //val n = enc.encodeObject(tM.compose(doc))
-      val n = 0
-      log.debug("Total: %d, Last Doc Size: %d", total, n)
-      // If we went over the size, backtrack and start a new message
-      if (total >= (4 * maxBSON)) {
-        log.info("Exceeded MaxBSON [%s] (total: %s), kicking in a new batch.", maxBSON, total)
-        enc.seek(-n)
-        /* TODO - This recursion may be bad and wonky... */
-        InsertMessage(namespace, (doc +: q): _*)//.build(enc)
-      }
-    }
-
-  }
 
   /**
    * Message specific implementation.

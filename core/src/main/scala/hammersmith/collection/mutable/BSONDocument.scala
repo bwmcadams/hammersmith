@@ -18,7 +18,6 @@
 package hammersmith.collection.mutable
 
 import scala.collection.mutable.{MapProxy, LinkedHashMap, HashMap}
-import org.bson.{BasicBSONCallback, BSONCallback, BSONDecoder}
 import hammersmith.collection.{BSONDocumentFactory}
 import hammersmith.collection.immutable.{BSONDocument => ImmutableBSONDocument, Document => ImmutableDocument}
 
@@ -75,9 +74,7 @@ class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends hammersmith.colle
  * TODO - For memory sanity should we drop the bytes as soon
  * as we decode them?
  */
-abstract class LazyBSONDocument[+A](val raw: Array[Byte],
-                                    val decoder: BSONDecoder,
-                                    val callback: BSONCallback = new BasicBSONCallback) extends BSONDocument {
+abstract class LazyBSONDocument[+A](val raw: Array[Byte]) extends BSONDocument {
 
 }
 

@@ -63,7 +63,7 @@ object HammersmithBuild extends Build {
     id = "hammersmith-core",
     base = file("core"),
     settings = defaultSettings ++ Seq(
-      libraryDependencies ++= Seq(bsonJava, mongoJava, slf4jJCL)
+      libraryDependencies ++= Seq(mongoJava, slf4jJCL)
     )
   )
 
@@ -84,9 +84,6 @@ object Publish {
 }
 
 object Dependencies {
-  //BSON 
-  //val bsonJava = "org.mongodb" % "bson" % "2.7.1"  // currently broken for just bson
-  val bsonJava = "org.mongodb" % "mongo-java-driver" % "2.9.3" 
   // Connection Pooling
   //val commonsPool = "commons-pool" % "commons-pool" % "1.5.5"
 
