@@ -102,7 +102,7 @@ trait BSONComposer[T] extends Logging {
    * @param fieldName Optionally (if an embedded doc) the field name for this document entry
    * @param values An Iterator of String -> Any, representing the values of the Document.
    */
-  protected def composeBSONObject(fieldName: Option[String], values: Iterator[(String, Any)])(implicit b: ByteStringBuilder): Int = {
+  final def composeBSONObject(fieldName: Option[String], values: Iterator[(String, Any)])(implicit b: ByteStringBuilder): Int = {
     implicit val innerB = ByteString.newBuilder
 
 
