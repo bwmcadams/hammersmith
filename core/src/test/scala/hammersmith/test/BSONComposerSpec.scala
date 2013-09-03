@@ -34,7 +34,7 @@ import hammersmith.collection.Implicits.SerializableBSONDocument
 import org.bson.{BasicBSONCallback, BasicBSONDecoder}
 
 @RunWith(classOf[JUnitRunner])
-class BSONComposerTest extends Specification with ThrownExpectations with Logging {
+class BSONComposerSpec extends Specification with ThrownExpectations with Logging {
 
   def is =
     sequential ^
