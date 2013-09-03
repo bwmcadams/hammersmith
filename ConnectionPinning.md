@@ -1,4 +1,3 @@
-
 A Note On My Thoughts Regarding "Pinning Connections"
 -----------------------------------------------------
 Having spent much of the 2 years prior to Dec. 2012 working at 10gen (the company behind MongoDB), I've got far
@@ -33,11 +32,11 @@ The explanation given to me for this "Connection Pinning" is based on the fact t
 a write to be "completed" when it got into the network buffer on the client. If one were not using a connection pool at all, and
 immediately did a read looking at the data they just wrote, one might see three possible behaviors (I'm oversimplifying):
 
-    1. The last write succeeded, was applied in the server and the read is "consistent" in that you see the changes you expected.
+1. The last write succeeded, was applied in the server and the read is "consistent" in that you see the changes you expected.
 
-    2. The last write failed, and unless it was a network error on the client wasn't reported in the client code (that until-recently-default-behavior biting us again)
+2. The last write failed, and unless it was a network error on the client wasn't reported in the client code (that until-recently-default-behavior biting us again)
 
-    3. The write has cleared the client network buffer, but is still in the 'to execute' queue of the connection thread (maybe awaiting a write lock) on the server. In this case we would expect our read operation to block until execution queue of the server's connection clears & commits, eventually getting results similar to #1.
+3. The write has cleared the client network buffer, but is still in the 'to execute' queue of the connection thread (maybe awaiting a write lock) on the server. In this case we would expect our read operation to block until execution queue of the server's connection clears & commits, eventually getting results similar to #1.
 
 The concerns that lead to "Connection Pinning" relate to possibility #3 – if we *are* using a connection pool, and the last write we did is still queued but we immediately read from a *different connection* than our write was done on. In this case, the read won't block against the pending write – it will read the current view of the data not accounting for the pending write. Potentially providing (at least from the perception of a user) consistency issues. So, the idea of "Connection Pinning" – to try and use the same connection our thread last used, to prevent this issue – was born. Let's still pretend we have the benefits of Connection Pools but circumvent them as much as possible attempting to claim a (very, very) weak lock on our "last" connection.
 
