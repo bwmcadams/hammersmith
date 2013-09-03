@@ -165,9 +165,12 @@ abstract class MongoMessage extends Logging {
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
   /* Standard Message Header */
   //val header: MessageHeader
-  val opCode: OpCode.Value
-  val requestID = MongoMessage.ID.getAndIncrement
-  log.trace("Generated Message ID '%s'", requestID)
+  def opCode: OpCode.Value
+  lazy val requestID = {
+    val _id = MongoMessage.ID.getAndIncrement
+    log.trace("Generated Message ID '%s'", _id)
+    _id
+  }
 
   def serialize()(implicit maxBSON: Int): ByteString = {
     val head = serializeHeader()
@@ -176,8 +179,7 @@ abstract class MongoMessage extends Logging {
     val b = ByteString.newBuilder
     b.putInt(msg.length)
     val len = b.result()
-    // todo - should we compact this????
-    len ++ msg
+    (len ++ msg).compact
   }
 
   /**
@@ -186,33 +188,14 @@ abstract class MongoMessage extends Logging {
    * @return
    */
   protected def serializeHeader()(implicit maxBSON: Int): ByteString = {
-    throw new UnsupportedOperationException("BSON Composition not yet supported.")
+    val b = ByteString.newBuilder
+    // There's an additional length header above the BSON length that goes here, handled at higher level
+    b.putInt(requestID) // requestID
+    b.putInt(0) // responseTo, only set in server replies.
+    b.putInt(opCode.id) // the OpCode for operation type
+    b.result()
   }
 
-  /*
-  def write(out: OutputStream)(implicit maxBSON: Int) = {
-    // TODO - Reuse / pool Serializers for performance via reset()
-    val buf = new PoolOutputBuffer()
-    val enc = new DefaultBSONSerializer
-    enc.set(buf)
-    val sizePos = buf.getPosition
-    build(enc)
-    log.trace("Finishing writing core message, final length of '%s'", buf.size)
-    buf.writeInt(sizePos, buf.getPosition - sizePos)
-    buf.pipe(out)
-  }
-
-  protected def build(enc: BSONSerializer)(implicit maxBSON: Int) = {
-    enc.writeInt(0) // Length, will set later; for now, placehold
-
-    enc.writeInt(requestID)
-    enc.writeInt(0) // Response ID left empty
-    enc.writeInt(opCode.id) // opCode Type
-    log.trace("OpCode (%s) Int Type: %s", opCode, opCode.id)
-
-    writeMessage(enc)
-  }
-  */
   /**
    * Message specific implementation.
    *
