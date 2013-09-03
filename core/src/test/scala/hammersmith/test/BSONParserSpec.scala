@@ -37,7 +37,7 @@ import hammersmith.util.Logging
 import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[JUnitRunner])
-class BSONParserTest extends Specification with Logging {
+class BSONParserSpec extends Specification with Logging {
   sequential
 
   def is =

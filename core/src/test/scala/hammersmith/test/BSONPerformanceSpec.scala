@@ -7,7 +7,7 @@ import org.bson.{BasicBSONDecoder, NewBSONDecoder}
 import java.util.regex.Pattern
 import hammersmith.util.Logging
 
-object BSONPerformanceTest extends App with Logging {
+object BSONPerformanceSpec extends App with Logging {
 
   //short
   scalaParserPerfTest(50L)
