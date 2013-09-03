@@ -2,15 +2,14 @@
 package hammersmith.io
 
 import akka.io._
-import hammersmith.wire.{MongoMessage, MongoClientWriteMessage, MongoServerMessage}
+import hammersmith.wire.MongoMessage
 import akka.util.ByteString
 import hammersmith.bson.BSONDocumentType
 import java.nio.ByteOrder
 import scala.annotation.tailrec
-import akka.actor.ActorLogging
 import hammersmith.util.Logging
 
-class WireProtocolFrame(maxSize: Int = BSONDocumentType.MaxSize)
+class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
   extends SymmetricPipelineStage[PipelineContext, MongoMessage, ByteString]
   with Logging {
   override def apply(ctx: PipelineContext) = new SymmetricPipePair[MongoMessage, ByteString] {

@@ -20,8 +20,7 @@ import java.net.InetSocketAddress
 import akka.pattern.{ ask, pipe }
 import akka.actor._
 
-import akka.io.{Inet, IO => IOFaçade, Tcp}
-import akka.io.Tcp._
+import akka.io.{IO => IOFaçade, _}
 import akka.event.Logging
 import akka.io.Tcp.Connected
 import akka.io.Tcp.Received
@@ -41,6 +40,16 @@ import scala.Some
 import akka.io.Tcp.ErrorClosed
 import akka.io.Tcp.Received
 import hammersmith.collection.Implicits.SerializableImmutableDocument
+import akka.io.Tcp.Connected
+import akka.io.Tcp.Register
+import akka.io.Tcp.Connect
+import akka.io.Tcp.CommandFailed
+import scala.Some
+import hammersmith.PendingOp
+import akka.io.Tcp.ErrorClosed
+import akka.io.Tcp.Received
+import akka.util.ByteString
+import hammersmith.io.MongoFrameHandler
 
 /**
  *
@@ -55,9 +64,14 @@ case class PendingOp(sender: ActorRef, request: MongoRequest)
 /**
  * The actor that actually proxies connection
  */
-class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor with Stash {
-  val log = Logging(context.system, this)
-  val tcpManager = IOFaçade(Tcp)(context.system)
+class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
+  with ActorLogging
+  with Stash {
+
+  import Tcp._
+  import context.system
+
+  val tcpManager = IOFaçade(Tcp)
   /**
    * map of ops to be completed.
    * todo - some kind of cleanup mechanism , maybe involving weakMap, for futures that have timed out.
@@ -74,11 +88,9 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
   private var connection: Option[ActorRef] = None
 
-  override def preStart = {
-    log.debug(s"Starting up a Direct Connection Actor to connect to '$serverAddress'")
-    // todo - inherit keepalive setting from connection request
-    tcpManager ! Connect(serverAddress, options = List(SO.KeepAlive(true), SO.TcpNoDelay(true)))
-  }
+  log.debug(s"Starting up a Direct Connection Actor to connect to '$serverAddress'")
+  // todo - inherit keepalive setting from connection request
+  tcpManager ! Connect(serverAddress, options = List(SO.KeepAlive(true), SO.TcpNoDelay(true)))
 
   override def postStop = {
     tcpManager ! Close
@@ -88,7 +100,12 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
   }
 
   def receive = {
-    case Connected(`serverAddress`, localAddress) =>
+    case CommandFailed(_: Connect) ⇒
+      // TODO - notify the connected client
+      log.error("Network Connection Failed")
+      context stop self
+
+    case c @ Connected(remote, local) =>
       /**
        * I believe ultimately we should register a separate actor for all reads;
        * If we use ourself as the listener we'll end up with a massive bandwidth limit as
@@ -103,18 +120,27 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       sender ! Register(self)
       log.debug(s"Established a direct connection to MongoDB at '$serverAddress'")
       connection = Some(sender)
+      // TODO - SSL support, if we can get a hold of a copy of the SSL build (I think the source is free, bins aren't)
+      val init = TcpPipelineHandler.withLogger(log,
+          new MongoFrameHandler >>
+          new TcpReadWriteAdapter >>
+          new BackpressureBuffer(lowBytes = 100, highBytes = 1000, maxBytes = 1000000))
+
+
+      val pipeline = context.actorOf(TcpPipelineHandler.props(init, sender, self).withDeploy(Deploy.local) /* ensure it can't be remoted */)
+
+      context watch self
+
+      sender ! Tcp.Register(pipeline)
+      context become connectedBehavior
       // dequeue any stashed messages
       unstashAll()
-    case Received(bytes) =>
-      state(IO.Chunk(bytes))
-      log.debug("Decoding bytestream")
-      val msg = for {
-        lenBytes <- IO take(4) // 4 bytes, if aligned will be int32 length of following doc.
-        len = lenBytes.iterator.getInt
-        header <- IO take (16)
-        frame <- IO take(len - 16 - 4) // length of total doc includes itself with BSON, so don't overflow.
-      } yield MongoMessage(header.iterator, frame.iterator)
-      log.info("Mongo Message: " + msg)
+  }
+
+  def connectedBehavior: Actor.Receive = {
+    case CommandFailed(w: Write) ⇒ // O/S buffer was full
+    case Received(data) =>
+      log.debug("Received Data {}", data)
       // TODO - Dispatch!
     // a non-mutating operation
     case r: MongoRequest => connection match {
@@ -122,13 +148,16 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
         // stash the message for later
         stash()
       case Some(conn) =>
+        conn ! r
     }
     // a mutating operation
+    // todo - mutating operations need to handle a GetLastError setup
     case w: MongoMutationRequest => connection match {
       case None =>
         // stash the message for later
         stash()
       case Some(conn) =>
+        conn ! w
     }
 
     case CommandFailed(cmd) =>
@@ -149,9 +178,7 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       log.error(s"Error in connection to '$serverAddress'; connection closed. Cause: '$cause'")
       // todo - more discrete exceptions
       throw new MongoException(s"Error in connection to '$serverAddress'; connection closed. Cause: '$cause'")
-
   }
-
 
   def send(cmd: Tcp.Command) = connection match {
     case Some(conn) =>
