@@ -19,8 +19,9 @@ package hammersmith
 package wire
 
 import hammersmith.collection._
-import bson.SerializableBSONObject
+import hammersmith.bson.{ImmutableBSONDocumentComposer, SerializableBSONObject}
 import hammersmith.util.Logging
+import akka.util.ByteString
 
 /**
  * OP_DELETE Message
@@ -35,7 +36,7 @@ import hammersmith.util.Logging
 abstract class DeleteMessage extends MongoClientWriteMessage {
   type D
   implicit val dM: SerializableBSONObject[D] = implicitly[SerializableBSONObject[D]]
-  // val header: MessageHeader // Standard message header
+  // jval header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use
   val namespace: String // Full collection name (dbname.collectionname)
@@ -57,7 +58,15 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
    * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def serializeMessage()(implicit maxBSON: Int) = ???
+  protected def serializeMessage()(implicit maxBSON: Int) = {
+    val b = ByteString.newBuilder
+    b.putInt(ZERO) // 0 - reserved for future use (stupid protocol design *grumble grumble*)
+    ImmutableBSONDocumentComposer.composeCStringValue(namespace)(b) // "dbname.collectionname"
+    b.putInt(flags) // bit vector - see DeleteFlag
+    ImmutableBSONDocumentComposer.composeBSONObject(None /* field name */, dM.iterator(query))(b)
+
+    b.result()
+  }
 }
 
 object DeleteMessage extends Logging {
