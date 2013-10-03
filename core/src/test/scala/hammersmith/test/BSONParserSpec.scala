@@ -316,7 +316,5 @@ class BSONParserSpec extends Specification with Logging {
     decoded must haveSize(5)
   }
 
-  object Hex {
-    def valueOf(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
-  }
+
 }
