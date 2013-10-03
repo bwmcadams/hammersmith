@@ -18,6 +18,8 @@ package hammersmith
 package wire
 
 import hammersmith.util.Logging
+import akka.util.ByteString
+import hammersmith.bson.ImmutableBSONDocumentComposer
 
 /**
  * OP_GET_MORE Message
@@ -42,7 +44,14 @@ trait GetMoreMessage extends MongoClientMessage {
    * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def serializeMessage()(implicit maxBSON: Int) = ???
+  protected def serializeMessage()(implicit maxBSON: Int) = {
+    val b = ByteString.newBuilder
+    b.putInt(ZERO) // 0 - reserved for future use (stupid protocol design *grumble grumble*)
+    ImmutableBSONDocumentComposer.composeCStringValue(namespace)(b) // "dbname.collectionname"
+    b.putInt(numberToReturn) // Number of items to return in batch
+    b.putLong(cursorID) // The cursor ID from the OP_REPLY
+    b.result()
+  }
 }
 
 object GetMoreMessage extends Logging {
@@ -52,3 +61,9 @@ object GetMoreMessage extends Logging {
     val cursorID = id
   }
 }
+
+sealed class DefaultGetMoreMessage(val namespace: String,
+                                   val numberToReturn: Int,
+                                   val cursorID: Long) extends GetMoreMessage
+
+

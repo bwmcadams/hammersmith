@@ -11,7 +11,7 @@ object `package` {
 
   val legacyConn = new Mongo
 
-  lazy val legacyDelete = {
+  def legacyDelete(id: Any) = {
     val q = new BasicDBObject
     q.put("_id", "1234")
     val om = OutMessage.remove(legacyConn.getDB("test").getCollection("deletion"), encoder, q)
@@ -22,7 +22,16 @@ object `package` {
 
   }
 
+
   def parseLegacyResponse(data: Array[Byte]) =
     new Response(legacyConn.getAddress, legacyConn.getDB("test").getCollection("deletion"),
                                  new ByteArrayInputStream(data), decoder)
+
+  def legacyGetMore(numReturn: Int, cursorID: Long) = {
+    val om = OutMessage.getMore(legacyConn.getDB("test").getCollection("deletion"), cursorID, numReturn)
+    om.prepare()
+    val out = new ByteArrayOutputStream
+    om.pipe(out)
+    out.toByteArray
+  }
 }
