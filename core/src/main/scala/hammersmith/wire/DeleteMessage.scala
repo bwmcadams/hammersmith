@@ -35,7 +35,7 @@ import akka.util.ByteString
  */
 abstract class DeleteMessage extends MongoClientWriteMessage {
   type D
-  implicit val dM: SerializableBSONObject[D] = implicitly[SerializableBSONObject[D]]
+  val dM: SerializableBSONObject[D]
   // jval header: MessageHeader // Standard message header
   val opCode = OpCode.OpDelete
   val ZERO: Int = 0 // 0 - reserved for future use
@@ -70,12 +70,16 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
 }
 
 object DeleteMessage extends Logging {
-  def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) = new DeleteMessage {
-    type D = T
-    val namespace = ns
-    val query = q
-    val removeSingle = onlyRemoveOne
-  }
+  def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) =
+    new DefaultDeleteMessage[T](ns, q, onlyRemoveOne)
+}
+
+sealed class DefaultDeleteMessage[T: SerializableBSONObject](val namespace: String,
+                                                             val query: T,
+                                                             val removeSingle: Boolean)
+  extends DeleteMessage {
+  type D = T
+  val dM: SerializableBSONObject[D] = implicitly[SerializableBSONObject[T]]
 }
 
 object DeleteFlag extends Enumeration {
