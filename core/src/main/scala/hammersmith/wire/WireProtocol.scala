@@ -90,10 +90,10 @@ object MongoMessage extends Logging {
   val ID = new AtomicInteger(1)
 
   /**
-   * For servers incapable of specifying BSON Size (< 1.8), what's their max size?
-   *  TODO - we aren't going to support these, at all.
+   * We don't support mongo versions (<1.8) that used 4mb as their default,
+   * so set default maxBSON to 16MB
    */
-  val DefaultMaxBSONObjectSize = 1024 * 1024 * 4
+  val DefaultMaxBSONObjectSize = 1024 * 1024 * 16
 
 
   def apply(header: ByteString, frame: ByteString): MongoMessage =  apply(header.iterator, frame.iterator)
@@ -177,7 +177,7 @@ abstract class MongoMessage extends Logging {
     val tail = serializeMessage()
     val msg = head ++ tail
     val b = ByteString.newBuilder
-    b.putInt(msg.length)
+    b.putInt(msg.length + 4 /* include yourself */)
     val len = b.result()
     (len ++ msg).compact
   }

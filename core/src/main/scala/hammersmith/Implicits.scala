@@ -25,10 +25,6 @@ import hammersmith.collection.immutable.Document
 object `package` extends Implicits with Imports
 
 trait Implicits {
-  /**
-   * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
-   */
-  implicit val DefaultMaxBSONSize = 1024 * 1024 * 16
 }
 
 trait Imports {

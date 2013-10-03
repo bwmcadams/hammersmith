@@ -93,7 +93,7 @@ object Dependencies {
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % "1.12.3" % "test" 
   val junit = "junit" % "junit" % "4.7" % "test"
-  val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.8.0" % "test->default"
+  val mongoJava = "org.mongodb" % "mongo-java-driver" % "2.9.3" % "test->default"
   val slf4j = "org.slf4j" % "slf4j-api" % "1.6.1"
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % "1.6.1"
 
