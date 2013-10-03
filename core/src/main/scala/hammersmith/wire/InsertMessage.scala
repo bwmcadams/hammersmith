@@ -18,8 +18,9 @@ package hammersmith
 package wire
 
 import scala.collection.mutable.Queue
-import bson.SerializableBSONObject
+import hammersmith.bson.{ImmutableBSONDocumentComposer, SerializableBSONObject}
 import hammersmith.util.Logging
+import akka.util.ByteString
 
 /**
  * OP_INSERT Message
@@ -38,9 +39,14 @@ abstract class InsertMessage extends MongoClientWriteMessage {
   //val header: MessageHeader // Standard message header
   val opCode = OpCode.OpInsert
 
-  val ZERO: Int = 0 // 0 - reserved for future use
+  def flags: Int = { // bit vector of insert flags assembled from InsertFlag
+    var _f = 0
+    if (continueOnError) _f |= InsertFlag.ContinueOnError.id
+    _f
+  }
   val namespace: String // Full collection name (dbname.collectionname)
   val documents: Seq[T] // One or more documents to insert into the collection
+  val continueOnError: Boolean // continue if an error occurs on bulk insert
 
   def ids: Seq[Option[Any]] = documents.map(tM._id(_))
 
@@ -50,36 +56,64 @@ abstract class InsertMessage extends MongoClientWriteMessage {
    * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def serializeMessage()(implicit maxBSON: Int) = ???
+  protected def serializeMessage()(implicit maxBSON: Int) = {
+    val b = ByteString.newBuilder
+    b.putInt(flags) // bit vector - see InsertFlag
+    ImmutableBSONDocumentComposer.composeCStringValue(namespace)(b) // "dbname.collectionname"
+    documents foreach { doc =>
+      ImmutableBSONDocumentComposer.composeBSONObject(None /* field name */, tM.iterator(doc))(b)
+    }
+
+    b.result()
+  }
 }
 
 /**
  * Insert for a single document
  */
 abstract class SingleInsertMessage(val namespace: String) extends InsertMessage
+sealed class DefaultSingleInsertMessage[DocType : SerializableBSONObject](namespace: String,
+                                                                          val doc: DocType)
+  extends SingleInsertMessage(namespace) {
+  type T = DocType
+  val tM = implicitly[SerializableBSONObject[T]]
+  val continueOnError = false
+  val documents = Seq(doc)
+}
 
 /**
  * Insert for multiple documents
  *
  */
 abstract class BatchInsertMessage(val namespace: String) extends InsertMessage
+sealed class DefaultBatchInsertMessage[DocType : SerializableBSONObject](namespace: String,
+                                                                  val continueOnError: Boolean,
+                                                                  val documents: Seq[DocType])
+  extends BatchInsertMessage(namespace) {
+  type T = DocType
+  val tM = implicitly[SerializableBSONObject[T]]
+}
 
 object InsertMessage extends Logging {
-  def apply[DocType: SerializableBSONObject](ns: String, docs: DocType*) = {
+  def apply[DocType: SerializableBSONObject](ns: String, continueOnError: Boolean, docs: DocType*) = {
     assume(docs.length > 0, "Cannot insert 0 documents.")
-    val m = implicitly[SerializableBSONObject[DocType]]
     if (docs.length > 1) {
-      new BatchInsertMessage(ns) {
-        type T = DocType
-        implicit val tM = m
-        val documents = docs
-      }
+      new DefaultBatchInsertMessage[DocType](ns, continueOnError, docs)
     } else {
-      new SingleInsertMessage(ns) {
-        type T = DocType
-        implicit val tM = m
-        val documents = Seq(docs.head)
-      }
+      new DefaultSingleInsertMessage[DocType](ns, docs.head)
     }
   }
+}
+
+object InsertFlag extends Enumeration {
+  /**
+   * If set, the database will not stop processing a bulk insert
+   * if one fails (eg due to duplicate IDs). This makes bulk insert
+   * behave similarly to a series of single inserts,
+   * except lastError will be set if any insert fails, not just the last one.
+   * If multiple errors occur, only the most recent will be reported by getLastError. (new in 1.9.1)
+   */
+  val ContinueOnError = Value(1 << 0)
+
+  // Bits 1-31 are reserved for future usage
 }
