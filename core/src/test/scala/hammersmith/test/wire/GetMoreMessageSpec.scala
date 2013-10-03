@@ -1,27 +1,19 @@
 
-package hammersmith.wire
-package test
+package hammersmith.test.wire
 
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
 import hammersmith.util.Logging
 import org.specs2.matcher.ThrownExpectations
-import hammersmith.collection.Implicits._
 import hammersmith.collection.immutable._
 import hammersmith.bson._
-import hammersmith._
-import java.util.regex.Pattern
-import hammersmith.bson.BSONTimestamp
-import hammersmith.bson.BSONMinKey
-import hammersmith.bson.BSONMaxKey
-import akka.util.{ByteString, ByteIterator}
-import hammersmith.collection.Implicits.SerializableBSONDocument
+import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
-import com.mongodb._
+import hammersmith.wire.GetMoreMessage
 
 @RunWith(classOf[JUnitRunner])
-class DeleteMessageSpec extends Specification with ThrownExpectations with Logging {
+class GetMoreMessageSpec extends Specification with ThrownExpectations with Logging {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
    */
@@ -29,17 +21,17 @@ class DeleteMessageSpec extends Specification with ThrownExpectations with Loggi
 
   def is =
     sequential ^
-    "This specification is to test the functionality of the Wire Protocol `DeleteMessage`" ^
+    "This specification is to test the functionality of the Wire Protocol `GetMoreMessage`" ^
     p ^
-    "Working with Hammersmith DeleteMessage implementations should" ^
-    "Allow instantiation of a DeleteMessage" ! testBasicInstantiation ^
+    "Working with Hammersmith GetMoreMessage implementations should" ^
+    "Allow instantiation of a GetMore" ! testBasicInstantiation ^
     "Be composed into a BSON bytestream" ! testBasicCompose ^
     "Be comparable to a message created by the MongoDB Java Driver's BSON routines" ! testEncoding ^
     endp
 
 
   def testBasicInstantiation = {
-    testDeleteMsg must not beNull
+    testGetMoreMsg must not beNull
   }
 
   def testBasicCompose = {
@@ -51,7 +43,7 @@ class DeleteMessageSpec extends Specification with ThrownExpectations with Loggi
     val decoder = new BasicBSONDecoder
     val encoder = new BasicBSONEncoder
     val callback = new BasicBSONCallback
-    val legacy = com.mongodb.legacyDelete("1234")
+    val legacy = com.mongodb.legacyGetMore(150, 102)
     println("Legacy Message Size: " + legacy.toArray.length)
     println("Legacy Message Hex: " + hammersmith.test.hexValue(legacy.toArray))
     println("Scala Message Size: " + scalaBSON.toArray.length)
@@ -61,9 +53,9 @@ class DeleteMessageSpec extends Specification with ThrownExpectations with Loggi
   }
 
 
-  lazy val scalaBSON = testDeleteMsg.serialize
+  lazy val scalaBSON = testGetMoreMsg.serialize
 
-  lazy val testDeleteMsg: DeleteMessage =
-    DeleteMessage("test.deletion", Document("_id" -> "1234"), onlyRemoveOne = false)
+  lazy val testGetMoreMsg =
+    GetMoreMessage("test.deletion", 150, 102)
 
 }
