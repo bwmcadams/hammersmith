@@ -56,6 +56,6 @@ class GetMoreMessageSpec extends Specification with ThrownExpectations with Logg
   lazy val scalaBSON = testGetMoreMsg.serialize
 
   lazy val testGetMoreMsg =
-    GetMoreMessage("test.deletion", 150, 102)
+    GetMoreMessage("test.getMore", 150, 102)
 
 }
