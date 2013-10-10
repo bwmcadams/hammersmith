@@ -19,6 +19,8 @@ package hammersmith
 package wire
 
 import hammersmith.util.Logging
+import akka.util.ByteString
+import hammersmith.bson.ImmutableBSONDocumentComposer
 
 /**
  * OP_KILL_CURSORS
@@ -33,8 +35,8 @@ trait KillCursorsMessage extends MongoClientMessage {
   // val header: MessageHeader // Standard message header
   val opCode = OpCode.OpKillCursors
   val ZERO: Int = 0 // 0 - reserved for future use
-  val numCursors: Int // The number of cursorIDs in the message
-  val cursorIDs: Seq[Long] // Sequence of cursorIDs to close
+  val numCursors: Int = cursorIDs.length // The number of cursorIDs in the message
+  def cursorIDs: Seq[Long] // Sequence of cursorIDs to close
 
 
   /**
@@ -43,12 +45,22 @@ trait KillCursorsMessage extends MongoClientMessage {
    * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def serializeMessage()(implicit maxBSON: Int) = ???
+  protected def serializeMessage()(implicit maxBSON: Int) = {
+    val b = ByteString.newBuilder
+    b.putInt(ZERO) // 0 - reserved for future use (stupid protocol design *grumble grumble*)
+    b.putInt(numCursors)
+    cursorIDs foreach { id =>
+      b.putLong(id)
+    }
+    b.result()
+  }
 }
 
+sealed class DefaultKillCursorsMessage(val cursorIDs: Seq[Long]) extends KillCursorsMessage
+
+
 object KillCursorsMessage extends Logging {
-  def apply(ids: Seq[Long]) = new KillCursorsMessage {
-    val numCursors = ids.length
-    val cursorIDs = ids
-  }
+  def apply(ids: Seq[Long]) = new DefaultKillCursorsMessage(ids)
+
+  def apply(id: Long) = new DefaultKillCursorsMessage(Seq(id))
 }

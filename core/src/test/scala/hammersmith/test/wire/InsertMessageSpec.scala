@@ -23,10 +23,11 @@ class InsertMessageSpec extends Specification with ThrownExpectations with Loggi
     sequential ^
     "This specification is to test the functionality of the Wire Protocol `InsertMessage`" ^
     p ^
-    "Working with Hammersmith Single InsertMessage implementations should" ^  p ^
+    "Working with Hammersmith Single InsertMessage implementations should" ^
     "Allow instantiation of a Single InsertMessage" ! testBasicInstantiation ^
     "Be composed into a BSON bytestream" ! testBasicCompose ^
-    "Working with Hammersmith Bulk InsertMessage implementations should"  ^ p ^
+    endp ^
+    "Working with Hammersmith Bulk InsertMessage implementations should"  ^
       "Allow instantiation of a Bulk InsertMessage" ! testBasicBulkInstantiation ^
       "Be composed into a BSON bytestream" ! testBasicBulkCompose ^
     endp
