@@ -16,11 +16,7 @@ object `package` {
     val q = new BasicDBObject
     q.put("_id", "1234")
     val om = OutMessage.remove(legacyConn.getDB("test").getCollection("deletion"), encoder, q)
-    om.prepare()
-    val out = new ByteArrayOutputStream
-    om.pipe(out)
-    out.toByteArray
-
+    _out(om)
   }
 
 
@@ -30,6 +26,10 @@ object `package` {
 
   def legacyGetMore(numReturn: Int, cursorID: Long) = {
     val om = OutMessage.getMore(legacyConn.getDB("test").getCollection("getMore"), cursorID, numReturn)
+    _out(om)
+  }
+
+  def _out(om: OutMessage) = {
     om.prepare()
     val out = new ByteArrayOutputStream
     om.pipe(out)
@@ -44,5 +44,11 @@ object `package` {
     om.pipe(out)
     out.toByteArray
   }*/
+
+  def legacyKillCursors(ids: Seq[Long]) = {
+    val om = OutMessage.killCursors(legacyConn, ids.length)
+    ids foreach { om.writeLong }
+    _out(om)
+  }
 
 }
