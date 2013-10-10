@@ -10,9 +10,11 @@ object HammersmithBuild extends Build {
   lazy val buildSettings = Seq(
     organization := "net.evilmonkeylabs",
     version := "0.3.0-SNAPSHOT",
+    parallelExecution in Test := false,
     scalaVersion := "2.10.2"/*,
     crossScalaVersions := Seq("2.9.2", "2.9.1")*/
   )
+
 
   /**
    * Import some sample data for testing

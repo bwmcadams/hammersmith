@@ -10,7 +10,11 @@ object `package` {
   val encoder = DefaultDBEncoder.FACTORY.create()
   val decoder = DefaultDBDecoder.FACTORY.create()
 
-  val legacyConn = new Mongo
+  /**
+   * This should maintain a reset requestID for testing.
+   * @return
+   */
+  def legacyConn = new Mongo
 
   def legacyDelete(id: Any) = {
     val q = new BasicDBObject
