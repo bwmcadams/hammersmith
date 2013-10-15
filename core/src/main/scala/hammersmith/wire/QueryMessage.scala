@@ -22,27 +22,24 @@ import hammersmith.collection._
 import hammersmith.collection.Implicits._
 import hammersmith.collection.mutable.Document
 import hammersmith.util.Logging
+import akka.util.ByteString
+import hammersmith.bson.ImmutableBSONDocumentComposer
 
 object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,
             fields: Option[BSONDocument] = None, tailable: Boolean = false,
             slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
-            exhaustData: Boolean = false, partialData: Boolean = false) = new QueryMessage {
-    val tailableCursor = tailable
-    val slaveOk = slaveOkay
-    val noCursorTimeout = disableCursorTimeout
-    val awaitData = await
-    val exhaust = exhaustData
-    val partial = partialData
-
-    val namespace = ns
-    val numberToSkip = numSkip
-    val numberToReturn = numReturn
-    val query = q
-    override val returnFields = fields
-  }
+            exhaust: Boolean = false, partial: Boolean = false) =
+    new DefaultQueryMessage(ns, numSkip, numReturn, q, fields,  tailable, slaveOkay,
+                            disableCursorTimeout, await, exhaust, partial)
 
 }
+
+sealed class DefaultQueryMessage(val namespace: String, val numberToSkip: Int, val numberToReturn: Int,
+                                 val query: BSONDocument, val returnFields: Option[BSONDocument],
+                                 val tailableCursor: Boolean, val slaveOK: Boolean,
+                                 val noCursorTimeout: Boolean, val awaitData: Boolean,
+                                 val exhaustData: Boolean, val partialData: Boolean) extends QueryMessage
 
 /**
  * OP_QUERY Message
@@ -60,26 +57,26 @@ abstract class QueryMessage extends MongoClientMessage {
   def flags: Int = { // bit vector of query options, assembled from QueryFlag
     var _f = 0
     if (tailableCursor) _f |= QueryFlag.TailableCursor.id
-    if (slaveOk) _f |= QueryFlag.SlaveOk.id
+    if (slaveOK) _f |= QueryFlag.SlaveOk.id
     if (noCursorTimeout) _f |= QueryFlag.NoCursorTimeout.id
     if (awaitData) _f |= QueryFlag.AwaitData.id
-    if (exhaust) _f |= QueryFlag.Exhaust.id
-    if (partial) _f |= QueryFlag.Partial.id
+    if (exhaustData) _f |= QueryFlag.Exhaust.id
+    if (partialData) _f |= QueryFlag.Partial.id
     _f
   }
 
   val tailableCursor: Boolean
-  val slaveOk: Boolean
+  val slaveOK: Boolean
   val noCursorTimeout: Boolean
   val awaitData: Boolean
-  val exhaust: Boolean
-  val partial: Boolean
+  val exhaustData: Boolean
+  val partialData: Boolean
 
   val namespace: String // Full collection name (dbname.collectionname)
   val numberToSkip: Int // number of documents to skip
   val numberToReturn: Int // number of docs to return in first OP_REPLY batch
   val query: BSONDocument // BSON Document representing the query
-  val returnFields: Option[BSONDocument] = None // Optional BSON Document for fields to return
+  val returnFields: Option[BSONDocument] // Optional BSON Document for fields to return
 
 
 
@@ -89,7 +86,18 @@ abstract class QueryMessage extends MongoClientMessage {
    * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def serializeMessage()(implicit maxBSON: Int) = ???
+  protected def serializeMessage()(implicit maxBSON: Int) = {
+    val b = ByteString.newBuilder
+    b.putInt(flags)
+    ImmutableBSONDocumentComposer.composeCStringValue(namespace)(b)
+    b.putInt(numberToSkip)
+    b.putInt(numberToReturn)
+    ImmutableBSONDocumentComposer.composeBSONObject(None /* field name */, query.iterator)(b)
+    returnFields.foreach { f =>
+      ImmutableBSONDocumentComposer.composeBSONObject(None /* field name */, f.iterator)(b)
+    }
+    b.result()
+  }
 
   override def toString = "{ QueryMessage ns: %s, numSkip: %d, numReturn: %d, query: %s, fields: %s }".format(
     namespace, numberToSkip, numberToReturn, query, returnFields)
