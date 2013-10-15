@@ -4,6 +4,7 @@ package com.mongodb
 import org.bson.BasicBSONEncoder
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import hammersmith.collection.{BSONDocument}
+import hammersmith.wire.QueryMessage
 
 object `package` {
 
@@ -52,6 +53,16 @@ object `package` {
   def legacyKillCursors(ids: Seq[Long]) = {
     val om = OutMessage.killCursors(legacyConn, ids.length)
     ids foreach { om.writeLong }
+    _out(om)
+  }
+
+  def legacyQuery(ns: String, numSkip: Int, numReturn: Int, q: DBObject,
+            fields: Option[DBObject] = None, tailable: Boolean = false,
+            slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
+            exhaust: Boolean = false, partial: Boolean = false) = {
+    val dbColl = ns.split('.')
+    // todo - flags for options
+    val om = OutMessage.query(legacyConn.getDB(dbColl(0)).getCollection(dbColl(1)), 0, numSkip, numReturn, q, fields.getOrElse(null))
     _out(om)
   }
 
