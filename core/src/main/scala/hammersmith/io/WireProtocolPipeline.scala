@@ -20,7 +20,10 @@ class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
     /**
      * Commands (writes) transformed to the wire.
      */
-    def commandPipeline: (MongoMessage) => Iterable[this.type#Result] = ???
+    def commandPipeline: (MongoMessage) => Iterable[this.type#Result] =  { msg: MongoMessage =>
+      val bytes = msg.serialize()(maxSize)
+      ctx.singleCommand(bytes)
+    }
 
 
     @tailrec

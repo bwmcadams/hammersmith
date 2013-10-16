@@ -137,7 +137,18 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       unstashAll()
   }
 
+  def backpressureHighwaterBehavior: Actor.Receive = {
+    case BackpressureBuffer.LowWatermarkReached =>
+      unstashAll()
+      context.become(connectedBehavior)
+    case _ =>
+      // put message away until after high water mark is clear
+      stash()
+  }
+
   def connectedBehavior: Actor.Receive = {
+    case BackpressureBuffer.HighWatermarkReached =>
+      context.become(backpressureHighwaterBehavior)
     case CommandFailed(w: Write) ⇒ // O/S buffer was full
     case Received(data) =>
       log.debug("Received Data {}", data)
