@@ -20,7 +20,7 @@ package wire
 
 import java.io.{ByteArrayInputStream, InputStream}
 import hammersmith.collection.immutable.Document
-import hammersmith.bson.{ImmutableBSONDocumentParser}
+import hammersmith.bson.{BSONParser, SerializableBSONObject, ImmutableBSONDocumentParser}
 import hammersmith.util.Logging
 import akka.util.{ByteIterator, ByteString}
 
@@ -40,7 +40,7 @@ class ReplyMessage(val header: MessageHeader,
                    val cursorID: Long, // cursorID, for client to do getMores
                    val startingFrom: Int, // Where in the cursor this reply starts at
                    val numReturned: Int, // Number of documents in the reply.
-                   val documents: Stream[Document] // Sequence of documents TODO Definable T
+                   val rawDocuments: ByteIterator // raw iterator of documents
                    ) extends MongoServerMessage {
   val opCode = OpCode.OpReply
 
@@ -50,14 +50,16 @@ class ReplyMessage(val header: MessageHeader,
 
   def awaitCapable = (flags & ReplyFlag.AwaitCapable.id) > 0
 
-  /*
-   * And here comes the hairy part.  Ideally, we want to completely amortize the
-   * decoding of these docs.  It makes *zero* sense to me to wait for a whole
-   * block of documents to decode from BSON before I can begin iteration.
+  /**
+   * My analysis shows that there's a definitive pause cycle when decoding all incoming documents
+   * for a given batch *up front* - that is, you get a batch of $n documents and decode the BSON completely
+   * before your operation such as a  cursor buffer replenishment proceeding.
+   *
+   * Instead, by breaking these down into a lazy stream we amortize costs:
    */
-  assert(documents.length == numReturned, "Number of parsed documents doesn't match expected number returned." +
-    "Wanted: %d Got: %d".format(numReturned, documents.length))
-  log.trace("Parsed Out '%d' Documents", documents.length)
+  def documents[T : SerializableBSONObject]: Stream[T] = {
+    implicitly[SerializableBSONObject[T]].parser.asStream(numReturned, rawDocuments)
+  }
 
 
   /**
@@ -69,8 +71,8 @@ class ReplyMessage(val header: MessageHeader,
   protected def serializeMessage()(implicit maxBSON: Int) = ???
 
   override def toString = "ReplyMessage { " +
-    "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs: %d } ".
-      format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, documents.length)
+    "responseTo: %d, cursorID: %d, startingFrom: %d, numReturned: %d, cursorNotFound? %s, queryFailure? %s, awaitCapable? %s, # docs (reported): %d } ".
+      format(header.responseTo, cursorID, startingFrom, numReturned, cursorNotFound, queryFailure, awaitCapable, numReturned)
 
 }
 
@@ -96,28 +98,11 @@ object ReplyMessage extends Logging {
     val cursorID = b.getLong
     val startingFrom = b.getInt
     val numReturned = b.getInt
-    /**
-     * My analysis shows that there's a definitive pause cycle when decoding all incoming documents
-     * for a given batch *up front* - that is, you get a batch of $n documents and decode the BSON completely
-     * before your operation such as a  cursor buffer replenishment proceeding.
-     *
-     * Instead, by breaking these down into a lazy stream we amortize costs:
-     */
-    val documents = ImmutableBSONDocumentParser.asStream(numReturned, frame)
-    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, documents)
+    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, frame.clone())
   }
 
 }
 
-class ReplyDocuments(numReturned: Int, docStream: ByteIterator) extends Stream[Document] {
-  override def isEmpty = numReturned <= 0
-
-  override def head = throw new NoSuchElementException("head of empty stream")
-
-  override def tail = throw new UnsupportedOperationException("tail of empty stream")
-
-  def tailDefined = false
-}
 
 object ReplyFlag extends Enumeration {
   /**
