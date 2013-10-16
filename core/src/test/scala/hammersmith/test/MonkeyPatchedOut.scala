@@ -66,4 +66,11 @@ object `package` {
     _out(om)
   }
 
+  def legacyUpdate(ns: String, query: DBObject, update: DBObject, upsert: Boolean, multi: Boolean) = {
+    val dbColl = ns.split('.')
+    // todo - flags for options
+    val om = OutMessage.update(legacyConn.getDB(dbColl(0)).getCollection(dbColl(1)), encoder, upsert, multi, query, update)
+    _out(om)
+  }
+
 }
