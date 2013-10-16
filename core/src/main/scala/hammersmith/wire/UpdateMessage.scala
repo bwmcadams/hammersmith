@@ -20,8 +20,9 @@ package wire
 
 import hammersmith.collection._
 import hammersmith.collection.BSONDocument
-import hammersmith.bson.{SerializableBSONObject}
+import hammersmith.bson.{ImmutableBSONDocumentComposer, SerializableBSONObject}
 import hammersmith.util.Logging
+import akka.util.ByteString
 
 /**
  * OP_UPDATE Message
@@ -35,10 +36,10 @@ import hammersmith.util.Logging
  */
 abstract class UpdateMessage extends MongoClientWriteMessage {
   type Q
-  type Upd
+  type U
 
   implicit val qM: SerializableBSONObject[Q]
-  implicit val uM: SerializableBSONObject[Upd]
+  implicit val uM: SerializableBSONObject[U]
 
   // val header: MessageHeader // standard message header
   val opCode = OpCode.OpUpdate
@@ -57,7 +58,7 @@ abstract class UpdateMessage extends MongoClientWriteMessage {
 
   val query: Q // The query document to select from mongo
 
-  val update: Upd // The document specifying the update to perform
+  val update: U // The document specifying the update to perform
 
   // TODO - Can we actually get some useful info here?
   def ids: Seq[Option[AnyRef]] = List(None)
@@ -69,34 +70,60 @@ abstract class UpdateMessage extends MongoClientWriteMessage {
    * serializeHeader() writes the header, serializeMessage does a message
    * specific writeout
    */
-  protected def serializeMessage()(implicit maxBSON: Int) = ???
+  protected def serializeMessage()(implicit maxBSON: Int) = {
+    val b = ByteString.newBuilder
+    b.putInt(ZERO) // 0 - reserved for future use (stupid protocol design *grumble grumble*)
+    ImmutableBSONDocumentComposer.composeCStringValue(namespace)(b)
+    b.putInt(flags)
+    ImmutableBSONDocumentComposer.composeBSONObject(None /*field name */, qM.iterator(query))(b)
+    ImmutableBSONDocumentComposer.composeBSONObject(None /*field name */, uM.iterator(update))(b)
+    b.result()
+  }
 }
 
-abstract class BatchUpdateMessage(val namespace: String, val upsert: Boolean = false) extends UpdateMessage { val multiUpdate = true }
+abstract class BatchUpdateMessage extends UpdateMessage {
+  val multiUpdate = true
+}
+sealed class DefaultBatchUpdateMessage[QueryType: SerializableBSONObject,
+                                       UpdateType: SerializableBSONObject](val namespace: String,
+                                                                           val upsert: Boolean = false,
+                                                                           val query: QueryType,
+                                                                           val update: UpdateType) extends BatchUpdateMessage {
+  type Q = QueryType
+  val qM = implicitly[SerializableBSONObject[Q]]
 
-abstract class SingleUpdateMessage(val namespace: String, val upsert: Boolean = false) extends UpdateMessage { val multiUpdate = false }
+  type U = UpdateType
+
+  val uM = implicitly[SerializableBSONObject[U]]
+
+}
+
+abstract class SingleUpdateMessage extends UpdateMessage {
+  val multiUpdate = false
+}
+sealed class DefaultSingleUpdateMessage[QueryType: SerializableBSONObject,
+                                       UpdateType: SerializableBSONObject](val namespace: String,
+                                                                           val upsert: Boolean = false,
+                                                                           val query: QueryType,
+                                                                           val update: UpdateType) extends SingleUpdateMessage {
+  type Q = QueryType
+  val qM = implicitly[SerializableBSONObject[Q]]
+
+  type U = UpdateType
+
+  val uM = implicitly[SerializableBSONObject[U]]
+
+}
 
 object UpdateMessage extends Logging {
-  def apply[QT: SerializableBSONObject, UpdT: SerializableBSONObject](ns: String, q: QT, updateSpec: UpdT, _upsert: Boolean = false, multi: Boolean = false) = {
-    if (multi)  new BatchUpdateMessage(ns, _upsert) {
-        type Q = QT
-        type Upd = UpdT
-        val query = q
-        val qM = implicitly[SerializableBSONObject[QT]]
-        val update = updateSpec
-        val uM = implicitly[SerializableBSONObject[UpdT]]
-    }
-    else new SingleUpdateMessage(ns, _upsert) {
-        type Q = QT
-        type Upd = UpdT
-        val query = q
-        val qM = implicitly[SerializableBSONObject[QT]]
-        val update = updateSpec
-        val uM = implicitly[SerializableBSONObject[UpdT]]
-    }
+  def apply[Q: SerializableBSONObject,
+            U: SerializableBSONObject](ns: String,
+                                       q: Q, updateSpec: U,
+                                       upsert: Boolean = false,
+                                       multi: Boolean = false) = {
+    if (multi)  new DefaultBatchUpdateMessage(ns, upsert, q, updateSpec)
+    else new DefaultSingleUpdateMessage(ns, upsert, q, updateSpec)
   }
-
-
 
 }
 

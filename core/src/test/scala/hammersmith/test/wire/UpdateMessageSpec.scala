@@ -7,14 +7,14 @@ import org.specs2.runner.JUnitRunner
 import hammersmith.util.Logging
 import org.specs2.matcher.ThrownExpectations
 import hammersmith.collection.immutable._
-import hammersmith.collection._
+import hammersmith.collection.Implicits._
 import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
-import com.mongodb.BasicDBObjectBuilder
-import hammersmith.wire.QueryMessage
+import com.mongodb.{BasicDBObject, BasicDBObjectBuilder}
+import hammersmith.wire.UpdateMessage
 
 @RunWith(classOf[JUnitRunner])
-class QueryMessageSpec extends Specification with ThrownExpectations with Logging {
+class UpdateMessageSpec extends Specification with ThrownExpectations with Logging {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
    */
@@ -22,17 +22,17 @@ class QueryMessageSpec extends Specification with ThrownExpectations with Loggin
 
   def is =
     sequential ^
-    "This specification is to test the functionality of the Wire Protocol `QueryMessage`" ^
+    "This specification is to test the functionality of the Wire Protocol `UpdateMessage`" ^
     p ^
-    "Working with Hammersmith QueryMessage implementations should" ^
-    "Allow instantiation of a QueryMessage" ! testBasicInstantiation ^
+    "Working with Hammersmith UpdateMessage implementations should" ^
+    "Allow instantiation of a UpdateMessage" ! testBasicInstantiation ^
     "Be composed into a BSON bytestream" ! testBasicCompose ^
     "Be comparable to a message created by the MongoDB Java Driver's BSON routines" ! testEncoding ^
     endp
 
 
   def testBasicInstantiation = {
-    testQueryMsg must not beNull
+    testUpdateMsg must not beNull
   }
 
   def testBasicCompose = {
@@ -44,10 +44,13 @@ class QueryMessageSpec extends Specification with ThrownExpectations with Loggin
     val decoder = new BasicBSONDecoder
     val encoder = new BasicBSONEncoder
     val callback = new BasicBSONCallback
-    val q = BasicDBObjectBuilder.start()
-    q.add("_id", "1234")
-    val legacy = com.mongodb.legacyQuery("test.query", 10, 10, q.get(), None, false,
-                                         false, false, false, false, false)
+    val qB = BasicDBObjectBuilder.start()
+    qB.add("_id", "1234")
+    val q = qB.get()
+    val uB = BasicDBObjectBuilder.start()
+    uB.add("x", new BasicDBObject("$inc", 1))
+    val u = uB.get()
+    val legacy = com.mongodb.legacyUpdate("test.update", q, u, false, false)
     println("Legacy Message Size: " + legacy.toArray.length)
     println("Legacy Message Hex: " + hammersmith.test.hexValue(legacy.toArray))
     println("Scala Message Size: " + scalaBSON.toArray.length)
@@ -57,9 +60,10 @@ class QueryMessageSpec extends Specification with ThrownExpectations with Loggin
   }
 
 
-  lazy val scalaBSON = testQueryMsg.serialize
+  lazy val scalaBSON = testUpdateMsg.serialize
 
-  lazy val testQueryMsg: QueryMessage =
-    QueryMessage("test.query", 10, 10, Document("_id" -> "1234"))
+  lazy val testUpdateMsg: UpdateMessage =
+    UpdateMessage("test.update", Document("_id" -> "1234"), Document("x" -> Document("$inc" -> 1)))
+
 
 }

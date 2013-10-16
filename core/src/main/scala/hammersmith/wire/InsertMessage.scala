@@ -72,7 +72,7 @@ abstract class InsertMessage extends MongoClientWriteMessage {
  * Insert for a single document
  */
 abstract class SingleInsertMessage(val namespace: String) extends InsertMessage
-sealed class DefaultSingleInsertMessage[DocType : SerializableBSONObject](namespace: String,
+sealed class DefaultSingleInsertMessage[DocType : SerializableBSONObject](override val namespace: String,
                                                                           val doc: DocType)
   extends SingleInsertMessage(namespace) {
   type T = DocType
@@ -86,7 +86,7 @@ sealed class DefaultSingleInsertMessage[DocType : SerializableBSONObject](namesp
  *
  */
 abstract class BatchInsertMessage(val namespace: String) extends InsertMessage
-sealed class DefaultBatchInsertMessage[DocType : SerializableBSONObject](namespace: String,
+sealed class DefaultBatchInsertMessage[DocType : SerializableBSONObject](override val namespace: String,
                                                                   val continueOnError: Boolean,
                                                                   val documents: Seq[DocType])
   extends BatchInsertMessage(namespace) {
