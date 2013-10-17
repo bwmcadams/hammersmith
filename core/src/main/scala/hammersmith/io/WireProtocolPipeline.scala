@@ -37,11 +37,11 @@ class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
         require(len > 0 && len < maxSize,
                 s"Received an invalid BSON frame size of '$len' bytes (Min: 'more than 4 bytes' Max: '$maxSize' bytes")
 
-        println(s"Decoding a ByteStream of '$len' bytes.")
+        //println(s"Decoding a ByteStream of '$len' bytes.")
 
         if (bs.length >= len) {
           val header = bs take 16 // Headers are exactly 16 bytes
-          val frame = bs take (len - 16 - 4) /* subtract header;  length of total doc
+          val frame = bs drop 16 take (len - 16 - 4) /* subtract header;  length of total doc
                                                 includes itself w/ BSON - don't overflow!!! */
           extractFrames(bs drop len, MongoMessage(header, frame) :: acc)
         } else {
@@ -57,7 +57,7 @@ class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
      */
     def eventPipeline = {
       bs: ByteString ⇒
-      println(s"event pipeline called w/ '$bs'")
+      //println(s"event pipeline called w/ '$bs'")
       val data = if (buffer.isEmpty) bs else buffer.get ++ bs
       val (nb, frames) = extractFrames(data, Nil)
       buffer = nb

@@ -32,6 +32,8 @@ import hammersmith.io.MongoFrameHandler
 import akka.io.TcpPipelineHandler.{Init, WithinActorContext}
 import akka.util.ByteString
 import java.nio.ByteOrder
+import hammersmith.wire.MessageHeader
+import hammersmith.PendingOp
 
 /**
  *
@@ -112,13 +114,23 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       context watch self
 
       sender ! Tcp.Register(pipeline)
-      context.become(connectedBehavior(init, pipeline))
       // invoke isMaster
       log.debug("Invoking MongoDB isMaster function")
       val isMaster = QueryMessage("admin.$cmd", 0, -1, ImmutableDocument("isMaster" -> 1))
       log.debug("Created isMaster query '{}'", isMaster)
+
       pipeline ! init.Command(isMaster)
-      // dequeue any stashed messages
+      context.become(awaitIsMaster(init, pipeline, isMaster.requestID))
+  }
+
+  def awaitIsMaster(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef, reqID: Int): Actor.Receive = {
+    case wire.Event(r @ ReplyMessage(reqID)) =>
+      log.info("Received isMaster Reply '{}'", r)
+      /*r.documents[ImmutableDocument] foreach { doc =>
+        log.debug("ReplyMessage doc '{}'", doc)
+      }*/
+      // connected now, continue with proper setup & dequeue any stashed messages
+      context.become(connectedBehavior(wire, connection))
       unstashAll()
   }
 
@@ -152,8 +164,8 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       dispatcher += r.requestID -> PendingOp(sender, r)
       log.debug("Writing MongoRequest to connection '{}'", r)
       connection ! wire.Command(r.msg)
-    case wire.Event(data) =>
-      log.debug("Data from wire received: {}", data)
+    case wire.Event(r: ReplyMessage) =>
+      log.debug("ReplyMessage '{}' received on wire...", r)
     case CommandFailed(cmd) =>
       // TODO - We need to handle backpressure/buffering of NIO ... which Akka expects us to do
       // this is related to that, I believe.
