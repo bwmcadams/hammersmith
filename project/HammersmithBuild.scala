@@ -47,7 +47,7 @@ object HammersmithBuild extends Build {
  */
 
   lazy val defaultSettings = baseSettings ++ Seq(
-    libraryDependencies ++= Seq(netty, slf4j, akkaActors, specs2, junit),
+    libraryDependencies ++= Seq(netty, slf4j, akkaActors, akkaTestkit, specs2, junit),
     resolvers ++= Seq(sonaReleases, jbossRepo, akkaSnapshots, typesafeRepo),
     autoCompilerPlugins := true,
     parallelExecution in Test := true,
@@ -101,6 +101,7 @@ object Dependencies {
 
   // Akka 
   val akkaActors = "com.typesafe.akka" %% "akka-actor" % "2.2.1"
+  val akkaTestkit = "com.typesafe.akka" %% "akka-testkit" % "2.2.1" % "test"
 
   def scalaVersionString(scalaVer: sbt.SettingKey[String]): String = {
     var result = ""
