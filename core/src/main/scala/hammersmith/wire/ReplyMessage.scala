@@ -83,9 +83,9 @@ object ReplyMessage extends Logging {
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
   /*
-   * simple matcher to fetch requestID for protocol matching
+   * simple matcher to fetch responseTo for protocol matching
    */
-  def unapply(r: ReplyMessage): Option[Int] = Option(r.header.requestID)
+  def unapply(r: ReplyMessage): Option[Int] = Option(r.header.responseTo)
 
   /**
    * New AkkaIO based decoder hierarchy for an incoming reply message.
