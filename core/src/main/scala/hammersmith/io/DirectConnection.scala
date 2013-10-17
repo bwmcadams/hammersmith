@@ -25,12 +25,13 @@ import hammersmith.wire._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import hammersmith.bson.{ImmutableBSONDocumentParser, SerializableBSONObject, BSONParser}
+import hammersmith.bson.{BSONDocumentType, ImmutableBSONDocumentParser, SerializableBSONObject, BSONParser}
 import hammersmith.collection.immutable.{Document => ImmutableDocument}
 import hammersmith.collection.Implicits.SerializableImmutableDocument
 import hammersmith.io.MongoFrameHandler
 import akka.io.TcpPipelineHandler.{Init, WithinActorContext}
 import akka.util.ByteString
+import java.nio.ByteOrder
 
 /**
  *
@@ -97,7 +98,6 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
        * doing lots of reads off the same connection, that's a false view from NIO...
        * it all buffers under the covers.
        */
-      sender ! Register(self)
       log.debug(s"Established a direct connection to MongoDB at '$serverAddress'")
       // TODO - SSL support, if we can get a hold of a copy of the SSL build (I think the source is free, bins aren't)
       val init = TcpPipelineHandler.withLogger(log,
@@ -172,9 +172,6 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       log.error(s"Error in connection to '$serverAddress'; connection closed. Cause: '$cause'")
       // todo - more discrete exceptions
       throw new MongoException(s"Error in connection to '$serverAddress'; connection closed. Cause: '$cause'")
-    case other =>
-      log.error("Received unknown message '{}", other)
-
   }
 
 }

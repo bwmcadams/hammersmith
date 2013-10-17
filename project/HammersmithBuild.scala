@@ -19,9 +19,9 @@ object HammersmithBuild extends Build {
   /**
    * Import some sample data for testing
    */
-  "mongoimport -d hammersmithIntegration -c yield_historical.in --drop ./core/src/test/resources/yield_historical_in.json" !
+  //"mongoimport -d hammersmithIntegration -c yield_historical.in --drop ./core/src/test/resources/yield_historical_in.json" !
 
-  "mongoimport -d hammersmithIntegration -c books --drop ./core/src/test/resources/bookstore.json" ! 
+  //"mongoimport -d hammersmithIntegration -c books --drop ./core/src/test/resources/bookstore.json" ! 
 
   override lazy val settings = super.settings ++ buildSettings
 
