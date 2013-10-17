@@ -89,16 +89,17 @@ object ReplyMessage extends Logging {
 
   /**
    * New AkkaIO based decoder hierarchy for an incoming reply message.
-   * @param _hdr An instance of a wire protocol MessageHeader containing the core details of all messages
+   * @param hdr An instance of a wire protocol MessageHeader containing the core details of all messages
    * @param frame The ByteIterator representing the remainder of the network bytes for this reply following the ReplyMessage.
    * @return An instance ofa  ReplyMessage representing the incoming datastream
    */
-  def apply(_hdr: MessageHeader, frame: ByteIterator) = {
+  def apply(hdr: MessageHeader, frame: ByteIterator) = {
+    println(s"Header: '$hdr', frame: '$frame', msg len: '${hdr.messageLength}, frame len: '${frame.len}'")
     val flags = frame.getInt
     val cursorID = frame.getLong
     val startingFrom = frame.getInt
     val numReturned = frame.getInt
-    new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, frame.clone())
+    new ReplyMessage(hdr, flags, cursorID, startingFrom, numReturned, frame.clone())
   }
 
 }

@@ -41,24 +41,23 @@ trait BSONParser[T] extends Logging {
    *
    * In any case where you get documents*, you should also know the count.
    */
-  def asStream(count: Int, frame: ByteIterator) = for (i <- (0 until count).toStream) yield apply(frame)
+  def asStream(count: Int, frame: ByteIterator) = {
+    for (i <- (0 until count).toStream) yield apply(frame)
+  }
 
   /** The "core" parse routine; should break down your BSON into T */
   def apply(frame: ByteIterator): T = {
     // Extract the BSON doc
+    val sz = frame.len
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
     require(len < BSONDocumentType.MaxSize,
       "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
-    val sz = frame.len
     log.debug(s"Frame Size: $sz Doc Size: $len")
-    /* for the life of me i can't remember why i'm cloning
-     * but i suspect it's bad as it doesn't let us move forward on the stream.
-     * Clone outside here for stuff.
-     */
-    val data = frame.clone().take(len - 4)
-    frame.drop(len - 4) // advance the iterator for other blocks
+    val data = frame.take(len)
     log.debug(s"Parsing a BSON doc of $len bytes, with a data block of " + data.len)
-    parseRootObject(parse(data))
+    val obj = parseRootObject(parse(data))
+    log.debug(s"Parsed root object: '$obj'")
+    obj
   }
 
 
