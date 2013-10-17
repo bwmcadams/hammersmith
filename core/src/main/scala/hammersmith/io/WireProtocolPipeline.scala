@@ -41,7 +41,7 @@ class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
 
         if (bs.length >= len) {
           val header = bs take 16 // Headers are exactly 16 bytes
-          val frame = bs drop 16 take (len - 16 - 4) /* subtract header;  length of total doc
+          val frame = bs drop 16 take (len) /* subtract header;  length of total doc
                                                 includes itself w/ BSON - don't overflow!!! */
           extractFrames(bs drop len, MongoMessage(header, frame) :: acc)
         } else {

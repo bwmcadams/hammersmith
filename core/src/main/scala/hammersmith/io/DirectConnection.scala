@@ -125,10 +125,8 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
   def awaitIsMaster(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef, reqID: Int): Actor.Receive = {
     case wire.Event(r @ ReplyMessage(reqID)) =>
-      log.info("Received isMaster Reply '{}'", r)
-      /*r.documents[ImmutableDocument] foreach { doc =>
-        log.debug("ReplyMessage doc '{}'", doc)
-      }*/
+      val doc = r.documents[ImmutableDocument] take 1
+      log.debug("isMaster: '{}'", doc)
       // connected now, continue with proper setup & dequeue any stashed messages
       context.become(connectedBehavior(wire, connection))
       unstashAll()
