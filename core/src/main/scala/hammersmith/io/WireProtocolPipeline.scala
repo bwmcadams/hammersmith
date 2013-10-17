@@ -55,7 +55,7 @@ class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
      * appends the received ByteString to the buffer (if any) and extracts the frames
      * from the result.
      */
-    override def eventPipeline = {
+    def eventPipeline = {
       bs: ByteString ⇒
       println(s"event pipeline called w/ '$bs'")
       val data = if (buffer.isEmpty) bs else buffer.get ++ bs

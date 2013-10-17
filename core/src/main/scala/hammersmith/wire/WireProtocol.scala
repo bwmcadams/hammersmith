@@ -96,7 +96,20 @@ object MongoMessage extends Logging {
   val DefaultMaxBSONObjectSize = 1024 * 1024 * 16
 
 
+  def apply(bs: ByteString): MongoMessage = {
+    val len = bs.iterator.getInt // 4 bytes, if aligned will be int32 length of following doc
+    require(len > 0 && len < DefaultMaxBSONObjectSize,
+      s"Received an invalid BSON frame size of '$len' bytes (Min: 'more than 4 bytes' Max: '$DefaultMaxBSONObjectSize' bytes")
+
+    println(s"Decoding a ByteStream of '$len' bytes.")
+    val header = bs take 16 // Headers are exactly 16 bytes
+    val frame = bs take (len - 16 - 4) /* subtract header;  length of total doc
+                                          includes itself w/ BSON - don't overflow!!! */
+    MongoMessage(header, frame)
+  }
+
   def apply(header: ByteString, frame: ByteString): MongoMessage =  apply(header.iterator, frame.iterator)
+
 
   /**
    * Extractor method for incoming streams of
