@@ -11,6 +11,7 @@ import hammersmith.collection.Implicits._
 import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
 import hammersmith.wire.InsertMessage
+import hammersmith.WriteConcern
 
 @RunWith(classOf[JUnitRunner])
 class InsertMessageSpec extends Specification with ThrownExpectations with Logging {
@@ -54,10 +55,10 @@ class InsertMessageSpec extends Specification with ThrownExpectations with Loggi
   lazy val scalaBulkBSON = testBulkInsertMsg.serialize
 
   lazy val testInsertMsg: InsertMessage =
-    InsertMessage("test.insert", false, Document("foo" -> "bar"))
+    InsertMessage("test.insert", false, Document("foo" -> "bar"))(WriteConcern.Unsafe)
 
   lazy val testBulkInsertMsg: InsertMessage =
-    InsertMessage("test.insert", false, Document("foo" -> "bar"), Document("spam" -> "eggs"))
+    InsertMessage("test.insert", false, Document("foo" -> "bar"), Document("spam" -> "eggs"))(WriteConcern.Unsafe)
 
 
 }

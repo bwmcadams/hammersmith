@@ -12,6 +12,7 @@ import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder}
 import hammersmith.wire.UpdateMessage
+import hammersmith.WriteConcern
 
 @RunWith(classOf[JUnitRunner])
 class UpdateMessageSpec extends Specification with ThrownExpectations with Logging {
@@ -63,7 +64,7 @@ class UpdateMessageSpec extends Specification with ThrownExpectations with Loggi
   lazy val scalaBSON = testUpdateMsg.serialize
 
   lazy val testUpdateMsg: UpdateMessage =
-    UpdateMessage("test.update", Document("_id" -> "1234"), Document("x" -> Document("$inc" -> 1)))
+    UpdateMessage("test.update", Document("_id" -> "1234"), Document("x" -> Document("$inc" -> 1)))(WriteConcern.Unsafe)
 
 
 }

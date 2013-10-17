@@ -29,7 +29,7 @@ object QueryMessage extends Logging {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,
             fields: Option[BSONDocument] = None, tailable: Boolean = false,
             slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
-            exhaust: Boolean = false, partial: Boolean = false) =
+            exhaust: Boolean = false, partial: Boolean = false)  =
     new DefaultQueryMessage(ns, numSkip, numReturn, q, fields,  tailable, slaveOkay,
                             disableCursorTimeout, await, exhaust, partial)
 

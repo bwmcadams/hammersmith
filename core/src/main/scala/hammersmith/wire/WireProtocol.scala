@@ -21,6 +21,7 @@ package wire
 import java.util.concurrent.atomic.AtomicInteger
 import java.io._
 import hammersmith.bson.{ImmutableBSONDocumentParser}
+import hammersmith.collection.immutable.Document
 import hammersmith.util.Logging
 import akka.util.{ByteIterator, ByteString}
 
@@ -223,12 +224,24 @@ abstract class MongoMessage extends Logging {
  */
 abstract class MongoClientMessage extends MongoMessage
 
+
 /**
  * Any client -> server message which writes
  */
 abstract class MongoClientWriteMessage extends MongoClientMessage {
   val namespace: String // Full collection name (dbname.collectionname)
   def ids: Seq[Option[Any]] // All IDs  this message is writing... used for callback fun
+  def writeConcern: WriteConcern
+  override def serialize()(implicit maxBSON: Int): ByteString = {
+    val msg = super.serialize()
+    if (writeConcern.w != 0 || writeConcern.j || writeConcern.fsync || writeConcern.wTimeout != 0) {
+      val doc = Document("getlasterror" -> 1.0) ++ writeConcern.asDocument
+      println(s"Tacking WriteConcern $doc to write.")
+      val db = namespace.split(".")(0)
+      val wc = QueryMessage(db + ".$cmd", 0, -1, doc)
+      msg ++ wc.serialize()
+    } else msg
+  }
 }
 
 /**
