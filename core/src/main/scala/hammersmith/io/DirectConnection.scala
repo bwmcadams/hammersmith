@@ -21,35 +21,16 @@ import akka.pattern.{ ask, pipe }
 import akka.actor._
 
 import akka.io.{IO => IOFaçade, _}
-import akka.event.Logging
-import akka.io.Tcp.Connected
-import akka.io.Tcp.Received
-import akka.io.Tcp.Connect
-import akka.io.Tcp.CommandFailed
 import hammersmith.wire._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import hammersmith.bson.{ImmutableBSONDocumentParser, SerializableBSONObject, BSONParser}
 import hammersmith.collection.immutable.{Document => ImmutableDocument}
-import akka.io.Tcp.Connected
-import akka.io.Tcp.Register
-import akka.io.Tcp.Connect
-import akka.io.Tcp.CommandFailed
-import scala.Some
-import akka.io.Tcp.ErrorClosed
-import akka.io.Tcp.Received
 import hammersmith.collection.Implicits.SerializableImmutableDocument
-import akka.io.Tcp.Connected
-import akka.io.Tcp.Register
-import akka.io.Tcp.Connect
-import akka.io.Tcp.CommandFailed
-import scala.Some
-import hammersmith.PendingOp
-import akka.io.Tcp.ErrorClosed
-import akka.io.Tcp.Received
-import akka.util.ByteString
 import hammersmith.io.MongoFrameHandler
+import akka.io.TcpPipelineHandler.{Init, WithinActorContext}
+import akka.util.ByteString
 
 /**
  *
@@ -86,7 +67,6 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
    * as the Iteratee code from a previous pass at moving Hammersmith to AkkaIO ) */
   protected val state = IO.IterateeRef.async
 
-  private var connection: Option[ActorRef] = None
 
   log.debug(s"Starting up a Direct Connection Actor to connect to '$serverAddress'")
   // todo - inherit keepalive setting from connection request
@@ -119,7 +99,6 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
        */
       sender ! Register(self)
       log.debug(s"Established a direct connection to MongoDB at '$serverAddress'")
-      connection = Some(sender)
       // TODO - SSL support, if we can get a hold of a copy of the SSL build (I think the source is free, bins aren't)
       val init = TcpPipelineHandler.withLogger(log,
           new MongoFrameHandler >>
@@ -127,50 +106,54 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
           new BackpressureBuffer(lowBytes = 100, highBytes = 1000, maxBytes = 1000000))
 
 
+      // this is the actual connection context now
       val pipeline = context.actorOf(TcpPipelineHandler.props(init, sender, self).withDeploy(Deploy.local) /* ensure it can't be remoted */)
 
       context watch self
 
       sender ! Tcp.Register(pipeline)
-      context become connectedBehavior
+      context.become(connectedBehavior(init, pipeline))
+      // invoke isMaster
+      log.debug("Invoking MongoDB isMaster function")
+      val isMaster = QueryMessage("admin.$cmd", 0, -1, ImmutableDocument("isMaster" -> 1))
+      log.debug("Created isMaster query '{}'", isMaster)
+      pipeline ! init.Command(isMaster)
       // dequeue any stashed messages
       unstashAll()
   }
 
-  def backpressureHighwaterBehavior: Actor.Receive = {
+  def backpressureHighwaterBehavior(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef): Actor.Receive = {
+
     case BackpressureBuffer.LowWatermarkReached =>
       unstashAll()
-      context.become(connectedBehavior)
+      context.become(connectedBehavior(wire, connection))
     case _ =>
       // put message away until after high water mark is clear
       stash()
   }
 
-  def connectedBehavior: Actor.Receive = {
+  def connectedBehavior(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef): Actor.Receive = {
     case BackpressureBuffer.HighWatermarkReached =>
-      context.become(backpressureHighwaterBehavior)
+      context.become(backpressureHighwaterBehavior(wire, connection))
     case CommandFailed(w: Write) ⇒ // O/S buffer was full
-    case Received(data) =>
-      log.debug("Received Data {}", data)
-      // TODO - Dispatch!
-    // a non-mutating operation
-    case r: MongoRequest => connection match {
-      case None =>
-        // stash the message for later
-        stash()
-      case Some(conn) =>
-        conn ! r
-    }
     // a mutating operation
     // todo - mutating operations need to handle a GetLastError setup
-    case w: MongoMutationRequest => connection match {
-      case None =>
-        // stash the message for later
-        stash()
-      case Some(conn) =>
-        conn ! w
-    }
-
+    case w: MongoMutationRequest =>
+      dispatcher += w.requestID -> PendingOp(sender, w)
+      log.debug("Writing MongoMutationRequest to connection '{}'", w)
+      connection ! wire.Command(w.msg)
+      // behave accordingly based on WriteConcern...
+      // swap to a custom become method ... TODO: how dangerous is doing a closure here?
+      /*context.become({
+        case r @ ReplyMessage(MessageHeader(_, _, w.requestID, _)), _, _, _, _, _) =>
+      }) */
+    // a non-mutating operation
+    case r: MongoRequest =>
+      dispatcher += r.requestID -> PendingOp(sender, r)
+      log.debug("Writing MongoRequest to connection '{}'", r)
+      connection ! wire.Command(r.msg)
+    case wire.Event(data) =>
+      log.debug("Data from wire received: {}", data)
     case CommandFailed(cmd) =>
       // TODO - We need to handle backpressure/buffering of NIO ... which Akka expects us to do
       // this is related to that, I believe.
@@ -189,14 +172,11 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
       log.error(s"Error in connection to '$serverAddress'; connection closed. Cause: '$cause'")
       // todo - more discrete exceptions
       throw new MongoException(s"Error in connection to '$serverAddress'; connection closed. Cause: '$cause'")
+    case other =>
+      log.error("Received unknown message '{}", other)
+
   }
 
-  def send(cmd: Tcp.Command) = connection match {
-    case Some(conn) =>
-      conn ! cmd
-    case None =>
-      throw new IllegalStateException("No connection actor registered; cannot send.")
-  }
 }
 
 
