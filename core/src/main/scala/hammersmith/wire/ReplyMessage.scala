@@ -44,6 +44,7 @@ class ReplyMessage(val header: MessageHeader,
                    ) extends MongoServerMessage {
   val opCode = OpCode.OpReply
 
+  println("Flags ... " + flags)
   def cursorNotFound = (flags & ReplyFlag.CursorNotFound.id) > 0
 
   def queryFailure = (flags & ReplyFlag.QueryFailure.id) > 0
@@ -81,6 +82,11 @@ object ReplyMessage extends Logging {
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
+  /*
+   * simple matcher to fetch requestID for protocol matching
+   */
+  def unapply(r: ReplyMessage): Option[Int] = Option(r.header.requestID)
+
   /**
    * New AkkaIO based decoder hierarchy for an incoming reply message.
    * @param _hdr An instance of a wire protocol MessageHeader containing the core details of all messages
@@ -88,16 +94,10 @@ object ReplyMessage extends Logging {
    * @return An instance ofa  ReplyMessage representing the incoming datastream
    */
   def apply(_hdr: MessageHeader, frame: ByteIterator) = {
-    // TODO - Make it possible to dynamically set a decoder.
-    // _hdr is the generic 'every protocol message has it' header; another 20 bytes of reply header data
-    val b = frame.clone().take(20)
-    frame.drop(20)
-
-    log.trace("Offset data for rest of reply read: %s", b)
-    val flags = b.getInt
-    val cursorID = b.getLong
-    val startingFrom = b.getInt
-    val numReturned = b.getInt
+    val flags = frame.getInt
+    val cursorID = frame.getLong
+    val startingFrom = frame.getInt
+    val numReturned = frame.getInt
     new ReplyMessage(_hdr, flags, cursorID, startingFrom, numReturned, frame.clone())
   }
 

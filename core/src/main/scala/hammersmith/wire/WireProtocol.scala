@@ -101,7 +101,7 @@ object MongoMessage extends Logging {
     require(len > 0 && len < DefaultMaxBSONObjectSize,
       s"Received an invalid BSON frame size of '$len' bytes (Min: 'more than 4 bytes' Max: '$DefaultMaxBSONObjectSize' bytes")
 
-    println(s"Decoding a ByteStream of '$len' bytes.")
+    log.debug(s"Decoding a ByteStream of '$len' bytes.")
     val header = bs take 16 // Headers are exactly 16 bytes
     val frame = bs take (len - 16 - 4) /* subtract header;  length of total doc
                                           includes itself w/ BSON - don't overflow!!! */
