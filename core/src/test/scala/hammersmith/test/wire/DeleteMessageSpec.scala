@@ -18,7 +18,6 @@ import hammersmith.bson.BSONMaxKey
 import akka.util.{ByteString, ByteIterator}
 import hammersmith.collection.Implicits.SerializableBSONDocument
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
-import com.mongodb._
 
 @RunWith(classOf[JUnitRunner])
 class DeleteMessageSpec extends Specification with ThrownExpectations with Logging {
@@ -64,6 +63,6 @@ class DeleteMessageSpec extends Specification with ThrownExpectations with Loggi
   lazy val scalaBSON = testDeleteMsg.serialize
 
   lazy val testDeleteMsg: DeleteMessage =
-    DeleteMessage("test.deletion", Document("_id" -> "1234"), onlyRemoveOne = false)
+    DeleteMessage("test.deletion", Document("_id" -> "1234"), onlyRemoveOne = false)(WriteConcern.Unsafe)
 
 }

@@ -17,9 +17,44 @@
 
 package hammersmith
 
+import hammersmith.collection.BSONDocument
+
+/**
+ * @param ok
+ * @param error
+ * @param n
+ * @param code
+ * @param upsertID
+ * @param updatedExisting
+ */
 case class WriteResult(ok: Boolean,
                        error: Option[String] = None,
                        n: Int = 0,
-                       code: Option[Int] = None,
                        upsertID: Option[AnyRef] = None,
                        updatedExisting: Option[Boolean] = None)
+
+
+object WriteResult {
+  /**
+   * { updatedExisting: true, n: 1, connectionId: 594, err: null, ok: 1.0 }
+   */
+  def apply(doc: BSONDocument): WriteResult = {
+    val ok = doc.getAs[Int]("ok") match {
+      case None =>
+        false
+      case Some(0) =>
+        false
+      case Some(1) =>
+        true
+    }
+    val error = doc.getAs[String]("err")
+    val n = doc.getAs[Int]("n") match {
+      case None => 0
+      case Some(_n) => _n
+    }
+    val upsert = doc.getAs[AnyRef]("upserted")
+    val updatedExisting = doc.getAs[Boolean]("updatedExisting")
+    WriteResult(ok, error, n, upsert, updatedExisting)
+  }
+
+}

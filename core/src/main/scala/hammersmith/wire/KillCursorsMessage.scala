@@ -54,13 +54,14 @@ trait KillCursorsMessage extends MongoClientMessage {
     }
     b.result()
   }
+
 }
 
 sealed class DefaultKillCursorsMessage(val cursorIDs: Seq[Long]) extends KillCursorsMessage
 
 
 object KillCursorsMessage extends Logging {
-  def apply(ids: Seq[Long]) = new DefaultKillCursorsMessage(ids)
+  def apply(ids: Seq[Long], writeConcern: WriteConcern = WriteConcern.Safe) = new DefaultKillCursorsMessage(ids)
 
-  def apply(id: Long) = new DefaultKillCursorsMessage(Seq(id))
+  def apply(id: Long)  = new DefaultKillCursorsMessage(Seq(id))
 }

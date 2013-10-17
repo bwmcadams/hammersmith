@@ -17,32 +17,27 @@
 
 package hammersmith
 
+import hammersmith.collection.immutable.Document
+
 /*
  * Note that no matter what any other settings are this is only called if
  * w > 0
+ * @param w (Int) Specifies the number of servers to wait for on the write operation, and exception raising behavior. Defaults to {@code 0}
+ * @param wTimeout (Int) Specifies the number MS to wait for the server operations to write.  Defaults to 0 (no timeout)
+ * @param fsync (Boolean) Indicates whether write operations should require a sync to disk. Defaults to False
+ * @param j (Boolean) *1.9+ ONLY* When true, the getlasterror call awaits the journal commit before returning. If the server is running without journaling, it returns immediately, and successfully.
  */
-trait WriteConcern {
-  /**
-   * @param w (Int) Specifies the number of servers to wait for on the write operation, and exception raising behavior. Defaults to {@code 0}
-   */
-  val w: Int = 0
-  /**
-   * @param wTimeout (Int) Specifies the number MS to wait for the server operations to write.  Defaults to 0 (no timeout)
-   */
-  val wTimeout: Int = 0
-  /**
-   * @param fsync (Boolean) Indicates whether write operations should require a sync to disk. Defaults to False
-   */
-  val fsync: Boolean = false
-  /**
-   * @param j (Boolean) *1.9+ ONLY* When true, the getlasterror call awaits the journal commit before returning. If the server is running without journaling, it returns immediately, and successfully.
-   */
-  val j: Boolean = false
-
+class WriteConcern( val w: Int = 1, val wTimeout: Int = 0, val fsync: Boolean = false, val j: Boolean = false ) {
   lazy val safe_? = w > 0
 
+  // todo - implement me
   lazy val ignoreNetworkErrors_? = w < 0
+
+  lazy val asDocument = Document("w" -> w, "wtimeout" -> wTimeout, "fsync" -> fsync, "j" -> j)
+
+  lazy val blockingWrite_? = safe_? || j || fsync
 }
+
 
 /**
  * Helper class for creating WriteConcern instances
@@ -54,29 +49,24 @@ object WriteConcern {
   /**
    * Exceptions are raised for network issues and server errors; Write operations wait for the server to flush data to disk
    */
-  case object FsyncSafe extends WriteConcern {
-    override val w = 1
-    override val fsync = true
-  }
+  case object FsyncSafe extends WriteConcern(w = 1, fsync = true)
   /**
    * Exceptions are raised for network issues and server errors; waits for at least 2 servers for the write operation.
    */
-  case object ReplicasSafe extends WriteConcern {
-    override val w = 2
-  }
+  case object ReplicasSafe extends WriteConcern(w = 2)
 
   /**
    * Exceptions are raised for network issues and server errors; waits on a server for the write operation
    */
-  case object Safe extends WriteConcern {
-    override val w = 1
-  }
+  case object Safe extends WriteConcern(w = 1)
 
   /**
    * Exceptions are raised for network issues but not server errors.
    * (Default Behavior)
    */
   case object Normal extends WriteConcern
+
+  case object Unsafe extends WriteConcern(w = 0)
 
   /**
    * Create a new WriteConcern object.
@@ -94,12 +84,6 @@ object WriteConcern {
    * @param fsync (Boolean) Indicates whether write operations should require a sync to disk. Defaults to False
    */
   def apply(_w: Int = 0, _wTimeout: Int = 0, _fsync: Boolean = false, _j: Boolean = false) =
-    new WriteConcern {
-      override val w = _w
-      override val wTimeout = _wTimeout
-      override val fsync = _fsync
-      override val j = _j
-    }
-
+    new WriteConcern(w = _w, wTimeout = _wTimeout, fsync = _fsync, j = _j)
 }
 

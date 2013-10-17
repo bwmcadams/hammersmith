@@ -34,6 +34,7 @@ import akka.util.ByteString
 import java.nio.ByteOrder
 import hammersmith.wire.MessageHeader
 import hammersmith.PendingOp
+import hammersmith.collection.BSONDocument
 
 /**
  *
@@ -62,13 +63,6 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
   private val dispatcher = scala.collection.mutable.HashMap.empty[Int /** requestID */, PendingOp]
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
-  /* this is an odd one. it seems iteratees from the old IO package ARENT deprecated
-   * but they haven't been ported forward/documented in the NEW IO. I see no way in the NEW
-   * IO to get that behavior however...
-   * I somewhat shamelessly stole some of the model of Iteratee use from Raiku's code ( as well
-   * as the Iteratee code from a previous pass at moving Hammersmith to AkkaIO ) */
-  protected val state = IO.IterateeRef.async
-
 
   log.debug(s"Starting up a Direct Connection Actor to connect to '$serverAddress'")
   // todo - inherit keepalive setting from connection request
@@ -77,8 +71,6 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
   override def postStop = {
     tcpManager ! Close
 
-    // reset the Iteratee state
-    state(IO.EOF)
   }
 
   def receive = {
@@ -115,33 +107,36 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
       sender ! Tcp.Register(pipeline)
       // invoke isMaster
       log.debug("Invoking MongoDB isMaster function")
-      val isMaster = QueryMessage("admin.$cmd", 0, -1, ImmutableDocument("isMaster" -> 1))
-      log.debug("Created isMaster query '{}'", isMaster)
+      val isMaster = CommandRequest("admin", ImmutableDocument("isMaster" -> 1))
+      log.debug("Created isMaster query '{}'", isMaster.msg)
 
-      pipeline ! init.Command(isMaster)
-      context.become(awaitIsMaster(init, pipeline, isMaster.requestID))
-  }
-
-  def awaitIsMaster(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef, reqID: Int): Actor.Receive = {
-    case wire.Event(r @ ReplyMessage(reqID)) =>
-      val doc: ImmutableDocument = r.documents[ImmutableDocument].head
-      log.debug("ismaster: '{}'", doc)
-      if (requireMaster && !(doc.getAs[Boolean]("ismaster") == Some(true)))
-        throw new IllegalStateException(s"Require Master; server @ '$serverAddress' is not master.")
-      if (doc.getAs[Double]("maxBsonObjectSize").isEmpty)
-        throw new IllegalStateException("Remote server does not report maxBsonObjectSize, probably an old server. Please use MongoDB 1.8+")
-      // connected now, continue with proper setup & dequeue any stashed messages
-      context.become(connectedBehavior(wire, connection))
-      unstashAll()
+      pipeline ! init.Command(isMaster.msg)
+      context.become(awaitingReplyBehavior(init, pipeline, isMaster.requestID, { r: ReplyMessage =>
+        val doc: ImmutableDocument = r.documents[ImmutableDocument].head
+        log.debug("ismaster: '{}'", doc)
+        if (requireMaster && !(doc.getAs[Boolean]("ismaster") == Some(true)))
+          throw new IllegalStateException(s"Require Master; server @ '$serverAddress' is not master.")
+        if (doc.getAs[Double]("maxBsonObjectSize").isEmpty)
+          throw new IllegalStateException("Remote server does not report maxBsonObjectSize, probably an old server. Please use MongoDB 1.8+")
+        // connected now, continue with proper setup & dequeue any stashed messages
+      }))
   }
 
   def backpressureHighwaterBehavior(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef): Actor.Receive = {
-
     case BackpressureBuffer.LowWatermarkReached =>
       unstashAll()
       context.become(connectedBehavior(wire, connection))
     case _ =>
       // put message away until after high water mark is clear
+      stash()
+  }
+
+  def awaitingReplyBehavior(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef, reqID: Int, onReply: ReplyMessage => Unit): Actor.Receive = {
+    case wire.Event(r @ ReplyMessage(reqID)) =>
+      onReply(r)
+      context.become(connectedBehavior(wire, connection))
+      unstashAll()
+    case other =>
       stash()
   }
 
@@ -152,14 +147,19 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
     // a mutating operation
     // todo - mutating operations need to handle a GetLastError setup
     case w: MongoMutationRequest =>
-      dispatcher += w.requestID -> PendingOp(sender, w)
       log.debug("Writing MongoMutationRequest to connection '{}'", w)
       connection ! wire.Command(w.msg)
       // behave accordingly based on WriteConcern...
-      // swap to a custom become method ... TODO: how dangerous is doing a closure here?
-      /*context.become({
-        case r @ ReplyMessage(MessageHeader(_, _, w.requestID, _)), _, _, _, _, _) =>
-      }) */
+      if (w.writeConcern.blockingWrite_?) {
+        // block out other requests until the write is completed
+        context.become(awaitingReplyBehavior(wire, connection, w.requestID, { r: ReplyMessage =>
+          // This is the getLastError result ... basically all writes get an Option[WriteResult]
+          sender ! Some(WriteResult(r.documents.head))
+        }))
+      } else {
+        // NOOP
+        sender ! None
+      }
     // a non-mutating operation
     case r: MongoRequest =>
       dispatcher += r.requestID -> PendingOp(sender, r)
@@ -167,8 +167,14 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
       connection ! wire.Command(r.msg)
     case wire.Event(r: ReplyMessage) =>
       log.debug("ReplyMessage '{}' received on wire...", r)
+      // try to match it up with dispatcher
+      dispatcher.get(r.requestID) match {
+        case None => log.error("Received a reply message w/ request ID {}, but no dispatcher entry.", r.requestID)
+        case Some(PendingOp(sender, req)) =>
+          // todo - match up based upon type of request
+          log.info("Received a reply for request {}, documents decoded: {} \n *** TODO - FILL ME IN ***", r.requestID, r.documents(req.decoder))
+      }
     case CommandFailed(cmd) =>
-      // TODO - We need to handle backpressure/buffering of NIO ... which Akka expects us to do
       // this is related to that, I believe.
       log.error("Network Command Failed: " + cmd.failureMessage)
     case ConfirmedClosed =>
@@ -204,6 +210,11 @@ case class QueryRequest[T : SerializableBSONObject](val msg: QueryMessage) exten
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
+case class CommandRequest[T : SerializableBSONObject](val db: String, val doc: BSONDocument) extends MongoRequest {
+  type DocType = T
+  val decoder = implicitly[SerializableBSONObject[T]]
+  val msg = QueryMessage(db + ".$cmd", 0, -1, doc)
+}
 /**
  * A cursor "getMore" - next batch fetch.
  * @tparam T Document type to return
@@ -241,13 +252,13 @@ case class FindAndModifyRequest[T : SerializableBSONObject](val msg: QueryMessag
  */
 trait MongoMutationRequest extends MongoRequest {
   override def msg: MongoClientWriteMessage
-  def writeConcern: WriteConcern
+  def writeConcern = msg.writeConcern
 }
 
 /**
  * Insert a *single* document.
  */
-case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -259,7 +270,7 @@ case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessag
  * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
  * on your batch ---- not the first, or all of them.
  */
-case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -267,7 +278,7 @@ case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMe
 /**
  * Update a *single* document.
  */
-case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -276,7 +287,7 @@ case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessag
  * Update multiple documents.
  *
  */
-case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -285,7 +296,7 @@ case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMe
  * Delete (multiple, by default) documents.
  * There is no response to a MongoDB Delete, so hardcoded response to Immutable
  */
-case class DeleteRequest(val msg: DeleteMessage, val writeConcern: WriteConcern) extends MongoMutationRequest {
+case class DeleteRequest(val msg: DeleteMessage) extends MongoMutationRequest {
   type DocType = ImmutableDocument
   val decoder = SerializableImmutableDocument
 }

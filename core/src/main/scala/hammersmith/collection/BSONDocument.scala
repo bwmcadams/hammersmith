@@ -82,6 +82,10 @@ trait BSONDocument extends Map[String, Any] with Logging {
     }
   }
 
+  def ++(other: BSONDocument): BSONDocument = {
+    immutable.Document(super.++(other).toSeq: _*)
+  }
+
   /**
    * Convert this BSONDocument to an immutable representation
    *

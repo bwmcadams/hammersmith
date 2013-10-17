@@ -73,7 +73,7 @@ abstract class InsertMessage extends MongoClientWriteMessage {
  */
 abstract class SingleInsertMessage(val namespace: String) extends InsertMessage
 sealed class DefaultSingleInsertMessage[DocType : SerializableBSONObject](override val namespace: String,
-                                                                          val doc: DocType)
+                                                                          val doc: DocType)(val writeConcern: WriteConcern)
   extends SingleInsertMessage(namespace) {
   type T = DocType
   val tM = implicitly[SerializableBSONObject[T]]
@@ -88,19 +88,19 @@ sealed class DefaultSingleInsertMessage[DocType : SerializableBSONObject](overri
 abstract class BatchInsertMessage(val namespace: String) extends InsertMessage
 sealed class DefaultBatchInsertMessage[DocType : SerializableBSONObject](override val namespace: String,
                                                                   val continueOnError: Boolean,
-                                                                  val documents: Seq[DocType])
+                                                                  val documents: Seq[DocType])(val writeConcern: WriteConcern)
   extends BatchInsertMessage(namespace) {
   type T = DocType
   val tM = implicitly[SerializableBSONObject[T]]
 }
 
 object InsertMessage extends Logging {
-  def apply[DocType: SerializableBSONObject](ns: String, continueOnError: Boolean, docs: DocType*) = {
+  def apply[DocType: SerializableBSONObject](ns: String, continueOnError: Boolean, docs: DocType*)(writeConcern: WriteConcern = WriteConcern.Safe) = {
     assume(docs.length > 0, "Cannot insert 0 documents.")
     if (docs.length > 1) {
-      new DefaultBatchInsertMessage[DocType](ns, continueOnError, docs)
+      new DefaultBatchInsertMessage[DocType](ns, continueOnError, docs)(writeConcern)
     } else {
-      new DefaultSingleInsertMessage[DocType](ns, docs.head)
+      new DefaultSingleInsertMessage[DocType](ns, docs.head)(writeConcern)
     }
   }
 }

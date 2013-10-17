@@ -70,13 +70,13 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
 }
 
 object DeleteMessage extends Logging {
-  def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false) =
-    new DefaultDeleteMessage[T](ns, q, onlyRemoveOne)
+  def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false)(writeConcern: WriteConcern = WriteConcern.Safe) =
+    new DefaultDeleteMessage[T](ns, q, onlyRemoveOne)(writeConcern)
 }
 
 sealed class DefaultDeleteMessage[T: SerializableBSONObject](val namespace: String,
                                                              val query: T,
-                                                             val removeSingle: Boolean)
+                                                             val removeSingle: Boolean)(val writeConcern: WriteConcern)
   extends DeleteMessage {
   type D = T
   val dM: SerializableBSONObject[D] = implicitly[SerializableBSONObject[T]]

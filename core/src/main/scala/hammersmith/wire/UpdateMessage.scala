@@ -88,7 +88,7 @@ sealed class DefaultBatchUpdateMessage[QueryType: SerializableBSONObject,
                                        UpdateType: SerializableBSONObject](val namespace: String,
                                                                            val upsert: Boolean = false,
                                                                            val query: QueryType,
-                                                                           val update: UpdateType) extends BatchUpdateMessage {
+                                                                           val update: UpdateType)(val writeConcern: WriteConcern) extends BatchUpdateMessage {
   type Q = QueryType
   val qM = implicitly[SerializableBSONObject[Q]]
 
@@ -105,7 +105,7 @@ sealed class DefaultSingleUpdateMessage[QueryType: SerializableBSONObject,
                                        UpdateType: SerializableBSONObject](val namespace: String,
                                                                            val upsert: Boolean = false,
                                                                            val query: QueryType,
-                                                                           val update: UpdateType) extends SingleUpdateMessage {
+                                                                           val update: UpdateType)(val writeConcern: WriteConcern) extends SingleUpdateMessage {
   type Q = QueryType
   val qM = implicitly[SerializableBSONObject[Q]]
 
@@ -120,9 +120,9 @@ object UpdateMessage extends Logging {
             U: SerializableBSONObject](ns: String,
                                        q: Q, updateSpec: U,
                                        upsert: Boolean = false,
-                                       multi: Boolean = false) = {
-    if (multi)  new DefaultBatchUpdateMessage(ns, upsert, q, updateSpec)
-    else new DefaultSingleUpdateMessage(ns, upsert, q, updateSpec)
+                                       multi: Boolean = false)(writeConcern: WriteConcern = WriteConcern.Safe) = {
+    if (multi)  new DefaultBatchUpdateMessage(ns, upsert, q, updateSpec)(writeConcern)
+    else new DefaultSingleUpdateMessage(ns, upsert, q, updateSpec)(writeConcern)
   }
 
 }
