@@ -34,7 +34,7 @@ import akka.util.ByteString
 import java.nio.ByteOrder
 import hammersmith.wire.MessageHeader
 import hammersmith.PendingOp
-import hammersmith.collection.BSONDocument
+import hammersmith.collection._
 
 /**
  *
@@ -163,13 +163,13 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
     // a non-mutating operation
     case r: MongoRequest =>
       dispatcher += r.requestID -> PendingOp(sender, r)
-      log.debug("Writing MongoRequest to connection '{}'", r)
+      log.debug("Writing MongoRequest (id {})  to connection '{}'", r.requestID, r)
       connection ! wire.Command(r.msg)
     case wire.Event(r: ReplyMessage) =>
       log.debug("ReplyMessage '{}' received on wire...", r)
       // try to match it up with dispatcher
-      dispatcher.get(r.requestID) match {
-        case None => log.error("Received a reply message w/ request ID {}, but no dispatcher entry.", r.requestID)
+      dispatcher.get(r.header.responseTo) match {
+        case None => log.error("Received a reply message responding to request ID {}, but no dispatcher entry.", r.header.responseTo)
         case Some(PendingOp(sender, req)) =>
           // todo - match up based upon type of request
           log.info("Received a reply for request {}, documents decoded: {} \n *** TODO - FILL ME IN ***", r.requestID, r.documents(req.decoder))
