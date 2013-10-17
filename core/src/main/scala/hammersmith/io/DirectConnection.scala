@@ -41,14 +41,13 @@ import hammersmith.PendingOp
  *
  */
 // TODO - Should there be one handler instance per connection? Or a pool of handlers/single handler shared? (One message at a time as actor...)
-case class InitializeConnection(addr: InetSocketAddress)
 
 case class PendingOp(sender: ActorRef, request: MongoRequest)
 
 /**
  * The actor that actually proxies connection
  */
-class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
+class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMaster: Boolean = true) extends Actor
   with ActorLogging
   with Stash {
 
@@ -125,8 +124,12 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress) extends Actor
 
   def awaitIsMaster(wire: Init[WithinActorContext, MongoMessage, MongoMessage], connection: ActorRef, reqID: Int): Actor.Receive = {
     case wire.Event(r @ ReplyMessage(reqID)) =>
-      val doc = r.documents[ImmutableDocument] take 1
-      log.debug("isMaster: '{}'", doc)
+      val doc: ImmutableDocument = r.documents[ImmutableDocument].head
+      log.debug("ismaster: '{}'", doc)
+      if (requireMaster && !(doc.getAs[Boolean]("ismaster") == Some(true)))
+        throw new IllegalStateException(s"Require Master; server @ '$serverAddress' is not master.")
+      if (doc.getAs[Double]("maxBsonObjectSize").isEmpty)
+        throw new IllegalStateException("Remote server does not report maxBsonObjectSize, probably an old server. Please use MongoDB 1.8+")
       // connected now, continue with proper setup & dequeue any stashed messages
       context.become(connectedBehavior(wire, connection))
       unstashAll()
