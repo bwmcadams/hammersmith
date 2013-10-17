@@ -22,7 +22,7 @@ class DirectConnectionFunctionalSpec extends Specification with Logging {
 
   def testMongoDBConnection = {
     implicit val system = ActorSystem("direct-connection-test")
-    val conn = system.actorOf(Props(classOf[DirectMongoDBConnector], new InetSocketAddress("localhost", 27017)))
+    val conn = system.actorOf(Props(classOf[DirectMongoDBConnector], new InetSocketAddress("localhost", 27017), true))
     Thread.sleep(1000)
     conn must not beNull
   }
