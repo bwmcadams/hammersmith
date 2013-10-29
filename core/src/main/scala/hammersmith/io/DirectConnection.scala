@@ -30,10 +30,6 @@ import hammersmith.collection.immutable.{Document => ImmutableDocument}
 import hammersmith.collection.Implicits.SerializableImmutableDocument
 import hammersmith.io.MongoFrameHandler
 import akka.io.TcpPipelineHandler.{Init, WithinActorContext}
-import akka.util.ByteString
-import java.nio.ByteOrder
-import hammersmith.wire.MessageHeader
-import hammersmith.PendingOp
 import hammersmith.collection._
 
 /**
@@ -93,25 +89,25 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
        */
       log.debug(s"Established a direct connection to MongoDB at '$serverAddress'")
       // TODO - SSL support, if we can get a hold of a copy of the SSL build (I think the source is free, bins aren't)
-      val init = TcpPipelineHandler.withLogger(log,
+      val pipeline = TcpPipelineHandler.withLogger(log,
           new MongoFrameHandler >>
           new TcpReadWriteAdapter >>
           new BackpressureBuffer(lowBytes = 100, highBytes = 1000, maxBytes = 1000000))
 
 
       // this is the actual connection context now
-      val pipeline = context.actorOf(TcpPipelineHandler.props(init, sender, self).withDeploy(Deploy.local) /* ensure it can't be remoted */)
+      val handler = context.actorOf(TcpPipelineHandler.props(pipeline, sender, self).withDeploy(Deploy.local) /* ensure it can't be remoted */)
 
-      context watch self
+      context watch handler
 
-      sender ! Tcp.Register(pipeline)
+      sender ! Tcp.Register(handler)
       // invoke isMaster
       log.debug("Invoking MongoDB isMaster function")
       val isMaster = CommandRequest("admin", ImmutableDocument("isMaster" -> 1))
       log.debug("Created isMaster query '{}'", isMaster.msg)
 
-      pipeline ! init.Command(isMaster.msg)
-      context.become(awaitingReplyBehavior(init, pipeline, isMaster.requestID, { r: ReplyMessage =>
+      handler ! pipeline.Command(isMaster.msg)
+      context.become(awaitingReplyBehavior(pipeline, handler, isMaster.requestID, { r: ReplyMessage =>
         val doc: ImmutableDocument = r.documents[ImmutableDocument].head
         log.debug("ismaster: '{}'", doc)
         if (requireMaster && !(doc.getAs[Boolean]("ismaster") == Some(true)))
@@ -146,6 +142,8 @@ class DirectMongoDBConnector(val serverAddress: InetSocketAddress, val requireMa
     case CommandFailed(w: Write) ⇒ // O/S buffer was full
     // a mutating operation
     // todo - mutating operations need to handle a GetLastError setup
+    // TODO - register cursor so that if they did an EXHAUST we route the following packages properly
+    // todo - Check reply for errors
     case w: MongoMutationRequest =>
       log.debug("Writing MongoMutationRequest to connection '{}'", w)
       connection ! wire.Command(w.msg)
@@ -224,6 +222,11 @@ case class GetMoreRequest[T : SerializableBSONObject](val msg: GetMoreMessage) e
   val decoder = implicitly[SerializableBSONObject[T]]
 }
 
+object GetMoreRequest {
+  def apply[T : SerializableBSONObject](ns: String, numReturn: Int, id: Long) = {
+    new GetMoreRequest[T](GetMoreMessage(ns, numReturn, id))
+  }
+}
 /**
  * A request for a single document, where user has said to skip the cursor.
  * TODO: Bake a specific "findOne" client message so that this guarantees type safety on the call
