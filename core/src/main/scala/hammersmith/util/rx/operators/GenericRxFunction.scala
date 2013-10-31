@@ -16,26 +16,13 @@ protected[rx] class GenericRxOperator[T](source: MongoObservable[T], p: (T) => B
     subscription.wrap(source.subscribe(new MongoObserver[T] {
       val emitted: AtomicBoolean = new AtomicBoolean(false)
 
-      /**
-       * Indicates that the data stream inside the Observable has ended,
-       * and no more data will be send (i.e. no more calls to `onNext`, and `onError`
-       * will not be invoked)
-       *
-       * This is especially useful with something like a Cursor to indicate
-       * that the total data stream has been exhausted.
-       */
+
       def onComplete(): Unit = if (!emitted.get) {
         observer.onNext(onEmpty) // what's our "default" if empty
         observer.onComplete()
       }
 
-      /**
-       * What to do in the case of an error.
-       *
-       * Once this is invoked, no further calls to `onNext` will be made,
-       * and `onComplete` will not be invoked.
-       * @param t
-       */
+
       def onError(t: Throwable): Unit = {
         observer.onError(t)
       }
