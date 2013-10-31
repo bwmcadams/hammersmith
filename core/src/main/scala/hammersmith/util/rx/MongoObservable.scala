@@ -4,15 +4,15 @@ package hammersmith.util.rx
 import hammersmith.bson.SerializableBSONObject
 import scala.collection.concurrent.TrieMap
 import akka.actor.ActorRef
-import hammersmith.util.rx.operators.{DropWhileOperator, DistinctOperator}
+import hammersmith.util.rx.operators.{ExistsOperator, DropWhileOperator, DistinctOperator}
 
 /**
  * defines an onSubscribe func
  * @tparam T
  */
-trait OnSubscribe[+T] extends ((T) => MongoSubscription) {
+trait OnSubscribe[T] extends ((MongoObserver[T]) => MongoSubscription) {
   // this is our "onSubscribe" function
-  def apply(observer: T): MongoSubscription
+  def apply(observer: MongoObserver[T]): MongoSubscription
 }
 
 /**
@@ -34,7 +34,7 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
   // todo - store query
 
   // Factory function for creating clones of this
-  def apply(onSubscribe: OnSubscribe[T])
+  def apply[T](onSubscribe: OnSubscribe[T]): MongoObservable[T]
 
   /**
    * Subscribe to events from the source.
@@ -88,7 +88,7 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
    *
    * @see http://docs.mongodb.org/manual/reference/method/db.collection.distinct/
    */
-  def distinct[U](f: (T) => U): MongoObservable[T] = this(new DistinctOperator(this, f))
+  def distinct[U](f: (T) => U): MongoObservable[T] = apply(DistinctOperator(this, f))
 
   /**
    * Returns an observable that forwards any distinct items that are emitted from the source
@@ -97,7 +97,7 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
    *
    * @see http://docs.mongodb.org/manual/reference/method/db.collection.distinct/
    */
-  def distinct: MongoObservable[T] = this(new DistinctOperator(this))
+  def distinct: MongoObservable[T] = apply(DistinctOperator(this))
 
 
   // todo - distinctUntilChanged
@@ -118,7 +118,7 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
    *
    *  This is currently done client side: we may offer a Mongo Query function later for it.
    */
-  def dropWhile(p: (T) => Boolean): MongoObservable[T] = this(new DropWhileOperator[T](this, p))
+  def dropWhile(p: (T) => Boolean): MongoObservable[T] = apply(DropWhileOperator[T](this, p))
 
   /**
    * Tests whether a predicate holds true for elements of the MongoObservable,
@@ -129,7 +129,7 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
    *
    * @see http://docs.mongodb.org/manual/reference/operator/query/exists/
    */
-  def exists(p: (T) => Boolean): MongoObservable[Boolean] = this(new ExistsOperator[T](this, p))
+  def exists(p: (T) => Boolean): MongoObservable[Boolean] = apply(ExistsOperator(this, p))
 
   /**
    * Returns a MongoObservable which will only emit items that pass a predicate function
@@ -342,9 +342,9 @@ trait MongoObserver[-T] {
 sealed class AnonymousObserver[-T](nextFunc: T => Unit,
                                    errorFunc: Throwable => Unit = { t => () },
                                    completeFunc: () => Unit = { () => () }) extends MongoObserver[T] {
-  def onError(t: Throwable) = errorFunc
-  def onComplete = completeFunc
-  def onNext(item: T) = nextFunc
+  def onError(t: Throwable) = errorFunc(t)
+  def onComplete = completeFunc()
+  def onNext(item: T) = nextFunc(item)
 }
 
 trait MongoSubscription {
