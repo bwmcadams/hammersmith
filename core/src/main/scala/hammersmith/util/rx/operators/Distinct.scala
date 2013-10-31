@@ -22,25 +22,11 @@ class DistinctOperator[T, U] private(source: MongoObservable[T], f: (T) => U) ex
       // emitted Keys
       private val keys = mutable.HashSet.empty[U]
 
-      /**
-       * Indicates that the data stream inside the Observable has ended,
-       * and no more data will be send (i.e. no more calls to `onNext`, and `onError`
-       * will not be invoked)
-       *
-       * This is especially useful with something like a Cursor to indicate
-       * that the total data stream has been exhausted.
-       */
+
       def onComplete(): Unit = {
         observer.onComplete()
       }
 
-      /**
-       * What to do in the case of an error.
-       *
-       * Once this is invoked, no further calls to `onNext` will be made,
-       * and `onComplete` will not be invoked.
-       * @param t
-       */
       def onError(t: Throwable): Unit = {
         observer.onError(t)
       }

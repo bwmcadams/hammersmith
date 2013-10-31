@@ -4,7 +4,7 @@ package hammersmith.util.rx
 import hammersmith.bson.SerializableBSONObject
 import scala.collection.concurrent.TrieMap
 import akka.actor.ActorRef
-import hammersmith.util.rx.operators.{ExistsOperator, DropWhileOperator, DistinctOperator}
+import hammersmith.util.rx.operators._
 
 /**
  * defines an onSubscribe func
@@ -136,14 +136,14 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
    *
    * NOTE: This op is run clientSide, post-query; you probably want to do this as a MongoDB query for maximum performance
    */
-  def filter(f: (T) => Boolean): MongoObservable[T]
+  def filter(p: (T) => Boolean): MongoObservable[T] = apply(FilterOperator(this, p))
 
   /**
    * Registers a function which will be called when the MongoObservable invokes onComplete or onError
    * @param action
    * @return
    */
-  def finallyDo(action: () => Unit): MongoObservable[T]
+  def finallyDo(action: () => Unit): MongoObservable[T] = apply(FinallyOperator(this, action))
 
   /**
    * Returns a MongoObservable with just the first item in the Observable.
