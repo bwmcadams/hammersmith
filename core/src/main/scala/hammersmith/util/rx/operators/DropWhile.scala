@@ -14,7 +14,7 @@ class DropWhileOperator[T](source: MongoObservable[T], p: (T) => Boolean) extend
 
   private class DropWhileObserver(observer: MongoObserver[T]) extends MongoObserver[T] {
 
-    val skipping_? = new AtomicBoolean(true)
+    val skipping = new AtomicBoolean(true)
 
     /**
      * Indicates that the data stream inside the Observable has ended,

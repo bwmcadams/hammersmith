@@ -31,6 +31,7 @@ trait OnSubscribe[+T] extends ((T) => MongoSubscription) {
  */
 abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
 
+  // todo - store query
 
   // Factory function for creating clones of this
   def apply(onSubscribe: OnSubscribe[T])
@@ -121,19 +122,19 @@ abstract class MongoObservable[+T](onSubscribe: OnSubscribe[T]) {
 
   /**
    * Tests whether a predicate holds true for elements of the MongoObservable,
-   * returning a new MongoObservable of Boolean -
+   * returning a new MongoObservable of Boolean
    *
-   * NOTE: the elements won't be returned, just booleans. You probably want
+   * NOTE: the elements won't be returned, just booleans, and it is done clientSide. You probably want
    * to use the MongoDB $exists operator in your query instead...
    *
    * @see http://docs.mongodb.org/manual/reference/operator/query/exists/
    */
-  def exists(f: (T) => Boolean): MongoObservable[Boolean]
+  def exists(p: (T) => Boolean): MongoObservable[Boolean] = this(new ExistsOperator[T](this, p))
 
   /**
    * Returns a MongoObservable which will only emit items that pass a predicate function
    *
-   * NOTE: You probably want to do this as a MongoDB query for maximum performance
+   * NOTE: This op is run clientSide, post-query; you probably want to do this as a MongoDB query for maximum performance
    */
   def filter(f: (T) => Boolean): MongoObservable[T]
 
