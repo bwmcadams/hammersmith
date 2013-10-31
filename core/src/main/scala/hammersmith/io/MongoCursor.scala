@@ -47,20 +47,20 @@ class MongoCursorActor[T : SerializableBSONObject](conn: ActorRef, cursor: Mongo
     }
 
     if (r.cursorNotFound)
-      cursor.error(new CursorNotFoundException)
+      cursor.publishError(new CursorNotFoundException)
     else if (r.queryFailure) {
       val err: String = r.documents[ImmutableDocument].head.getAs[String]("$err") match {
         case Some(errMsg) => errMsg
         case None => " { No specific error detail reported by server } "
       }
-      cursor.error(new QueryFailedException(err))
+      cursor.publishError(new QueryFailedException(err))
     }
     else if (r.awaitCapable == false)
-      cursor.error(new AwaitUnsupportedException)
+      cursor.publishError(new AwaitUnsupportedException)
     else {
       val documents = r.documents[T]
 
-      documents foreach { cursor.publish }
+      documents foreach { cursor.publishNext }
 
       if (hasMore) {
         // get more from ye ol' mongo server
@@ -68,7 +68,7 @@ class MongoCursorActor[T : SerializableBSONObject](conn: ActorRef, cursor: Mongo
       }
       else {
         // shut ourselves down, since the cursor is completed
-        cursor.completed()
+        cursor.publishCompleted()
         context.stop(self)
       }
 
@@ -88,7 +88,7 @@ object MongoCursor {
 }
 
 // TODO - This needs to be able to communicate with its parent actor
-class MongoCursor[T] extends MongoObservable[T] {
+class MongoCursor[T](r: ReplyMessage, w: MongoMutationRequest) extends MongoObservable[T] {
   self =>
 
   val subscriptions = TrieMap.empty[MongoSubscription, MongoObserver[T]]
@@ -112,22 +112,23 @@ class MongoCursor[T] extends MongoObservable[T] {
     subscribe(new AnonymousObserver[T](onNext, onError))
 
 
-  private[io] def publish(item: T) = {
+  private[io] def publishNext(item: T) = {
     subscriptions foreach { s_o =>
       s_o._2.onNext(item)
     }
   }
 
-  private[io] def error(error: Throwable) = {
+  private[io] def publishError(error: Throwable) = {
     subscriptions foreach { s_o =>
       s_o._2.onError(error)
     }
 
   }
 
-  private[io] def completed() = {
+  private[io] def publishCompleted() = {
     subscriptions foreach { s_o =>
       s_o._2.onComplete()
     }
   }
+
 }
