@@ -10,6 +10,7 @@ import hammersmith.collection.Implicits._
 import hammersmith.collection.immutable.{Document => ImmutableDocument}
 import hammersmith.bson.SerializableBSONObject
 
+
 /**
  * This actor proxies the behavior of a cursor so that the actual fetching and pushing can be done
  * on a separate thread...
@@ -17,6 +18,7 @@ import hammersmith.bson.SerializableBSONObject
  *
  * TODO - Cursor Cleaner
  */
+/*
 class MongoCursorActor[T : SerializableBSONObject](conn: ActorRef, cursor: MongoCursor[T]) extends Actor with ActorLogging {
   import MongoCursor._
 
@@ -132,3 +134,4 @@ class MongoCursor[T](r: ReplyMessage, w: MongoMutationRequest) extends MongoObse
   }
 
 }
+*/
