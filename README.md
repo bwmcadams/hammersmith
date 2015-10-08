@@ -1,8 +1,17 @@
 Hammersmith 0.30.0 ("Zathrus")
 ==============================
 
+A Pure Scala, asynchronous MongoDB Driver with type-classes for custom type encoding and a highly optimized BSON serialiation layer.
 
-A Scala-based, asynchronous Netty driver for MongoDB with type-class based fast custom object encoding.
+Modesty aside: from the *expert* in MongoDB + Scala. Based on many years of lessons learned working on [Casbah, the Original MongoDB Scala Driver](http://github.com/mongodb/casbah) as well as part of the core driver team at MongoDB itself.
+
+Currently a slightly broken scattered mess comprising several years of sketches, ideas and prototypes. Aimed to have pluggable network backends for:
+
+* scalaz-stream
+* Akka Streams
+* RxScala
+
+The idea being to give you the maximum flexibility around what *your* needs are, rather than dictate your network layer.
 
 Stays crunchy in milk!
 
@@ -23,7 +32,7 @@ Author/Maintainer
 Contributors
 ------------
 
-These fine specimens of humanity have demonstrated their 
+These fine specimens of humanity have demonstrated their
 mastery of Scala + MongoDB by making Hammersmith more awesome in their spare time:
 
 * [Havoc Pennington (@havocp)](http://github.com/havocp)
