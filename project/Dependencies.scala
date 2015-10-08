@@ -1,7 +1,7 @@
 import sbt._
 
 object Version {
-  val akka         = "2.2.1"
+  val akka         = "2.4.0"
   val mongoJava    = "2.9.3" // only used for testing
   val junit        = "4.7"
   val specs2       = "1.12.3"
@@ -25,7 +25,7 @@ object Libraries {
   val ficus = "net.ceedubs" %% "ficus" % Version.ficus
 
   // Testing Deps
-  val specs2 = "org.specs2" %% "specs2" % Version.specs2 % "test"
+  val specs2 = "org.specs2" % "specs2_2.10" % Version.specs2 % "test"
   val junit = "junit" % "junit" % Version.junit % "test"
   val mongoJava = "org.mongodb" % "mongo-java-driver" % Version.mongoJava % "test->default"
   val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
