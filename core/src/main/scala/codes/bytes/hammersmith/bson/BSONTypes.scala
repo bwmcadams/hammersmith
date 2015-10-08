@@ -427,26 +427,26 @@ object BSONTimestampType extends BSONType {
 }
 
 /** BSON Min Key and Max Key represent special internal types for Sharding */
-case class BSONMinKey
-case class BSONMaxKey 
+case object BSONMinKey
+case object BSONMaxKey
 
 object BSONMinKeyType extends BSONType {
   val typeCode: Byte = 0xFF.toByte
 
-  def unapply(frame: ByteIterator): Option[(String, BSONMinKey)] = 
+  def unapply(frame: ByteIterator): Option[(String, BSONMinKey.type)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, BSONMinKey()))
+      Some((name, BSONMinKey))
     } else None
 }
 
 object BSONMaxKeyType extends BSONType {
   val typeCode: Byte = 0x7F
 
-  def unapply(frame: ByteIterator): Option[(String, BSONMaxKey)] = 
+  def unapply(frame: ByteIterator): Option[(String, BSONMaxKey.type)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, BSONMaxKey()))
+      Some((name, BSONMaxKey))
     } else None
 }
 
