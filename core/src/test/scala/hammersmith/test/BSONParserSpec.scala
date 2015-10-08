@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2013 Brendan W. McAdams <http://evilmonkeylabs.com>
+ * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
  *
  * Licensed under the Apache License, Version 2.0 (the "License")
  * you may not use this file except in compliance with the License.
