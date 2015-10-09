@@ -702,4 +702,4 @@ object MutableOrderedBSONDocumentComposer extends BSONComposer[MutableOrderedDoc
   def elements(doc: MutableOrderedDocument) = doc.iterator
 }
 
-class BSONCompositionException(message: String, t: Throwable = null) extends Exception(message, t)
+case class BSONCompositionException(message: String, t: Throwable = null) extends Exception(message, t) with scala.util.control.NoStackTrace
