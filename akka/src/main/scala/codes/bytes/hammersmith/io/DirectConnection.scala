@@ -253,7 +253,7 @@ case class FindAndModifyRequest[T : SerializableBSONObject](val msg: QueryMessag
  * This doesn't include commands such as findAndModify as they
  * don't have a sane place in the protocol and we can't WriteConcern them.
  */
-trait MongoMutationRequest extends MongoRequest {
+sealed trait MongoMutationRequest extends MongoRequest {
   override def msg: MongoClientWriteMessage
   def writeConcern = msg.writeConcern
 }
@@ -261,7 +261,7 @@ trait MongoMutationRequest extends MongoRequest {
 /**
  * Insert a *single* document.
  */
-case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessage) extends MongoMutationRequest {
+final case class InsertRequest[T : SerializableBSONObject](msg: SingleInsertMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -273,7 +273,7 @@ case class InsertRequest[T : SerializableBSONObject](val msg: SingleInsertMessag
  * I believe the behavior of MongoDB will cause getLastError to indicate the LAST error
  * on your batch ---- not the first, or all of them.
  */
-case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMessage) extends MongoMutationRequest {
+final case class BatchInsertRequest[T : SerializableBSONObject](msg: BatchInsertMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -281,7 +281,7 @@ case class BatchInsertRequest[T : SerializableBSONObject](val msg: BatchInsertMe
 /**
  * Update a *single* document.
  */
-case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessage) extends MongoMutationRequest {
+final case class UpdateRequest[T : SerializableBSONObject](msg: SingleUpdateMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -290,7 +290,7 @@ case class UpdateRequest[T : SerializableBSONObject](val msg: SingleUpdateMessag
  * Update multiple documents.
  *
  */
-case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMessage) extends MongoMutationRequest {
+final case class BatchUpdateRequest[T : SerializableBSONObject](msg: BatchUpdateMessage) extends MongoMutationRequest {
   type DocType = T
   val decoder = implicitly[SerializableBSONObject[T]]
 }
@@ -299,7 +299,7 @@ case class BatchUpdateRequest[T : SerializableBSONObject](val msg: BatchUpdateMe
  * Delete (multiple, by default) documents.
  * There is no response to a MongoDB Delete, so hardcoded response to Immutable
  */
-case class DeleteRequest(val msg: DeleteMessage) extends MongoMutationRequest {
+final case class DeleteRequest(msg: DeleteMessage) extends MongoMutationRequest {
   type DocType = ImmutableDocument
   val decoder = SerializableImmutableDocument
 }

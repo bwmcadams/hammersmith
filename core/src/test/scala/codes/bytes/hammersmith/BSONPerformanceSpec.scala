@@ -1,4 +1,4 @@
-package codes.bytes.hammersmith.test
+package codes.bytes.hammersmith
 
 import akka.util.ByteString
 import codes.bytes.hammersmith.collection.immutable.Document

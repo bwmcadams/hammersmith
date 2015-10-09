@@ -24,7 +24,6 @@ import codes.bytes.hammersmith.util.Logging
 import akka.util.{ByteString, ByteIterator}
 import scala.Some
 import codes.bytes.hammersmith.collection.immutable.{OrderedDocument, Document}
-import codes.bytes.hammersmith.collection.mutable
 
 trait Imports extends Logging {
   // TODO - do we still need this, migrating into the Casbah code? -bwm feb-3-13
@@ -40,8 +39,9 @@ trait Imports extends Logging {
       // and AnyRef here, but for example
       // manifest[BSONDocument] <:< manifest[AnyRef]
       // is false.
-      if (manifest[A] <:< manifest[AnyRef] ||
-        manifest[A] <:< manifest[ScalaObject]) {
+      // TODO: This used to use ScalaOBject, figure out what it needs incl. classTag?
+      if (manifest[A] <:< manifest[AnyRef] /* ||
+        manifest[A] <:< manifest[ScalaObject] */) {
         // casting to a boxed type
         manifest[A].erasure.asInstanceOf[Class[A]].cast(value)
       } else {

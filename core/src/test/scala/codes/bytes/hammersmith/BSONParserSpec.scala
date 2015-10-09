@@ -15,7 +15,6 @@
  *
  */
 package codes.bytes.hammersmith
-package test
 
 import org.specs2._
 import org.junit.runner._
@@ -91,9 +90,9 @@ class BSONParserSpec extends Specification with Logging {
 
   def hasNull = parsedBSON.get("null") must beSome(null) // BSON Null is fucking stupid.
 
-  def hasMax = parsedBSON.get("max") must beSome(BSONMaxKey())
+  def hasMax = parsedBSON.get("max") must beSome(BSONMaxKey)
 
-  def hasMin = parsedBSON.get("min") must beSome(BSONMinKey())
+  def hasMin = parsedBSON.get("min") must beSome(BSONMinKey)
 
   def hasBoolTrue = parsedBSON.get("booleanTrue") must beSome(true)
 

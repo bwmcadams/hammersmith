@@ -16,7 +16,6 @@
  */
 
 package codes.bytes.hammersmith
-package test
 
 import org.specs2._
 import org.junit.runner._
@@ -133,7 +132,7 @@ class BSONComposerSpec extends Specification with ThrownExpectations with Loggin
     b += "javaRegex" -> testJavaRE
     b += "scalaRegex" -> testScalaRE
     b += "symbol" -> testSymbol
-    val doc = b.result
+    val doc = b.result()
 
 
     val bson = SerializableBSONDocument.compose(doc)

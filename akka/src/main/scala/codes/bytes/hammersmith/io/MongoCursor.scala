@@ -1,7 +1,6 @@
 
 package codes.bytes.hammersmith.io
 
-import codes.bytes.hammersmith.util.rx._
 import scala.collection.concurrent.TrieMap
 import codes.bytes.hammersmith.wire.{QueryMessage, ReplyMessage}
 import akka.actor.{ActorLogging, Actor, ActorRef}

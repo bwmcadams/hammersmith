@@ -1,16 +1,13 @@
 
-package codes.bytes.hammersmith.test
+package codes.bytes.hammersmith.io
 
-import org.specs2.runner.JUnitRunner
-import org.junit.runner.RunWith
-import org.specs2.Specification
-import codes.bytes.hammersmith.util.Logging
-import akka.actor.{Props, ActorSystem}
-import codes.bytes.hammersmith.{CommandRequest, QueryRequest, DirectMongoDBConnector}
-import java.net.{InetSocketAddress, InetAddress}
-import akka.testkit.TestActorRef
+import java.net.InetSocketAddress
+
+import akka.actor.{ActorSystem, Props}
 import codes.bytes.hammersmith.collection.Implicits._
 import codes.bytes.hammersmith.collection.immutable.Document
+import codes.bytes.hammersmith.util.Logging
+import codes.bytes.hammersmith.{CommandRequest, DirectMongoDBConnector}
 
 @RunWith(classOf[JUnitRunner])
 class DirectConnectionFunctionalSpec extends Specification with Logging {

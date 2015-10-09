@@ -59,15 +59,6 @@ trait SerializableBSONObject[T] {
    * TODO - should we even expose this, or should they just provide a composer and parser?
    *
    */
-  @deprecated("You should pass ByteIterators for sanity/safety, not ByteStrings.")
-  def parse(in: ByteString): T = parse(in.iterator)
-
-  /**
-   * Parse BSON, returning an instance of this Type.
-   *
-   * TODO - should we even expose this, or should they just provide a composer and parser?
-   *
-   */
   final def parse(in: ByteIterator): T = parser(in)
 
   /**
