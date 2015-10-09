@@ -22,8 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.io._
 import codes.bytes.hammersmith.bson.{ImmutableBSONDocumentParser}
 import codes.bytes.hammersmith.collection.immutable.Document
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.{ByteIterator, ByteString}
+import com.typesafe.scalalogging.StrictLogging
 
 
 /**
@@ -84,7 +85,7 @@ case class MessageHeader(
   opCode: Int
 )
 
-object MongoMessage extends Logging {
+object MongoMessage extends StrictLogging {
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
@@ -102,7 +103,7 @@ object MongoMessage extends Logging {
     require(len > 0 && len < DefaultMaxBSONObjectSize,
       s"Received an invalid BSON frame size of '$len' bytes (Min: 'more than 4 bytes' Max: '$DefaultMaxBSONObjectSize' bytes")
 
-    log.debug(s"Decoding a ByteStream of '$len' bytes.")
+    logger.debug(s"Decoding a ByteStream of '$len' bytes.")
     val header = bs take 16 // Headers are exactly 16 bytes
     val frame = bs take (len - 16 - 4) /* subtract header;  length of total doc
                                           includes itself w/ BSON - don't overflow!!! */
@@ -123,7 +124,7 @@ object MongoMessage extends Logging {
    *
    */
   def apply(header: ByteIterator, frame: ByteIterator): MongoMessage = {
-    log.debug("Attempting to extract a coherent MongoDB Message")
+    logger.debug("Attempting to extract a coherent MongoDB Message")
 
 
     val msgHeader = MessageHeader(
@@ -133,48 +134,48 @@ object MongoMessage extends Logging {
       opCode = header.getInt
     )
 
-    log.debug(s"Message Header decoded '$msgHeader'")
+    logger.debug(s"Message Header decoded '$msgHeader'")
 
 
     OpCode(msgHeader.opCode) match {
-      case OpCode.OpReply ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_REPLY'")
+      case OpCode.OpReply ⇒
+        logger.debug("[Incoming Message] OpCode is 'OP_REPLY'")
         ReplyMessage(msgHeader, frame)
-      }
-      case OpCode.OpMsg ⇒ {
-        log.warn("[Incoming Message] Deprecated message type 'OP_MSG' received.")
+
+      case OpCode.OpMsg ⇒
+        logger.warn("[Incoming Message] Deprecated message type 'OP_MSG' received.")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpUpdate ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_UPDATE'")
+
+      case OpCode.OpUpdate ⇒
+        logger.debug("[Incoming Message] OpCode is 'OP_UPDATE'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpInsert ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_INSERT'")
+
+      case OpCode.OpInsert ⇒
+        logger.debug("[Incoming Message] OpCode is 'OP_INSERT'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpGetMore ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_GET_MORE'")
+
+      case OpCode.OpGetMore ⇒
+        logger.debug("[Incoming Message] OpCode is 'OP_GET_MORE'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpDelete ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_DELETE'")
+
+      case OpCode.OpDelete ⇒
+        logger.debug("[Incoming Message] OpCode is 'OP_DELETE'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case OpCode.OpKillCursors ⇒ {
-        log.debug("[Incoming Message] OpCode is 'OP_KILL_CURSORS'")
+
+      case OpCode.OpKillCursors ⇒
+        logger.debug("[Incoming Message] OpCode is 'OP_KILL_CURSORS'")
         throw new UnsupportedOperationException("Unsupported operation type for reads.")
-      }
-      case unknown ⇒ {
-        log.error("Unknown Message OpCode '%d'", unknown)
-        throw new UnsupportedOperationException("Invalid Message Type with OpCode '%d'".format(unknown))
-      }
+
+      case unknown ⇒
+        logger.error("Unknown Message OpCode '%d'", unknown)
+        throw new UnsupportedOperationException(s"Invalid Message Type with OpCode '$unknown'")
+
     }
   }
 
 }
 
-abstract class MongoMessage extends Logging {
+abstract class MongoMessage extends StrictLogging {
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
   /* Standard Message Header */
@@ -182,7 +183,7 @@ abstract class MongoMessage extends Logging {
   def opCode: OpCode.Value
   lazy val requestID = {
     val _id = MongoMessage.ID.getAndIncrement
-    log.trace("Generated Message ID '%s'", _id)
+    logger.trace(s"Generated Message ID '${_id}'")
     _id
   }
 

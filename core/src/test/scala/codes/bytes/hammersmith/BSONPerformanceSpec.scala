@@ -3,28 +3,28 @@ package codes.bytes.hammersmith
 import akka.util.ByteString
 import codes.bytes.hammersmith.collection.immutable.Document
 import codes.bytes.hammersmith.bson.ImmutableBSONDocumentParser
+import com.typesafe.scalalogging.StrictLogging
 import org.bson.{BasicBSONDecoder, NewBSONDecoder}
 import java.util.regex.Pattern
-import codes.bytes.hammersmith.util.Logging
 
-object BSONPerformanceSpec extends App with Logging {
+object BSONPerformanceSpec extends App with StrictLogging {
 
   //short
   scalaParserPerfTest(50L)
   newJavaParserPerfTest(50L)
   oldJavaParserPerfTest(50L)
-  log.info("*************************")
+  logger.info("*************************")
   //longer
   scalaParserPerfTest(5000L)
   newJavaParserPerfTest(5000L)
   oldJavaParserPerfTest(5000L)
-  log.info("*************************")
+  logger.info("*************************")
 
   //much longer
   scalaParserPerfTest(10000L)
   newJavaParserPerfTest(10000L)
   oldJavaParserPerfTest(10000L)
-  log.info("*************************")
+  logger.info("*************************")
 
 
   def scalaParserPerfTest(x: Long) = {
@@ -33,7 +33,7 @@ object BSONPerformanceSpec extends App with Logging {
       parseBSONWithScala
     val end = System.currentTimeMillis()
     val time = end - start
-    log.info(s"Time to parse BSON with Scala $x times: '$time' milliseconds.")
+    logger.info(s"Time to parse BSON with Scala $x times: '$time' milliseconds.")
   }
 
   def newJavaParserPerfTest(x: Long) = {
@@ -42,7 +42,7 @@ object BSONPerformanceSpec extends App with Logging {
       parseBSONWithNewJava
     val end = System.currentTimeMillis()
     val time = end - start
-    log.info(s"Time to parse BSON with 'New' Java $x times: '$time' milliseconds.")
+    logger.info(s"Time to parse BSON with 'New' Java $x times: '$time' milliseconds.")
   }
 
   def oldJavaParserPerfTest(x: Long) = {
@@ -51,7 +51,7 @@ object BSONPerformanceSpec extends App with Logging {
       parseBSONWithOldJava
     val end = System.currentTimeMillis()
     val time = end - start
-    log.info(s"Time to parse BSON with 'Old' Java $x times: '$time' milliseconds.")
+    logger.info(s"Time to parse BSON with 'Old' Java $x times: '$time' milliseconds.")
   }
 
   // -- Setup definitions

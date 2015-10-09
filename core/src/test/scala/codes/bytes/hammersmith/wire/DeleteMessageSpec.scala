@@ -5,7 +5,7 @@ import com.mongodb.legacyDelete
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
-import codes.bytes.hammersmith.util.Logging
+
 import org.specs2.matcher.ThrownExpectations
 import codes.bytes.hammersmith.collection.Implicits._
 import codes.bytes.hammersmith.collection.immutable._
@@ -20,7 +20,7 @@ import codes.bytes.hammersmith.collection.Implicits.SerializableBSONDocument
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
 
 @RunWith(classOf[JUnitRunner])
-class DeleteMessageSpec extends Specification with ThrownExpectations with Logging {
+class DeleteMessageSpec extends Specification with ThrownExpectations {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
    */

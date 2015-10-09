@@ -17,12 +17,13 @@
 
 package codes.bytes.hammersmith.collection
 
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.collection.mutable.Builder
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList}
 import codes.bytes.hammersmith.collection.immutable.Document
-import codes.bytes.hammersmith.util.Logging
 
-trait BSONList extends Seq[Any]  with Logging {
+trait BSONList extends Seq[Any] {
 
   /**
    * as
@@ -63,7 +64,7 @@ trait BSONList extends Seq[Any]  with Logging {
   def toDBList: ImmutableDBList
 }
 
-trait BSONListFactory[T <: BSONList] extends Logging {
+trait BSONListFactory[T <: BSONList] {
   def empty: BSONList
   def newBuilder: BSONListBuilder[T]
 

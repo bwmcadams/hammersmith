@@ -17,7 +17,7 @@
 package codes.bytes.hammersmith
 package wire
 
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.ByteString
 import codes.bytes.hammersmith.bson.ImmutableBSONDocumentComposer
 
@@ -54,7 +54,7 @@ trait GetMoreMessage extends MongoClientMessage {
   }
 }
 
-object GetMoreMessage extends Logging {
+object GetMoreMessage {
   def apply(ns: String, numReturn: Int, id: Long) = new GetMoreMessage {
     val namespace = ns
     val numberToReturn = numReturn

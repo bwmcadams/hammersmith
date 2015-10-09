@@ -17,14 +17,16 @@
 
 package codes.bytes.hammersmith.collection
 
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.annotation.tailrec
 import codes.bytes.hammersmith.collection.immutable.{BSONDocument => ImmutableBSONDocument}
 import scala.collection._
 import scala.collection.mutable.Builder
-import codes.bytes.hammersmith.util.Logging
 
 
-trait BSONDocument extends Map[String, Any] with Logging {
+
+trait BSONDocument extends Map[String, Any] {
   /**
    * as
    *

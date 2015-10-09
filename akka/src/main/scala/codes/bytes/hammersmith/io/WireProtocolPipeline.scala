@@ -6,12 +6,14 @@ import codes.bytes.hammersmith.wire.MongoMessage
 import akka.util.ByteString
 import codes.bytes.hammersmith.bson.BSONDocumentType
 import java.nio.ByteOrder
+import com.typesafe.scalalogging.{StrictLogging, LazyLogging}
+
 import scala.annotation.tailrec
-import codes.bytes.hammersmith.util.Logging
+
 
 class MongoFrameHandler(maxSize: Int = BSONDocumentType.MaxSize)
   extends SymmetricPipelineStage[PipelineContext, MongoMessage, ByteString]
-  with Logging {
+  with StrictLogging {
   override def apply(ctx: PipelineContext) = new SymmetricPipePair[MongoMessage, ByteString] {
     var buffer = None: Option[ByteString]
     implicit val byteOrder = ByteOrder.LITTLE_ENDIAN

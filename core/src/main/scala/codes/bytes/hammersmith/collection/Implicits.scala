@@ -20,12 +20,13 @@ package codes.bytes.hammersmith.collection
 import java.io.InputStream
 import codes.bytes.hammersmith.bson.util.ThreadLocal
 import codes.bytes.hammersmith.bson._
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.{ByteString, ByteIterator}
+import com.typesafe.scalalogging.StrictLogging
 import scala.Some
 import codes.bytes.hammersmith.collection.immutable.{OrderedDocument, Document}
 
-trait Imports extends Logging {
+trait Imports extends StrictLogging {
   // TODO - do we still need this, migrating into the Casbah code? -bwm feb-3-13
   // I dont think I can combine this with NotNothing...
   // The issue here is that asInstanceOf[A] doesn't use the
@@ -62,15 +63,12 @@ trait Imports extends Logging {
       }
     } catch {
       case cc: ClassCastException =>
-        log.debug("Error casting " +
-          value.asInstanceOf[AnyRef].getClass.getName +
-          " to " +
-          manifest[A].erasure.getName)
+        logger.debug(s"Error casting ${value.asInstanceOf[AnyRef].getClass.getName} to ${manifest[A].erasure.getName}")
         throw cc
     }
   }
 
-  trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with Logging {
+  trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with StrictLogging {
 
     def checkObject(doc: T, isQuery: Boolean = false) = if (!isQuery) checkKeys(doc)
 
@@ -94,17 +92,17 @@ trait Imports extends Logging {
     def checkID(doc: T): T = {
       doc.get("_id") match {
         case Some(oid: ObjectID) ⇒ {
-          log.debug("Found an existing OID")
+          logger.debug("Found an existing OID")
           oid
         }
         case Some(other) ⇒ {
-          log.debug("Found a non-OID ID")
+          logger.debug("Found a non-OID ID")
           other
         }
         case None ⇒ {
           // TODO - Replace me with new ObjectID Implementation
           val oid = ObjectID()
-          log.trace("no ObjectId. Generated: %s", doc.get("_id"))
+          logger.trace(s"no ObjectId. Generated: ${doc.get("_id")}")
           doc + "_id" -> oid
         }
       }

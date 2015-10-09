@@ -20,8 +20,10 @@ package codes.bytes.hammersmith.bson
 import java.util.concurrent.atomic.AtomicInteger
 import java.nio.ByteBuffer
 import java.net.NetworkInterface
+import com.typesafe.scalalogging.StrictLogging
+
 import math.BigDecimal.long2bigDecimal
-import codes.bytes.hammersmith.util.Logging
+
 
 /**
  * Globally unique ID for Objects, typically used as a primary key.
@@ -40,7 +42,7 @@ import codes.bytes.hammersmith.util.Logging
 class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
 							 				 val machineID: Int = ObjectID.generatedMachineID,
 							 				 val increment: Int = ObjectID.nextIncrement(),
-							 				 val isNew: Boolean = true) extends Ordered[ObjectID] with Logging {
+							 				 val isNew: Boolean = true) extends Ordered[ObjectID] with StrictLogging {
 
 	def compare(that: ObjectID): Int = {
 		def compareUnsigned(n: Int, o: Int) = {
@@ -89,7 +91,7 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).
 	}
 }
 
-object ObjectID extends Logging {
+object ObjectID extends StrictLogging {
 
 	def apply() = new ObjectID()
 
@@ -130,11 +132,11 @@ object ObjectID extends Logging {
 			} catch {
 				case t: Throwable =>
 					// Some versions of the IBM JDK May throw exceptions, make a random number
-					log.warn("Failed to generate NIC section for ObjectID: " + t.getMessage, t)
+					logger.warn(s"Failed to generate NIC section for ObjectID: ${t.getMessage}", t)
 					new java.util.Random().nextInt << 16
 			}
 		}
-		log.trace("Generated ObjectID Machine Piece: %s", machinePiece)
+		logger.trace(s"Generated ObjectID Machine Piece: $machinePiece")
 
 		/**
 		 * We need a 2 byte process piece. It must represent not only the JVM
@@ -153,9 +155,9 @@ object ObjectID extends Logging {
 			val loaderID = if (loader != null) System.identityHashCode(loader) else 0
 			(pid.toHexString + loaderID.toHexString).hashCode & 0xFFFF
 		}
-		log.trace("Generated ObjectID Process Piece: %s", processPiece)
+		logger.trace(s"Generated ObjectID Process Piece: $processPiece")
 
-		log.trace("Generated Machine ID for ObjectID: %s", (machinePiece | processPiece).toHexString)
+		logger.trace(s"Generated Machine ID for ObjectID: ${(machinePiece | processPiece).toHexString}")
 		machinePiece | processPiece
 	}
 

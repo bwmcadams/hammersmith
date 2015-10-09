@@ -21,11 +21,11 @@ package wire
 import codes.bytes.hammersmith.collection._
 import codes.bytes.hammersmith.collection.Implicits._
 import codes.bytes.hammersmith.collection.mutable.Document
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.ByteString
 import codes.bytes.hammersmith.bson.ImmutableBSONDocumentComposer
 
-object QueryMessage extends Logging {
+object QueryMessage {
   def apply(ns: String, numSkip: Int, numReturn: Int, q: BSONDocument,
             fields: Option[BSONDocument] = None, tailable: Boolean = false,
             slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,

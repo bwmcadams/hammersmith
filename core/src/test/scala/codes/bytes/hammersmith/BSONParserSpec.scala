@@ -16,6 +16,7 @@
  */
 package codes.bytes.hammersmith
 
+import com.typesafe.scalalogging.StrictLogging
 import org.specs2._
 import org.junit.runner._
 import runner._
@@ -31,12 +32,11 @@ import akka.util.ByteString
 import bson.BSONMinKey
 import bson.BSONMaxKey
 import codes.bytes.hammersmith.collection.immutable.Document
-import org.bson.{BasicBSONDecoder, BSONDecoder, NewBSONDecoder}
-import codes.bytes.hammersmith.util.Logging
+import org.bson.{BasicBSONDecoder, NewBSONDecoder}
 import scala.collection.mutable.ArrayBuffer
 
 @RunWith(classOf[JUnitRunner])
-class BSONParserSpec extends Specification with Logging {
+class BSONParserSpec extends Specification with StrictLogging {
   sequential
 
   def is =
@@ -62,7 +62,7 @@ class BSONParserSpec extends Specification with Logging {
       "float324_582" ! hasFloat324_582 ^
       "double245_6289" ! hasDouble245_6289 ^
       "another OID" ! hasOtherOID ^
-      /** "symbol" ! hasSymbol ^ SYMBOL DOESNT ENCODE PROEPRLY FROM JAVA */
+      /** "symbol" ! hasSymbol ^ SYMBOL DOESNT ENCODE PROPERLY FROM JAVA */
       "code" ! hasCode ^
       "scoped code, code" ! hasScopedCode_Code ^
       "scoped code, scope" ! hasScopedCode_Scope ^
@@ -252,16 +252,17 @@ class BSONParserSpec extends Specification with Logging {
     b1.add("document", 1)
     b1.add("foo", "bar")
     b1.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
-    b1.add("y", rand.nextLong)
+    b1.add("y", rand.nextLong())
     val doc1 = b1.get()
     val enc1 = encoder.encode(doc1)
     frameBuilder.putBytes(enc1)
 
+    logger.info(s"Frame Builder data: ${frameBuilder.result()}")
     val b2 = com.mongodb.BasicDBObjectBuilder.start()
     b2.add("document", 2)
     b2.add("foo", "bar")
     b2.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
-    b2.add("y", rand.nextLong)
+    b2.add("y", rand.nextLong())
     val doc2 = b2.get()
     val enc2 = encoder.encode(doc2)
     frameBuilder.putBytes(enc2)
@@ -270,7 +271,7 @@ class BSONParserSpec extends Specification with Logging {
     b3.add("document", 3)
     b3.add("foo", "bar")
     b3.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
-    b3.add("y", rand.nextLong)
+    b3.add("y", rand.nextLong())
     val doc3 = b3.get()
     val enc3 = encoder.encode(doc3)
     frameBuilder.putBytes(enc3)
@@ -279,7 +280,7 @@ class BSONParserSpec extends Specification with Logging {
     b4.add("document", 4)
     b4.add("foo", "bar")
     b4.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
-    b4.add("y", rand.nextLong)
+    b4.add("y", rand.nextLong())
     val doc4 = b4.get()
     val enc4 = encoder.encode(doc4)
     frameBuilder.putBytes(enc4)
@@ -288,7 +289,7 @@ class BSONParserSpec extends Specification with Logging {
     b5.add("document", 5)
     b5.add("foo", "bar")
     b5.add("x", rand.alphanumeric.take(rand.nextInt(255)).mkString)
-    b5.add("y", rand.nextLong)
+    b5.add("y", rand.nextLong())
     val doc5 = b5.get()
     val enc5 = encoder.encode(doc5)
     frameBuilder.putBytes(enc5)
@@ -298,6 +299,7 @@ class BSONParserSpec extends Specification with Logging {
 
   def testMultiParse = {
     val frame = multiTestDocs
+    logger.info(s"Frame for multitestDocs $frame")
     val decoded = ArrayBuffer.empty[Document]
     val iter = frame.iterator
     try {
@@ -306,7 +308,8 @@ class BSONParserSpec extends Specification with Logging {
         decoded += dec
       }
     } catch {
-      case t => log.error(t, "Error: blewup in multiparse test; decoded {} items, from iter {}", decoded.size, iter)
+      case t =>
+        logger.error(s"Error: blewup in multiparse test; decoded ${decoded.size} items, from iter $iter", t)
     }
 
     decoded must haveSize(5)

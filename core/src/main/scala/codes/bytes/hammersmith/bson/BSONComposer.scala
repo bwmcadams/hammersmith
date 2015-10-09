@@ -16,9 +16,9 @@
  */
 package codes.bytes.hammersmith.bson
 
-import codes.bytes.hammersmith.util.Logging
 import akka.util.{ByteStringBuilder, ByteString}
 import codes.bytes.hammersmith.bson.primitive.BSONPrimitive
+import com.typesafe.scalalogging.StrictLogging
 import scala.annotation.tailrec
 import codes.bytes.hammersmith.collection.{BSONList, BSONDocument}
 import java.util.{Date, UUID}
@@ -29,7 +29,7 @@ import codes.bytes.hammersmith.collection.immutable.{Document => ImmutableDocume
 import codes.bytes.hammersmith.collection.mutable.{Document => MutableDocument, DBList => MutableDBList, OrderedDocument => MutableOrderedDocument}
 import codes.bytes.hammersmith.collection.BSONDocument
 
-trait BSONComposer[T] extends Logging {
+trait BSONComposer[T] extends StrictLogging {
 
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
@@ -180,7 +180,7 @@ trait BSONComposer[T] extends Logging {
 
 
   protected def composeField(key: String, value: Any)(implicit b: ByteStringBuilder): Int = {
-    log.debug(s"Composing field $key with value of type '" + value.getClass + "'")
+    logger.debug(s"Composing field $key with value of type '${value.getClass}'")
     // todo - performance tune/tweak this
     // todo - support ancestry, possibly w/ code atlassian contributed to java driver.
     // todo - capture length
@@ -204,7 +204,7 @@ trait BSONComposer[T] extends Logging {
     case dbl: Double =>
       composeBSONDouble(key, dbl)
     case flt: Float =>
-      log.warn("['%s'] Converting Float (32-bit) to a Double (64-bit) may result in some precision loss".format(key))
+      logger.warn(s"['$key'] Converting Float (32-bit) to a Double (64-bit) may result in some precision loss")
       composeBSONDouble(key, flt)
     /* We should NOT blindly encode BigDecimal */
     case bd: BigDecimal =>
@@ -217,19 +217,19 @@ trait BSONComposer[T] extends Logging {
       // todo - guarantee if this is Ordered that its iterator provides ordering guarantees on iteration
       composeBSONObject(Some(key), doc.iterator)
     case m: Map[String, Any] =>
-      log.warn("['%s'] Writing raw Maps to BSON is inadvisable; all values will be encoded as Any, and type erasure may wreak havoc. ".format(key) +
-               "Please consider creating a BSONDocument.")
+      logger.warn(s"['$key'] Writing raw Maps to BSON is inadvisable; all values will be encoded as Any, " +
+                   "and type erasure may wreak havoc. Please consider creating a BSONDocument.")
       composeBSONObject(Some(key), m.iterator)
     // Things we handle as arrays
     case lst: BSONList =>
       composeBSONArray(key, lst.iterator)
     case arr: Array[Any] =>
-      log.warn("['%s'] Got an Array , which due to type erasure is being treated as a BSON Array. If you meant to store Binary data, ".format(key) +
-               " Please construct an instance of BSONBinaryContainer for serialization.")
+      logger.warn(s"['$key'] Got an Array , which due to type erasure is being treated as a BSON Array. " +
+                   "If you meant to store Binary data, Please construct an instance of BSONBinaryContainer for serialization.")
       composeBSONArray(key, arr.iterator)
     case set: Set[Any] =>
-      log.warn("['%s'] WARNING: MongoDB does NOT provide storage guarantees around Sets, only allowing arrays to be treated as Sets during atomic updates. ".format(key) +
-        " Please see: http://docs.mongodb.org/manual/reference/operator/set/#_S_set")
+      logger.warn(s"['$key'] WARNING: MongoDB does NOT provide storage guarantees around Sets, only allowing arrays to be " +
+        "treated as Sets during atomic updates. Please see: http://docs.mongodb.org/manual/reference/operator/set/#_S_set")
       composeBSONArray(key, set.iterator)
     case seq: Seq[Any] =>
       composeBSONArray(key, seq.iterator)
@@ -258,7 +258,7 @@ trait BSONComposer[T] extends Logging {
     case p: Pattern =>
       composeBSONRegex(key, p.pattern, BSONRegExType.parseFlags(p.flags))
     // Things we treat as a DBRef NOT as a deprecated DBPointer
-    case d: DBRef => ???
+    case d: DBRef => ??? // TODO - Uh, we should do something other than MethodNotImpemented here... Kind of important
     // Things we treat as JSCode
     case code: BSONCode =>
       composeBSONCode(key, code.code)

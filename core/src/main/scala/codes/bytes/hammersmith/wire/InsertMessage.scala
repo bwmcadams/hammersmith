@@ -19,7 +19,7 @@ package wire
 
 import scala.collection.mutable.Queue
 import codes.bytes.hammersmith.bson.{ImmutableBSONDocumentComposer, SerializableBSONObject}
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.ByteString
 
 /**
@@ -94,9 +94,9 @@ sealed class DefaultBatchInsertMessage[DocType : SerializableBSONObject](overrid
   val tM = implicitly[SerializableBSONObject[T]]
 }
 
-object InsertMessage extends Logging {
+object InsertMessage {
   def apply[DocType: SerializableBSONObject](ns: String, continueOnError: Boolean, docs: DocType*)(writeConcern: WriteConcern = WriteConcern.Safe) = {
-    assume(docs.length > 0, "Cannot insert 0 documents.")
+    assume(docs.nonEmpty, "Cannot insert 0 documents.")
     if (docs.length > 1) {
       new DefaultBatchInsertMessage[DocType](ns, continueOnError, docs)(writeConcern)
     } else {

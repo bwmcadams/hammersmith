@@ -21,7 +21,7 @@ package wire
 import codes.bytes.hammersmith.collection._
 import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.bson.{ImmutableBSONDocumentComposer, SerializableBSONObject}
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.ByteString
 
 /**
@@ -115,7 +115,7 @@ sealed class DefaultSingleUpdateMessage[QueryType: SerializableBSONObject,
 
 }
 
-object UpdateMessage extends Logging {
+object UpdateMessage {
   def apply[Q: SerializableBSONObject,
             U: SerializableBSONObject](ns: String,
                                        q: Q, updateSpec: U,

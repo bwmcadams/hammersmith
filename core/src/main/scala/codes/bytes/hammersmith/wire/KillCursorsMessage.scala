@@ -18,7 +18,7 @@
 package codes.bytes.hammersmith
 package wire
 
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.ByteString
 import codes.bytes.hammersmith.bson.ImmutableBSONDocumentComposer
 
@@ -60,7 +60,7 @@ trait KillCursorsMessage extends MongoClientMessage {
 sealed class DefaultKillCursorsMessage(val cursorIDs: Seq[Long]) extends KillCursorsMessage
 
 
-object KillCursorsMessage extends Logging {
+object KillCursorsMessage {
   def apply(ids: Seq[Long], writeConcern: WriteConcern = WriteConcern.Safe) = new DefaultKillCursorsMessage(ids)
 
   def apply(id: Long)  = new DefaultKillCursorsMessage(Seq(id))

@@ -18,6 +18,8 @@
 package codes.bytes.hammersmith
 package util
 
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.annotation.tailrec
 import scala.collection.Set
 
@@ -29,7 +31,7 @@ import scala.collection.Set
  *
  * @see http://www.mongodb.org/display/DOCS/Connections
  */
-object MongoURI extends Logging {
+object MongoURI extends StrictLogging {
   final val UriPrefix = "mongodb://"
   final val ConnSpec = "http://www.mongodb.org/display/DOCS/Connections"
 
@@ -60,7 +62,7 @@ object MongoURI extends Logging {
 
 }
 
-class MongoURI(uri: String) extends Logging {
+class MongoURI(uri: String) extends StrictLogging {
   import MongoURI._
 
   require(uri.startsWith(UriPrefix),
@@ -80,11 +82,11 @@ class MongoURI(uri: String) extends Logging {
     } else (s, Some(n), None)
   }
 
-  log.trace("Server: %s, NS: %s, Options: %s", svr, ns, opts)
+  logger.trace(s"Server: $svr, NS: $ns, Options: $opts", svr, ns, opts)
 
   val (_hosts, _username, _password) = parseHosts(svr)
 
-  log.trace("Hosts: %s, Username: %s, Password: %s", hosts, username, password)
+  logger.trace(s"Hosts: $hosts, Username: $username, Password: $password")
 
   val (_db, _coll) = ns match {
     case Some(_ns) ⇒ {
@@ -94,7 +96,7 @@ class MongoURI(uri: String) extends Logging {
     case None ⇒ (None, None)
   }
 
-  log.trace("DB: %s Coll: %s", _db, _coll)
+  logger.trace(s"DB: ${_db} Coll: ${_coll}")
 
   opts.foreach {
     _.split("&|;").foreach { o ⇒
@@ -116,7 +118,7 @@ class MongoURI(uri: String) extends Logging {
           case "w" ⇒ options.w = value.toInt
           case "wtimeout" ⇒ options.wtimeout = value.toInt
           case "fsync" ⇒ options.fsync = _parseBool(value)
-          case unknown ⇒ log.warn("Unknown or unsupported option '%s'", value)
+          case unknown ⇒ logger.warn(s"Unknown or unsupported option '$value'")
         }
       }
     }

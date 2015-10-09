@@ -19,6 +19,8 @@ package codes.bytes.hammersmith
 package util
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.collection.JavaConversions._
 import scala.util.control.Exception._
 import scala.collection.mutable.{ ArrayBuffer, Queue }
@@ -27,7 +29,7 @@ import scala.collection.mutable.{ ArrayBuffer, Queue }
  * Wrapper for Java ConcurrentLinkedQueue
  * Based on Scala's QueueProxy & Queue classes
  */
-class ConcurrentQueue[T](val underlying: ConcurrentLinkedQueue[T] = new ConcurrentLinkedQueue[T]) extends Logging {
+class ConcurrentQueue[T](val underlying: ConcurrentLinkedQueue[T] = new ConcurrentLinkedQueue[T]) {
   /**
    * Access element number <code>n</code>.
    *

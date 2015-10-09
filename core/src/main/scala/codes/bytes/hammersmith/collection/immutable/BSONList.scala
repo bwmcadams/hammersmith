@@ -17,7 +17,8 @@
 package codes.bytes.hammersmith.collection.immutable
 
 import codes.bytes.hammersmith.collection.BSONListFactory
-import codes.bytes.hammersmith.util.Logging
+
+import com.typesafe.scalalogging.StrictLogging
 
 class DBList protected[collection](protected[immutable] val underlying: scala.collection.mutable.Buffer[Any]) extends codes.bytes.hammersmith.collection.BSONList
                                                                                        with scala.collection.immutable.Seq[Any] {
@@ -43,11 +44,11 @@ object DBList extends BSONListFactory[DBList] {
   def newBuilder: DBListBuilder[DBList] = new DBListBuilder[DBList](empty)
 }
 
-class DBListBuilder[T <: DBList](empty: T) extends codes.bytes.hammersmith.collection.BSONListBuilder[T](empty) with Logging {
+class DBListBuilder[T <: DBList](empty: T) extends codes.bytes.hammersmith.collection.BSONListBuilder[T](empty) with StrictLogging {
   def +=(elem: Any) = {
     // todo - a CanBuildFrom should help fix the need to attack underlying here
     elems.underlying += elem
-    log.trace(s"Added $elem to $elems.")
+    logger.trace(s"Added $elem to $elems.")
     this
   }
 }

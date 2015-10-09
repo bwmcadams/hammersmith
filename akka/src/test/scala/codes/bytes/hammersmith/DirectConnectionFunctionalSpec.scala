@@ -1,16 +1,18 @@
 
-package codes.bytes.hammersmith.io
+package codes.bytes.hammersmith
 
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorSystem, Props}
 import codes.bytes.hammersmith.collection.Implicits._
 import codes.bytes.hammersmith.collection.immutable.Document
-import codes.bytes.hammersmith.util.Logging
-import codes.bytes.hammersmith.{CommandRequest, DirectMongoDBConnector}
+import com.typesafe.scalalogging.{StrictLogging, LazyLogging}
+import org.junit.runner.RunWith
+import org.specs2.Specification
+import org.specs2.runner.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class DirectConnectionFunctionalSpec extends Specification with Logging {
+class DirectConnectionFunctionalSpec extends Specification with StrictLogging {
 
   implicit val system = ActorSystem("direct-connection-test")
   val conn = system.actorOf(Props(classOf[DirectMongoDBConnector], new InetSocketAddress("localhost", 27017), true))

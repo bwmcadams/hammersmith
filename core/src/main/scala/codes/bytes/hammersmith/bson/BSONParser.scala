@@ -16,9 +16,10 @@
  */
 package codes.bytes.hammersmith.bson
 
-import codes.bytes.hammersmith.util.Logging
 import akka.util.ByteIterator
 import java.nio.ByteOrder
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.util.matching.Regex
@@ -27,7 +28,7 @@ import codes.bytes.hammersmith.collection.mutable.{Document => MutableDocument, 
 import codes.bytes.hammersmith.collection.BSONDocument
 
 /** T is your toplevel document type. */
-trait BSONParser[T] extends Logging {
+trait BSONParser[T] extends StrictLogging {
   implicit val thisParser = this
 
   private def hexDump(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
@@ -52,11 +53,11 @@ trait BSONParser[T] extends Logging {
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
     require(len < BSONDocumentType.MaxSize,
       "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
-    log.debug(s"Frame Size: $sz Doc Size: $len")
+    logger.debug(s"Frame Size: $sz Doc Size: $len")
     val data = frame.take(len)
-    log.debug(s"Parsing a BSON doc of $len bytes, with a data block of " + data.len)
+    logger.debug(s"Parsing a BSON doc of $len bytes, with a data block of " + data.len)
     val obj = parseRootObject(parse(data))
-    log.debug(s"Parsed root object: '$obj'")
+    logger.debug(s"Parsed root object: '$obj'")
     obj
   }
 
@@ -70,88 +71,88 @@ trait BSONParser[T] extends Logging {
   @tailrec
   protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
-    //log.trace("{%d} DECODING TYPE '%s' len [%d]", System.nanoTime(), typ.toByte, frame.len)
+    logger.trace(s"{${System.nanoTime()}} DECODING TYPE '${typ.toByte}' len [${frame.len}}]")
     // TODO - Big performance boost if we move this to a @switch implementation
     val _entries: Queue[(String, Any)] = frame match {
       case BSONEndOfObjectType(eoo) =>
-        log.trace("Got a BSON End of Object")
+        logger.trace("Got a BSON End of Object")
         entries
       case BSONNullType(field) =>
         // TODO - how best to represent nulls / undefs?
-        log.trace("Got a BSON Null for field '%s'", field)
+        logger.trace(s"Got a BSON Null for field '$field'")
         entries :+ (field, BSONNull)
       case BSONUndefType(field) =>
         // TODO - how best to represent nulls / undefs?
-        log.warn("DEPRECATED TYPE: Got a BSON Undef for field '%s'", field)
+        logger.warn(s"DEPRECATED TYPE: Got a BSON Undef for field '$field'")
         entries :+ (field, BSONUndef)
       case BSONDoubleType(field, value) =>
-        log.trace("Got a BSON Double '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Double '$value' for field '$field'")
         entries :+ (field, parseDouble(field, value))
       case BSONStringType(field, value) =>
-        log.trace("Got a BSON String '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON String '$value' for field '$field'")
         entries :+ (field, parseString(field, value))
-      case BSONDocumentType(field, values) =>
-        log.trace("Got a BSON entries '%s' for field '%s'", values, field)
+      case BSONDocumentType(field, values) => // todo - type checking on this?
+        logger.trace(s"Got a BSON entries '$values' for field '$field'")
         entries :+ (field, parseDocument(field, values))
-      case BSONArrayType(field, value) =>
-        log.trace("Got a BSON Array '%s' for field '%s'", value, field)
+      case BSONArrayType(field, value) => // todo - type checking on this?
+        logger.trace(s"Got a BSON Array '$value' for field '$field'")
         entries :+ (field, parseArray(field, value))
       case BSONBinaryType(field, value) =>
-        log.trace("Got a BSON Binary for field '%s'", field)
+        logger.trace(s"Got a BSON Binary for field '$field'")
         entries :+ (field, parseBinary(field, value))
       case BSONObjectIDType(field, value) =>
-        log.trace("Got a BSON ObjectID for field '%s'", field)
+        logger.trace(s"Got a BSON ObjectID for field '$field'")
         entries :+ (field, parseObjectID(field, value))
       case BSONBooleanType(field, value) =>
-        log.trace("Got a BSON Boolean '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Boolean '$value' for field '$field'")
         // Until someone proves otherwise to me, don't see a reason for custom Bool
         entries :+ (field, value)
       case BSONDateTimeType(field, value) =>
-        log.trace("Got a BSON UTC Timestamp '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON UTC Timestamp '$value' for field '$field'")
         entries :+ (field, parseDateTime(field, value))
       case BSONRegExType(field, value) =>
-        log.trace("Got a BSON Regex '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Regex '$value' for field '$field'")
         entries :+ (field, parseRegEx(field, value))
       case BSONDBPointerType(field, value) =>
-        log.trace("Got a BSON DBRef '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON DBRef '$value' for field '$field'")
         // no custom parsing for dbRef until necessity is proven
         entries :+ (field, value)
       case BSONJSCodeType(field, value) =>
-        log.trace("Got a BSON JSCode for field '%s'", field)
+        logger.trace(s"Got a BSON JSCode for field '$field'")
         // no custom parsing for now
         entries :+ (field, value)
       case BSONScopedJSCodeType(field, value) =>
-        log.trace("Got a BSON JSCode W/ Scope for field '%s'", field)
+        logger.trace(s"Got a BSON JSCode W/ Scope for field '$field'")
         // no custom parsing for now
         entries :+ (field, value)
       case BSONSymbolType(field, value) =>
-        log.trace("Got a BSON Symbol '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Symbol '$value' for field '$field'")
         entries :+ (field, parseSymbol(field, value))
       case BSONInt32Type(field, value) =>
-        log.trace("Got a BSON Int32 '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Int32 '$value' for field '$field'")
         entries :+ (field, parseInt32(field, value))
       case BSONInt64Type(field, value) =>
-        log.trace("Got a BSON Int64 (Long) '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Int64 (Long) '$value' for field '$field'")
         entries :+ (field, parseInt64(field, value))
       case BSONTimestampType(field, value) =>
-        log.trace("Got a BSON Timestamp '%s' for field '%s'", value, field)
+        logger.trace(s"Got a BSON Timestamp '$value' for field '$field'")
         // because of it's use as an internal type, not allowing custom for now
         entries :+ (field, value)
       case BSONMinKeyType(field, value) =>
-        log.trace("Got a BSON MinKey for field '%s'", field)
+        logger.trace(s"Got a BSON MinKey for field '$field'")
         // because of it's use as an internal type, not allowing custom
         entries :+ (field, value)
       case BSONMaxKeyType(field, value) =>
-        log.trace("Got a BSON MaxKey for field '%s'", field)
+        logger.trace(s"Got a BSON MaxKey for field '$field'")
         // because of it's use as an internal type, not allowing custom
         entries :+ (field, value)
       case unknown =>
-        log.warning(s"Unknown or unsupported BSON Type '$typ' / $unknown")
-        log.trace("Remaining data: " + hexDump(frame.toArray))
+        logger.warn(s"Unknown or unsupported BSON Type '$typ' / $unknown")
+        logger.trace(s"Remaining data: ${hexDump(frame.toArray)}")
         throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown ")
       }
     if (BSONEndOfObjectType.typeCode == typ) {
-      log.trace("***** EOO")
+      logger.trace("***** EOO")
       frame.next()
       _entries
     } else parse(frame, _entries)
@@ -161,7 +162,7 @@ trait BSONParser[T] extends Logging {
 //  @tailrec
 //  final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
 //    val c = frame.next().toChar
-//    //log.trace("[c] '" + c + "'")
+//    //logger.trace("[c] '" + c + "'")
 //    if (c == 0x00) {
 //      buffer.toString
 //    } else {

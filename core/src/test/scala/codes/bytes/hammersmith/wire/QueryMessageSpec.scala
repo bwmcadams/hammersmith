@@ -6,7 +6,7 @@ import codes.bytes.hammersmith.hexValue
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
-import codes.bytes.hammersmith.util.Logging
+
 import org.specs2.matcher.ThrownExpectations
 import codes.bytes.hammersmith.collection.immutable._
 import codes.bytes.hammersmith.collection._
@@ -16,7 +16,7 @@ import com.mongodb.BasicDBObjectBuilder
 import codes.bytes.hammersmith.wire.QueryMessage
 
 @RunWith(classOf[JUnitRunner])
-class QueryMessageSpec extends Specification with ThrownExpectations with Logging {
+class QueryMessageSpec extends Specification with ThrownExpectations {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
    */

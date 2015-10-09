@@ -21,7 +21,7 @@ package wire
 import java.io.{ByteArrayInputStream, InputStream}
 import codes.bytes.hammersmith.collection.immutable.Document
 import codes.bytes.hammersmith.bson.{BSONParser, SerializableBSONObject, ImmutableBSONDocumentParser}
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.{ByteIterator, ByteString}
 
 /**
@@ -77,7 +77,7 @@ class ReplyMessage(val header: MessageHeader,
 
 }
 
-object ReplyMessage extends Logging {
+object ReplyMessage {
 
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN

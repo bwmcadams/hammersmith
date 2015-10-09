@@ -20,7 +20,7 @@ package wire
 
 import codes.bytes.hammersmith.collection._
 import codes.bytes.hammersmith.bson.{ImmutableBSONDocumentComposer, SerializableBSONObject}
-import codes.bytes.hammersmith.util.Logging
+
 import akka.util.ByteString
 
 /**
@@ -69,7 +69,7 @@ abstract class DeleteMessage extends MongoClientWriteMessage {
   }
 }
 
-object DeleteMessage extends Logging {
+object DeleteMessage {
   def apply[T: SerializableBSONObject](ns: String, q: T, onlyRemoveOne: Boolean = false)(writeConcern: WriteConcern = WriteConcern.Safe) =
     new DefaultDeleteMessage[T](ns, q, onlyRemoveOne)(writeConcern)
 }

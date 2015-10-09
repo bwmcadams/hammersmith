@@ -18,19 +18,20 @@ package codes.bytes.hammersmith.bson
 
 
 import java.nio.ByteOrder
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 import scala.util.matching.Regex
 import scala.collection.immutable.Queue
 import akka.util.ByteIterator
 import codes.bytes.hammersmith.collection.immutable.{Document, DBList}
-import codes.bytes.hammersmith.util.Logging
 import scala.util.control.Exception._
 import java.util.NoSuchElementException
 import scala.NoSuchElementException
 
 
-sealed trait BSONType extends Logging {
+sealed trait BSONType extends StrictLogging {
   def typeCode: Byte
 
   val littleEndian = ByteOrder.LITTLE_ENDIAN
@@ -73,7 +74,7 @@ sealed trait BSONType extends Logging {
    */
   def readUTF8String(frame: ByteIterator): String = {
     val size = frame.getInt
-    //log.trace(s"Attempting to read a UTF8 string of '$size' bytes.")
+    logger.trace(s"Attempting to read a UTF8 string of '$size' bytes.")
     require(size < BSONDocumentType.MaxSize,
       "Invalid UTF8 String. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, size))
     val buf = new Array[Byte](size)
@@ -206,7 +207,7 @@ case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinaryContainer
  *  
  * TODO - User customised container classes for subtypes 
  */
-object BSONBinaryType extends BSONType with Logging {
+object BSONBinaryType extends BSONType with StrictLogging {
   val typeCode: Byte = 0x05
 
   val Binary_Generic: Byte = 0x00
@@ -222,7 +223,7 @@ object BSONBinaryType extends BSONType with Logging {
       val name = readCString(frame.drop(1))
       val _binLen = frame.getInt
       val _subType = frame.next()
-      log.debug("/// PARSING BINARY of SubType '%s' and length '%s'", _subType, _binLen)
+      logger.debug(s"/// PARSING BINARY of SubType '${_subType}' and length '${_binLen}'")
 
       val bin = new Array[Byte](_binLen)
 
@@ -269,7 +270,7 @@ object BSONObjectIDType extends BSONType {
       val machineID = frame.getInt(bigEndian)
       val increment = frame.getInt(bigEndian)
       val oid = ObjectID(timestamp, machineID, increment, false)
-      log.trace(s"Parsed out an ObjectID in '$name' from BSON '$oid'")
+      logger.trace(s"Parsed out an ObjectID in '$name' from BSON '$oid'")
       Some(name, oid)
     } else None
 }
@@ -379,7 +380,7 @@ object BSONJSCodeType extends BSONType {
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val code = readUTF8String(frame)
-      log.debug("JSCode at '%s' - '%s'", name, code)
+      logger.debug(s"JSCode at '$name' - '$code'")
       Some((name, BSONCode(code)))
     } else None
 }
@@ -391,9 +392,9 @@ object BSONSymbolType extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, Symbol)] = 
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      log.trace("Symbol Name: '%s'  / %d", name, frame.len)
+      logger.trace(s"Symbol Name: '$name'  / ${frame.len}")
       val sym = readUTF8String(frame)
-      log.trace("Symbol Value: '%s'", sym)
+      logger.trace(s"Symbol Value: '$name'")
       Some((name, Symbol(sym)))
     } else None
 }
@@ -468,10 +469,10 @@ object BSONScopedJSCodeType extends BSONType {
       val size = frame.getInt
       val code = readUTF8String(frame)
       // TODO - READ SCOPE
-      log.trace("JSCode at '%s' - '%s'", name, code)
+      logger.trace(s"JSCode at '$name' - '$code'")
       val scopeSize = frame.getInt
       val scope = Map[String, Any](childParser.parse(frame): _*)
-      log.trace("Scope: " + scope)
+      logger.trace(s"Scope: $scope")
       Some((name, BSONCodeWScope(code, scope)))
     } else None
 }
@@ -491,9 +492,9 @@ object BSONDocumentType extends BSONType {
         "Invalid embedded document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
       val bytes = frame.clone().take(subLen)
       frame.drop(subLen)
-      log.trace("Reading an embedded BSON object of '%s' bytes.", subLen)
+      logger.trace(s"Reading an embedded BSON object of '$subLen' bytes.")
       val doc = childParser.parse(bytes)
-      log.trace("*** %s *** Parsed a set of subdocument entries for '%s': '%s'", frame.head, name, doc)
+      logger.trace(s"*** ${frame.head} *** Parsed a set of subdocument entries for '$name': '$doc'")
       Some((name, doc))
     } else None
 }
@@ -511,9 +512,9 @@ object BSONArrayType extends BSONType {
        "Invalid embedded array. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
       val bytes = frame.clone().take(subLen)
       frame.drop(subLen)
-      log.trace("Reading a BSON Array of '%s' bytes.", subLen)
+      logger.trace(s"Reading a BSON Array of '$subLen' bytes.")
       val doc = childParser.parse(bytes)
-      log.trace("Parsed a set of subdocument entries for '%s': '%s'", name, doc)
+      logger.trace(s"Parsed a set of subdocument entries for '$name': '$doc'")
       /*
        * I have seen no contractual guarantees that the array items are in order
        * in mongo, but most drivers assume it, so shall we...

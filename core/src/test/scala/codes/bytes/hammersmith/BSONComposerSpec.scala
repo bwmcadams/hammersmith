@@ -17,10 +17,11 @@
 
 package codes.bytes.hammersmith
 
+import com.typesafe.scalalogging.StrictLogging
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
-import codes.bytes.hammersmith.util.Logging
+
 import org.specs2.matcher.ThrownExpectations
 import codes.bytes.hammersmith.collection.immutable.{OrderedDocument, DBList, Document}
 import codes.bytes.hammersmith.bson._
@@ -33,7 +34,7 @@ import codes.bytes.hammersmith.collection.Implicits.SerializableBSONDocument
 import org.bson.{BasicBSONCallback, BasicBSONDecoder}
 
 @RunWith(classOf[JUnitRunner])
-class BSONComposerSpec extends Specification with ThrownExpectations with Logging {
+class BSONComposerSpec extends Specification with ThrownExpectations with StrictLogging {
 
   def is =
     sequential ^
@@ -136,7 +137,7 @@ class BSONComposerSpec extends Specification with ThrownExpectations with Loggin
 
 
     val bson = SerializableBSONDocument.compose(doc)
-    //log.trace("BSON: " + Hex.valueOf(bson.toArray))
+    logger.trace(s"BSON: ${Hex.valueOf(bson.toArray)}")
     bson
   }
 
