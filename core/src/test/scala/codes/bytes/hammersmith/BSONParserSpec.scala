@@ -300,9 +300,13 @@ class BSONParserSpec extends Specification with Logging {
     val frame = multiTestDocs
     val decoded = ArrayBuffer.empty[Document]
     val iter = frame.iterator
-    while (iter.hasNext) {
-      val dec = ImmutableBSONDocumentParser(iter)
-      decoded += dec
+    try {
+      while (iter.hasNext) {
+        val dec = ImmutableBSONDocumentParser(iter)
+        decoded += dec
+      }
+    } catch {
+      case t => log.error(t, "Error: blewup in multiparse test; decoded {} items, from iter {}", decoded.size, iter)
     }
 
     decoded must haveSize(5)

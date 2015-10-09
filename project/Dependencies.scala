@@ -17,8 +17,7 @@ object Libraries {
   val netty = "org.jboss.netty" % "netty" % Version.netty
 
   // Logging
-  //val slf4j = "org.slf4j" % "slf4j-api" % Version.slf4j
-  //val slf4jJCL = "org.slf4j" % "slf4j-jcl" % Version.slf4j
+  val slf4jJCL = "org.slf4j" % "slf4j-jcl" % Version.slf4j % "test"
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
 
   // Config
