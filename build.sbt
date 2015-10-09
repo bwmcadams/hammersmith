@@ -14,7 +14,8 @@ lazy val commonSettings = Seq(
     specs2,
     junit,
     akkaActors,
-    akkaTestkit
+    akkaTestkit,
+    slf4jJCL
   )
 )
 

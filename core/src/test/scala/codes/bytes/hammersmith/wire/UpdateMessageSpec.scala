@@ -12,7 +12,6 @@ import codes.bytes.hammersmith.collection.Implicits._
 import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder}
-import codes.bytes.hammersmith.wire.UpdateMessage
 import codes.bytes.hammersmith.{hexValue, WriteConcern}
 
 @RunWith(classOf[JUnitRunner])
