@@ -1,6 +1,8 @@
 Hammersmith 0.30.0 ("Zathrus")
 ==============================
 
+[![Join the chat at https://gitter.im/bwmcadams/hammersmith](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/bwmcadams/hammersmith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 A Pure Scala, asynchronous MongoDB Driver with type-classes for custom type encoding and a highly optimized BSON serialiation layer.
 
 Modesty aside: from the *expert* in MongoDB + Scala. Based on many years of lessons learned working on [Casbah, the Original MongoDB Scala Driver](http://github.com/mongodb/casbah) as well as part of the core driver team at MongoDB itself.
