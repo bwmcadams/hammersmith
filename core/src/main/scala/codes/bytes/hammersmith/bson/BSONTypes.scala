@@ -30,7 +30,7 @@ import java.util.NoSuchElementException
 import scala.NoSuchElementException
 
 
-trait BSONType extends Logging {
+sealed trait BSONType extends Logging {
   def typeCode: Byte
 
   val littleEndian = ByteOrder.LITTLE_ENDIAN
@@ -331,13 +331,13 @@ object BSONRegExType extends BSONType {
 
     assume(_flags == 0, "Some RegEx flags were not recognized.")
 
-    buf.result
+    buf.result()
   }
 
 }
 
 // Currently no dereferencing support, etc. (not a fan anyway)
-case class DBRef(namespace: String, oid: ObjectID) 
+final case class DBRef(namespace: String, oid: ObjectID)
 
 /** BSON DBPointers are deprecated, in favor of a 'parsed aware' DBRef which is stupid and slows parsers down. */
 object BSONDBPointerType extends BSONType {
@@ -360,7 +360,7 @@ object BSONDBPointerType extends BSONType {
 
 }
 
-case class BSONCode(code: String)
+final case class BSONCode(code: String)
 
 /** BSON JS Code ... basically a block of javascript stored in DB */
 object BSONJSCodeType extends BSONType {
@@ -413,7 +413,7 @@ object BSONInt64Type extends BSONType {
     } else None
 }
 
-case class BSONTimestamp(time: Int, increment: Int)
+final case class BSONTimestamp(time: Int, increment: Int)
 
 /** BSON Timestamp - this is a special type for sharding, oplog etc */
 object BSONTimestampType extends BSONType {
@@ -451,7 +451,7 @@ object BSONMaxKeyType extends BSONType {
 }
 
 // needs a document for scope
-case class BSONCodeWScope(code: String, scope: Map[String, Any])
+final case class BSONCodeWScope(code: String, scope: Map[String, Any])
 
 /** BSON JS Code with a scope ... basically a block of javascript stored in DB */
 object BSONScopedJSCodeType extends BSONType {

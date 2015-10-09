@@ -1,5 +1,5 @@
 
-package codes.bytes.hammersmith.test.wire
+package codes.bytes.hammersmith.wire
 
 import org.specs2._
 import org.junit.runner._

@@ -1,7 +1,7 @@
 
 package codes.bytes.hammersmith.wire
-package test
 
+import com.mongodb.legacyDelete
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
@@ -52,9 +52,9 @@ class DeleteMessageSpec extends Specification with ThrownExpectations with Loggi
     val callback = new BasicBSONCallback
     val legacy = com.mongodb.legacyDelete("1234")
     println("Legacy Message Size: " + legacy.toArray.length)
-    println("Legacy Message Hex: " + hammersmith.test.hexValue(legacy.toArray))
+    println("Legacy Message Hex: " + hexValue(legacy.toArray))
     println("Scala Message Size: " + scalaBSON.toArray.length)
-    println("Scala Message Hex: " + hammersmith.test.hexValue(scalaBSON.toArray))
+    println("Scala Message Hex: " + hexValue(scalaBSON.toArray))
     scalaBSON.toArray must beEqualTo(legacy)
 
   }

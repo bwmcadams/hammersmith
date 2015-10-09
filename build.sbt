@@ -11,10 +11,10 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     netty,
     scalaLogging,
-    akkaActors,
-    akkaTestkit,
     specs2,
-    junit
+    junit,
+    akkaActors,
+    akkaTestkit
   )
 )
 
@@ -34,6 +34,21 @@ lazy val core = (project in file("core")).
       mongoJava
     )
   )
+
+/**
+ * Still TBD if we'll have one single "akka" project
+ * or a separate one for raw/low level Akka IO and Akka Streams
+ */
+lazy val akka = (project in file("akka")).
+  settings(commonSettings).
+  settings(
+    name := "hammersmith-akka",
+    libraryDependencies ++= Seq(
+      akkaActors,
+      akkaTestkit
+    )
+  ).
+  dependsOn(core)
 
 lazy val compileOptions = Seq(
   "-unchecked",

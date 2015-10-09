@@ -1,6 +1,7 @@
 
-package codes.bytes.hammersmith.test.wire
+package codes.bytes.hammersmith.wire
 
+import com.mongodb.legacyUpdate
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
@@ -12,7 +13,7 @@ import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder}
 import codes.bytes.hammersmith.wire.UpdateMessage
-import codes.bytes.hammersmith.WriteConcern
+import codes.bytes.hammersmith.{hexValue, WriteConcern}
 
 @RunWith(classOf[JUnitRunner])
 class UpdateMessageSpec extends Specification with ThrownExpectations with Logging {
@@ -53,9 +54,9 @@ class UpdateMessageSpec extends Specification with ThrownExpectations with Loggi
     val u = uB.get()
     val legacy = com.mongodb.legacyUpdate("test.update", q, u, false, false)
     println("Legacy Message Size: " + legacy.toArray.length)
-    println("Legacy Message Hex: " + hammersmith.test.hexValue(legacy.toArray))
+    println("Legacy Message Hex: " + hexValue(legacy.toArray))
     println("Scala Message Size: " + scalaBSON.toArray.length)
-    println("Scala Message Hex: " + hammersmith.test.hexValue(scalaBSON.toArray))
+    println("Scala Message Hex: " + hexValue(scalaBSON.toArray))
     scalaBSON.toArray must beEqualTo(legacy)
 
   }

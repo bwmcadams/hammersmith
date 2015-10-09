@@ -1,11 +1,13 @@
 
 package com.mongodb
 
+import com.mongodb.{DefaultDBDecoder, DefaultDBEncoder, DBObject, OutMessage}
 import org.bson.BasicBSONEncoder
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import codes.bytes.hammersmith.collection.{BSONDocument}
 import codes.bytes.hammersmith.wire.QueryMessage
 
+// old syntax but easiest for this patching
 object `package` {
 
   val encoder = DefaultDBEncoder.FACTORY.create()
