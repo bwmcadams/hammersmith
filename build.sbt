@@ -15,7 +15,9 @@ lazy val commonSettings = Seq(
     junit,
     akkaActors,
     akkaTestkit,
-    slf4jJCL
+    logback,
+    // used for saner logback config because fuck XML. TODO: Make this optional for users...
+    groovy
   )
 )
 

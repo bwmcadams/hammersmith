@@ -10,6 +10,8 @@ object Version {
   val slf4j        = "1.7.12"
   val ficus        = "1.1.2"
   val scalaTest    = "2.2.4"
+  // used for saner logback config because fuck XML
+  val groovy       = "2.4.3"
 }
 
 object Libraries {
@@ -18,7 +20,10 @@ object Libraries {
 
   // Logging
   val slf4jJCL = "org.slf4j" % "slf4j-jcl" % Version.slf4j % "test"
+  val logback  = "ch.qos.logback" % "logback-classic" % Version.logback
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
+  // used for saner logback config because fuck XML. TODO: Make this optional for users...
+  val groovy = "org.codehaus.groovy" % "groovy" % Version.groovy
 
   // Config
   val ficus = "net.ceedubs" %% "ficus" % Version.ficus

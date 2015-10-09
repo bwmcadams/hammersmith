@@ -257,7 +257,6 @@ class BSONParserSpec extends Specification with StrictLogging {
     val enc1 = encoder.encode(doc1)
     frameBuilder.putBytes(enc1)
 
-    logger.info(s"Frame Builder data: ${frameBuilder.result()}")
     val b2 = com.mongodb.BasicDBObjectBuilder.start()
     b2.add("document", 2)
     b2.add("foo", "bar")
@@ -299,9 +298,10 @@ class BSONParserSpec extends Specification with StrictLogging {
 
   def testMultiParse = {
     val frame = multiTestDocs
-    logger.info(s"Frame for multitestDocs $frame")
+    logger.debug(s"Frame for multitestDocs $frame")
     val decoded = ArrayBuffer.empty[Document]
     val iter = frame.iterator
+    logger.debug(s"Iter for multiTestDocs: $iter")
     try {
       while (iter.hasNext) {
         val dec = ImmutableBSONDocumentParser(iter)
