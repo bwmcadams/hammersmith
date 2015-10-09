@@ -79,11 +79,11 @@ trait BSONParser[T] extends Logging {
       case BSONNullType(field) =>
         // TODO - how best to represent nulls / undefs?
         log.trace("Got a BSON Null for field '%s'", field)
-        entries :+ (field, null)
+        entries :+ (field, BSONNullType) // TODO: This isn't sane probably, but we need a proper placeholder type.
       case BSONUndefType(field) =>
         // TODO - how best to represent nulls / undefs?
-        log.trace("Got a BSON Null for field '%s'", field)
-        entries :+ (field, null)
+        log.warn("DEPRECATED TYPE: Got a BSON Undef for field '%s'", field)
+        entries :+ (field, BSONUndefType) // TODO: This isn't sane probably, but we need a proper placeholder type.
       case BSONDoubleType(field, value) =>
         log.trace("Got a BSON Double '%s' for field '%s'", value, field)
         entries :+ (field, parseDouble(field, value))
