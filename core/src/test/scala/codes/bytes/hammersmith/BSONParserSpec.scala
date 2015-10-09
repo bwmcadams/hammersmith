@@ -88,7 +88,7 @@ class BSONParserSpec extends Specification with Logging {
 
   def hasOID = parsedBSON.get("_id") must beSome.which(_.toString == oid.toString)
 
-  def hasNull = parsedBSON.get("null") must beSome(null) // BSON Null is fucking stupid.
+  def hasNull = parsedBSON.get("null") must beSome(BSONNullType) // BSON Null is fucking stupid.
 
   def hasMax = parsedBSON.get("max") must beSome(BSONMaxKey)
 

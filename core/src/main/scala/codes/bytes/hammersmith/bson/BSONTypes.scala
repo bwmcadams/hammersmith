@@ -151,6 +151,14 @@ object BSONEndOfObjectType extends BSONType {
 
 }
 
+sealed trait SpecialBSONValue
+/** BSON Min Key and Max Key represent special internal types for Sharding */
+case object BSONMinKey extends SpecialBSONValue
+case object BSONMaxKey extends SpecialBSONValue
+/** The dumbest types I've ever seen on earth */
+case object BSONNull extends SpecialBSONValue
+case object BSONUndef extends SpecialBSONValue
+
 /** BSON null value */
 object BSONNullType extends BSONType {
   val typeCode: Byte = 0x0A
@@ -426,9 +434,6 @@ object BSONTimestampType extends BSONType {
     } else None
 }
 
-/** BSON Min Key and Max Key represent special internal types for Sharding */
-case object BSONMinKey
-case object BSONMaxKey
 
 object BSONMinKeyType extends BSONType {
   val typeCode: Byte = 0xFF.toByte
