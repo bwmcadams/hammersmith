@@ -49,15 +49,14 @@ trait BSONParser[T] extends StrictLogging {
   def apply(frame: ByteIterator): T = {
     // Extract the BSON doc
     val sz = frame.len
-    val len = frame.getInt(ByteOrder.LITTLE_ENDIAN)
+    val len = frame.getInt(ByteOrder.LITTLE_ENDIAN) - 4
     require(len < BSONDocumentType.MaxSize,
       "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
     logger.debug(s"Frame Size: $sz Doc Size: $len")
-    // This is doing take which is bad, you can't take on an iterator and expect a usable original iterator...
-    val data = frame.take(len)
-    logger.debug(s"Parsing a BSON doc of $len bytes, with a data block of ${data.len}. After take, Bytes Left: ${frame.len} Expected Left: ${sz - frame.len}")
-    val obj = parseRootObject(parse(data))
-    logger.debug(s"Parsed root object: '$obj' Bytes Left: ${frame.len} Expected Left: ${sz - frame.len}")
+    // This *was* doing take which is bad, you can't take on an iterator and expect a usable original iterator...
+    logger.debug(s"Parsing a BSON doc of $len bytes [may contain embedded]")
+    val obj = parseRootObject(parse(frame, len))
+    logger.debug(s"Parsed root object: '$obj' Bytes Left: ${frame.len} Expected Left: ${len - frame.len}")
     obj
   }
 
@@ -68,10 +67,16 @@ trait BSONParser[T] extends StrictLogging {
   def parseRootObject(entries: Seq[(String, Any)]): T
 
   /** Parse documents... */
+  /*
+   * Previously was trying to slice out a chunk of iterator for this sequence and never really checking it was exhausted anyway,
+   * just exiting a loop section if we hit an EOO...We can slide a bytesize window down to 0 and sync up with last byte instead.
+   */
   @tailrec
-  protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
+  protected[bson] final def parse(frame: ByteIterator, remainingDocLength: Int, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
-    logger.trace(s"{${System.nanoTime()}} DECODING TYPE '${typ.toByte}' remaining frame len [${frame.len}}]")
+    logger.trace(s"{NANO @ ${System.nanoTime()}} DECODING TYPE '${typ.toByte}' remaining frame len [${frame.len}}] / expected in this doc [$remainingDocLength]")
+    // We only retrieve one entry at a time... so we can calculate how many bytes we grab to remove from remainingLength
+    val preLen = frame.len
     // TODO - Big performance boost if we move this to a @switch implementation
     val _entries: Queue[(String, Any)] = frame match {
       case BSONEndOfObjectType(eoo) =>
@@ -129,7 +134,6 @@ trait BSONParser[T] extends StrictLogging {
         logger.trace(s"Got a BSON Symbol '$value' for field '$field'")
         entries :+ (field, parseSymbol(field, value))
       case BSONInt32Type(field, value) =>
-        val preLen = frame.len
         logger.trace(s"Got a BSON Int32 '$value' for field '$field'")
         entries :+ (field, parseInt32(field, value))
       case BSONInt64Type(field, value) =>
@@ -152,11 +156,19 @@ trait BSONParser[T] extends StrictLogging {
         logger.trace(s"Remaining data: ${hexValue(frame.toArray)}")
         throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown ")
       }
-    if (BSONEndOfObjectType.typeCode == typ) {
-      logger.trace("***** EOO")
-      frame.next()
-      _entries
-    } else parse(frame, _entries)
+    // following an entry parse, how many bytes are left?
+    val postLen = frame.len
+    val parsedBytes = preLen - postLen
+    val stillRemaining = remainingDocLength - parsedBytes
+    logger.trace(s"Last pass parsed $parsedBytes bytes out. Remaining expected bytes (this doc): $stillRemaining")
+    if (stillRemaining == 0) {
+      logger.debug("Exhausted document length window...")
+      // expect the next byte SHOULD now be an EOO , else we have an error.
+      if (BSONEndOfObjectType.typeCode == typ) {
+        logger.trace("***** EOO")
+        _entries
+      } else throw new IllegalStateException("Exhausted expected document size in parser, but last byte isn't a BSON EOO.")
+    } else parse(frame, stillRemaining, _entries)
   }
 //
 //  // TEMP FOR DEBUG REMOVE ME

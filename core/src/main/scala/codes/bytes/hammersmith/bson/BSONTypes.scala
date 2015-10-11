@@ -148,7 +148,10 @@ object BSONEndOfObjectType extends BSONType {
   val typeCode: Byte = 0x00
 
   def unapply(frame: ByteIterator): Option[Boolean] =
-    if (frame.head == typeCode) Some(true) else None
+    if (frame.head == typeCode) {
+      frame.drop(1)
+      Some(true)
+    } else None
 
 
 }
@@ -474,7 +477,7 @@ object BSONScopedJSCodeType extends BSONType {
       // TODO - READ SCOPE
       logger.trace(s"JSCode at '$name' - '$code'")
       val scopeSize = frame.getInt
-      val scope = Map[String, Any](childParser.parse(frame): _*)
+      val scope = Map[String, Any](childParser.parse(frame, size): _*)
       logger.trace(s"Scope: $scope")
       Some((name, BSONCodeWScope(code, scope)))
     } else None
@@ -493,10 +496,8 @@ object BSONDocumentType extends BSONType {
       val subLen = frame.getInt - 4
       require(subLen < BSONDocumentType.MaxSize,
         "Invalid embedded document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
-      val bytes = frame.clone().take(subLen)
-      frame.drop(subLen)
       logger.trace(s"Reading an embedded BSON object of '$subLen' bytes.")
-      val doc = childParser.parse(bytes)
+      val doc = childParser.parse(frame, subLen)
       logger.trace(s"*** ${frame.head} *** Parsed a set of subdocument entries for '$name': '$doc'")
       Some((name, doc))
     } else None
@@ -513,10 +514,8 @@ object BSONArrayType extends BSONType {
       val subLen = frame.getInt - 4
       require(subLen < BSONDocumentType.MaxSize,
        "Invalid embedded array. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
-      val bytes = frame.clone().take(subLen)
-      frame.drop(subLen)
       logger.trace(s"Reading a BSON Array of '$subLen' bytes.")
-      val doc = childParser.parse(bytes)
+      val doc = childParser.parse(frame, subLen)
       logger.trace(s"Parsed a set of subdocument entries for '$name': '$doc'")
       /*
        * I have seen no contractual guarantees that the array items are in order

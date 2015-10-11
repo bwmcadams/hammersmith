@@ -85,10 +85,10 @@ class BSONMultiParserSpec extends Specification with StrictLogging {
     var count = 1
     try {
       while (iter.hasNext) {
-        logger.debug(s"*************** START: ROUND $count *************")
+        logger.debug(s"*************** START: ROUND $count [frame size: ${frame.size}] *************")
         val dec = ImmutableBSONDocumentParser(iter)
         decoded += dec
-        logger.debug(s"*************** END: ROUND $count *************")
+        logger.debug(s"*************** END: ROUND $count [frame size: ${frame.size}] *************")
         count += 1
       }
     } catch {
