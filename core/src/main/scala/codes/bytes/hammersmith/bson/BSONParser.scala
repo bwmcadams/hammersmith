@@ -53,6 +53,7 @@ trait BSONParser[T] extends StrictLogging {
     require(len < BSONDocumentType.MaxSize,
       "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
     logger.debug(s"Frame Size: $sz Doc Size: $len")
+    // This is doing take which is bad, you can't take on an iterator and expect a usable original iterator...
     val data = frame.take(len)
     logger.debug(s"Parsing a BSON doc of $len bytes, with a data block of ${data.len}. After take, Bytes Left: ${frame.len} Expected Left: ${sz - frame.len}")
     val obj = parseRootObject(parse(data))
