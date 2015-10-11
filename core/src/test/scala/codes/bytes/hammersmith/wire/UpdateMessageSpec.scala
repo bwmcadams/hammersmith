@@ -2,6 +2,7 @@
 package codes.bytes.hammersmith.wire
 
 import com.mongodb.legacyUpdate
+import com.typesafe.scalalogging.StrictLogging
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
@@ -12,10 +13,11 @@ import codes.bytes.hammersmith.collection.Implicits._
 import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder}
-import codes.bytes.hammersmith.{hexValue, WriteConcern}
+import codes.bytes.hammersmith.WriteConcern
+import codes.bytes.hammersmith.util.hexValue
 
 @RunWith(classOf[JUnitRunner])
-class UpdateMessageSpec extends Specification with ThrownExpectations {
+class UpdateMessageSpec extends Specification with ThrownExpectations  with StrictLogging {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
    */
@@ -52,10 +54,10 @@ class UpdateMessageSpec extends Specification with ThrownExpectations {
     uB.add("x", new BasicDBObject("$inc", 1))
     val u = uB.get()
     val legacy = com.mongodb.legacyUpdate("test.update", q, u, false, false)
-    println("Legacy Message Size: " + legacy.toArray.length)
-    println("Legacy Message Hex: " + hexValue(legacy.toArray))
-    println("Scala Message Size: " + scalaBSON.toArray.length)
-    println("Scala Message Hex: " + hexValue(scalaBSON.toArray))
+    logger.debug("Legacy Message Size: " + legacy.toArray.length)
+    logger.debug("Legacy Message Hex: " + hexValue(legacy.toArray))
+    logger.debug("Scala Message Size: " + scalaBSON.toArray.length)
+    logger.debug("Scala Message Hex: " + hexValue(scalaBSON.toArray))
     scalaBSON.toArray must beEqualTo(legacy)
 
   }

@@ -57,6 +57,7 @@ sealed trait BSONType extends StrictLogging {
    */
   @tailrec
   final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
+
     val c = frame.next().toChar
 
     if (c == 0x00) {
@@ -88,7 +89,7 @@ sealed trait BSONType extends StrictLogging {
     }
   }
 
-  def readInt(bytes: Array[Byte], endianness: ByteOrder) = {
+  def readInt(bytes: Array[Byte])(implicit endianness: ByteOrder) = {
     var x = 0
     endianness match {
       case `littleEndian` => 
@@ -105,7 +106,7 @@ sealed trait BSONType extends StrictLogging {
     x
   }
 
-  def readLong(bytes: Array[Byte], endianness: ByteOrder) = {
+  def readLong(bytes: Array[Byte])(implicit endianness: ByteOrder) = {
     var x = 0L
     endianness match {
       case `littleEndian` =>
@@ -136,8 +137,8 @@ sealed trait BSONType extends StrictLogging {
     if (_binLen != 16)
       throw new BSONParsingException("Invalid UUID Length in Binary. Expected 16, got " + _binLen)
 
-    val mostSignificant = readLong(bytes.slice(0, 8), endianness)
-    val leastSignificant = readLong(bytes.slice(8, 16), endianness)
+    val mostSignificant = readLong(bytes.slice(0, 8))(endianness)
+    val leastSignificant = readLong(bytes.slice(8, 16))(endianness)
     BSONBinaryUUID(mostSignificant, leastSignificant)
   }
 }
@@ -405,6 +406,7 @@ object BSONInt32Type extends BSONType {
 
   def unapply(frame: ByteIterator): Option[(String, Int)] = 
     if (frame.head == typeCode) {
+      // The FIELD name, hence cString
       val name = readCString(frame.drop(1))
       Some((name, frame.getInt))
     } else None
@@ -417,6 +419,7 @@ object BSONInt64Type extends BSONType {
   def unapply(frame: ByteIterator): Option[(String, Long)] =
     if (frame.head == typeCode) {
       val rest = frame.drop(1)
+      // The FIELD name, hence cString
       val name = readCString(rest)
       Some((name, frame.getLong))
     } else None

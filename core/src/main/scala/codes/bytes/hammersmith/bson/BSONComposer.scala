@@ -34,8 +34,6 @@ trait BSONComposer[T] extends StrictLogging {
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
-  private def hexDump(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
-
   /**
    *
    * The lookup table for "Type" to "Primitive" conversions.
@@ -180,7 +178,7 @@ trait BSONComposer[T] extends StrictLogging {
 
 
   protected def composeField(key: String, value: Any)(implicit b: ByteStringBuilder): Int = {
-    logger.debug(s"Composing field $key with value of type '${value.getClass}'")
+    logger.trace(s"Composing field $key with value of type '${value.getClass}'")
     // todo - performance tune/tweak this
     // todo - support ancestry, possibly w/ code atlassian contributed to java driver.
     // todo - capture length

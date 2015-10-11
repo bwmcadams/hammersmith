@@ -8,6 +8,7 @@ lazy val commonSettings = Seq(
   scalaVersion := scalaVer,
   scalacOptions ++= compileOptions,
   parallelExecution in Test := false,
+  fork in Test := true,
   libraryDependencies ++= Seq(
     netty,
     scalaLogging,
@@ -24,7 +25,8 @@ lazy val commonSettings = Seq(
 lazy val hammersmith = (project in file(".")).
   settings(commonSettings: _*).
   settings(
-      name := "hammersmith"
+    parallelExecution in Test := false,
+    name := "hammersmith"
   ).
   aggregate(core)
 
@@ -33,6 +35,7 @@ lazy val core = (project in file("core")).
   settings(commonSettings).
   settings(
     name := "hammersmith-core",
+    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       mongoJava
     )
@@ -46,6 +49,7 @@ lazy val akka = (project in file("akka")).
   settings(commonSettings).
   settings(
     name := "hammersmith-akka",
+    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       akkaActors,
       akkaTestkit

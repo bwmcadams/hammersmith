@@ -26,12 +26,11 @@ import scala.util.matching.Regex
 import codes.bytes.hammersmith.collection.immutable.{Document => ImmutableDocument, DBList => ImmutableDBList, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.collection.mutable.{Document => MutableDocument, DBList => MutableDBList, OrderedDocument => MutableOrderedDocument}
 import codes.bytes.hammersmith.collection.BSONDocument
+import codes.bytes.hammersmith.util.hexValue
 
 /** T is your toplevel document type. */
 trait BSONParser[T] extends StrictLogging {
   implicit val thisParser = this
-
-  private def hexDump(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
 
   /**
    * A "Core" parse routine when you expect your input contains multiple
@@ -55,9 +54,9 @@ trait BSONParser[T] extends StrictLogging {
       "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
     logger.debug(s"Frame Size: $sz Doc Size: $len")
     val data = frame.take(len)
-    logger.debug(s"Parsing a BSON doc of $len bytes, with a data block of " + data.len)
+    logger.debug(s"Parsing a BSON doc of $len bytes, with a data block of ${data.len}. After take, Bytes Left: ${frame.len} Expected Left: ${sz - frame.len}")
     val obj = parseRootObject(parse(data))
-    logger.debug(s"Parsed root object: '$obj'")
+    logger.debug(s"Parsed root object: '$obj' Bytes Left: ${frame.len} Expected Left: ${sz - frame.len}")
     obj
   }
 
@@ -71,7 +70,7 @@ trait BSONParser[T] extends StrictLogging {
   @tailrec
   protected[bson] final def parse(frame: ByteIterator, entries: Queue[(String, Any)] = Queue.empty[(String, Any)]): Queue[(String, Any)] = {
     val typ = frame.head
-    logger.trace(s"{${System.nanoTime()}} DECODING TYPE '${typ.toByte}' len [${frame.len}}]")
+    logger.trace(s"{${System.nanoTime()}} DECODING TYPE '${typ.toByte}' remaining frame len [${frame.len}}]")
     // TODO - Big performance boost if we move this to a @switch implementation
     val _entries: Queue[(String, Any)] = frame match {
       case BSONEndOfObjectType(eoo) =>
@@ -129,6 +128,7 @@ trait BSONParser[T] extends StrictLogging {
         logger.trace(s"Got a BSON Symbol '$value' for field '$field'")
         entries :+ (field, parseSymbol(field, value))
       case BSONInt32Type(field, value) =>
+        val preLen = frame.len
         logger.trace(s"Got a BSON Int32 '$value' for field '$field'")
         entries :+ (field, parseInt32(field, value))
       case BSONInt64Type(field, value) =>
@@ -148,7 +148,7 @@ trait BSONParser[T] extends StrictLogging {
         entries :+ (field, value)
       case unknown =>
         logger.warn(s"Unknown or unsupported BSON Type '$typ' / $unknown")
-        logger.trace(s"Remaining data: ${hexDump(frame.toArray)}")
+        logger.trace(s"Remaining data: ${hexValue(frame.toArray)}")
         throw new BSONParsingException(s"No support for decoding BSON Type of byte '$typ'/$unknown ")
       }
     if (BSONEndOfObjectType.typeCode == typ) {

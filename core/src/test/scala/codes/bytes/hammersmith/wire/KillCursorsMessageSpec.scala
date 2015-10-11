@@ -2,7 +2,8 @@
 package codes.bytes.hammersmith.wire
 
 import com.mongodb.legacyKillCursors
-import codes.bytes.hammersmith.hexValue
+import codes.bytes.hammersmith.util.hexValue
+import com.typesafe.scalalogging.StrictLogging
 import org.specs2._
 import org.junit.runner._
 import org.specs2.runner.JUnitRunner
@@ -10,10 +11,9 @@ import org.specs2.runner.JUnitRunner
 import org.specs2.matcher.ThrownExpectations
 import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
-import codes.bytes.hammersmith.wire.KillCursorsMessage
 
 @RunWith(classOf[JUnitRunner])
-class KillCursorsMessageSpec extends Specification with ThrownExpectations {
+class KillCursorsMessageSpec extends Specification with ThrownExpectations with StrictLogging {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
    */
@@ -44,10 +44,10 @@ class KillCursorsMessageSpec extends Specification with ThrownExpectations {
     val encoder = new BasicBSONEncoder
     val callback = new BasicBSONCallback
     val legacy = com.mongodb.legacyKillCursors(1L to 10L)
-    println("Legacy Message Size: " + legacy.toArray.length)
-    println("Legacy Message Hex: " + hexValue(legacy.toArray))
-    println("Scala Message Size: " + scalaBSON.toArray.length)
-    println("Scala Message Hex: " + hexValue(scalaBSON.toArray))
+    logger.debug("Legacy Message Size: " + legacy.toArray.length)
+    logger.debug("Legacy Message Hex: " + hexValue(legacy.toArray))
+    logger.debug("Scala Message Size: " + scalaBSON.toArray.length)
+    logger.debug("Scala Message Hex: " + hexValue(scalaBSON.toArray))
     scalaBSON.toArray must beEqualTo(legacy)
 
   }

@@ -32,6 +32,7 @@ import codes.bytes.hammersmith.bson.BSONMaxKey
 import akka.util.{ByteString, ByteIterator}
 import codes.bytes.hammersmith.collection.Implicits.SerializableBSONDocument
 import org.bson.{BasicBSONCallback, BasicBSONDecoder}
+import codes.bytes.hammersmith.util._
 
 @RunWith(classOf[JUnitRunner])
 class BSONComposerSpec extends Specification with ThrownExpectations with StrictLogging {
@@ -137,12 +138,9 @@ class BSONComposerSpec extends Specification with ThrownExpectations with Strict
 
 
     val bson = SerializableBSONDocument.compose(doc)
-    logger.trace(s"BSON: ${Hex.valueOf(bson.toArray)}")
+    logger.trace(s"BSON: ${hexValue(bson.toArray)}")
     bson
   }
 
 
-  object Hex {
-    def valueOf(buf: Array[Byte]): String = buf.map("%02X|" format _).mkString
-  }
 }

@@ -11,7 +11,6 @@ import codes.bytes.hammersmith.collection.immutable._
 import codes.bytes.hammersmith.collection.Implicits._
 import akka.util.ByteString
 import org.bson.{BasicBSONEncoder, BasicBSONCallback, BasicBSONDecoder}
-import codes.bytes.hammersmith.wire.InsertMessage
 import codes.bytes.hammersmith.WriteConcern
 
 @RunWith(classOf[JUnitRunner])
