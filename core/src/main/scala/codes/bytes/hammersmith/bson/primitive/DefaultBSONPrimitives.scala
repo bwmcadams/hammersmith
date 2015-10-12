@@ -18,10 +18,10 @@
 package codes.bytes.hammersmith.bson
 package primitive
 
+import codes.bytes.hammersmith.akka.bson.BSONBinaryUUID
 import codes.bytes.hammersmith.collection.immutable.{Document => ImmutableDocument, DBList => ImmutableDBList, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.collection.mutable.{Document => MutableDocument, DBList => MutableDBList, OrderedDocument => MutableOrderedDocument}
 import codes.bytes.hammersmith.collection.BSONDocument
-import akka.util.ByteString
 
 // Mostly provided as examples... we hardcode where possible for performance.
 

@@ -15,8 +15,13 @@
  *
  */
 
-package codes.bytes.hammersmith
+package codes.bytes.hammersmith.bson.types
 
-case class MongoException(msg: String, inner: Option[Throwable] = None, code: Int = -3) extends Exception(msg, inner.getOrElse(null)) with scala.util.control.NoStackTrace {
-  override def toString = "MongoException(%d, '%s') { %s }".format(code, msg, inner)
+import java.util.regex.Pattern
+
+import scala.util.matching.Regex
+
+// todo - get pattern matching support in to match regex
+class FlaggableRegex(regex: String, flags: Int, groupNames: String*) extends Regex(regex, groupNames: _*) {
+  override val pattern = Pattern.compile(regex, flags)
 }

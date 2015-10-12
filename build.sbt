@@ -28,7 +28,7 @@ lazy val hammersmith = (project in file(".")).
     parallelExecution in Test := false,
     name := "hammersmith"
   ).
-  aggregate(core)
+  aggregate(core, akka)
 
 
 lazy val core = (project in file("core")).
@@ -37,7 +37,6 @@ lazy val core = (project in file("core")).
     name := "hammersmith-core",
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
-      mongoJava
     )
   )
 
@@ -52,7 +51,8 @@ lazy val akka = (project in file("akka")).
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       akkaActors,
-      akkaTestkit
+      akkaTestkit,
+      mongoJava
     )
   ).
   dependsOn(core)

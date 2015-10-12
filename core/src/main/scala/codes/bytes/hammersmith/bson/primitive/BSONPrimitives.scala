@@ -17,6 +17,7 @@
 
 package codes.bytes.hammersmith.bson.primitive
 
+import codes.bytes.hammersmith.akka.bson._
 import codes.bytes.hammersmith.bson._
 import codes.bytes.hammersmith.collection.BSONDocument
 
