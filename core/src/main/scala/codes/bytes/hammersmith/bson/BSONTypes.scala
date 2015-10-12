@@ -474,7 +474,7 @@ object BSONScopedJSCodeType extends BSONType {
       logger.trace(s"\t ! Reading JSCode w/ Scope frame length [${frame.len}]")
       val name = readCString(frame.drop(1))
       logger.trace(s"\t ~ JSCode w/ Scope field name: $name [${frame.len}]")
-      val size = frame.getInt
+      val size = frame.getInt - 4
       logger.trace(s"\t # JSCode w/ Scope declared as size $size [${frame.len}]")
       val code = readUTF8String(frame)
       logger.trace(s"\t * JSCode w/ Scope data '$code' [${frame.len}]")

@@ -64,8 +64,8 @@ class BSONParserSpec extends Specification with StrictLogging {
       "another OID" ! hasOtherOID ^
       /** "symbol" ! hasSymbol ^ SYMBOL DOESNT ENCODE PROPERLY FROM JAVA */
       "code" ! hasCode ^
-      /*"scoped code, code" ! hasScopedCode_Code ^
-      "scoped code, scope" ! hasScopedCode_Scope ^*/
+      "scoped code, code" ! hasScopedCode_Code ^
+      "scoped code, scope" ! hasScopedCode_Scope ^
       "str" ! hasStr ^
       "object" ! hasSubObj ^
       "array" ! hasArray ^
@@ -120,9 +120,13 @@ class BSONParserSpec extends Specification with StrictLogging {
 
   def hasCode = parsedBSON.getAs[BSONCode]("code") must beSome.which(_.code == testCode.getCode())
 
-  def hasScopedCode_Code = parsedBSON.getAs[BSONCodeWScope]("code_scoped") must beSome.which(_.code == testCodeWScope.getCode())
+  def hasScopedCode_Code = {
+    parsedBSON.getAs[BSONCodeWScope]("code_scoped") must beSome.which(_.code == testCodeWScope.getCode())
+  }
   
-  def hasScopedCode_Scope = parsedBSON.getAs[BSONCodeWScope]("code_scoped").get.scope must havePairs("foo" -> "bar", "x"-> 5.23)
+  def hasScopedCode_Scope = {
+    parsedBSON.getAs[BSONCodeWScope]("code_scoped").get.scope must havePairs("foo" -> "bar", "x"-> 5.23)
+  }
   
   def hasStr = parsedBSON.getAs[String]("str") must beSome(testStr)
   

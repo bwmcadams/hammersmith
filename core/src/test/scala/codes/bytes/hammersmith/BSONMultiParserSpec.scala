@@ -15,7 +15,11 @@ import scala.collection.mutable.ArrayBuffer
 class BSONMultiParserSpec extends Specification with StrictLogging {
   sequential
 
-  def is = "Able to properly parse multiple documents"  ! testMultiParse ^ endp
+  def is =
+    sequential ^
+      "Able to properly parse multiple documents"  ! testMultiParse ^
+      "Able to properly parse multiple documents from a stream" ! testMultiParseStream ^
+    endp
 
   def multiTestDocs =  {
     // todo - this is perfect for property based testing
