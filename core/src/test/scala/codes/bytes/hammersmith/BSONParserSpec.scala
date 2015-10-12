@@ -204,7 +204,7 @@ class BSONParserSpec extends Specification with StrictLogging {
     b.append("oid", testOid)
     // Code wonky
     b.append("code", testCode)
-    //b.append("code_scoped", testCodeWScope)
+    b.append("code_scoped", testCodeWScope)
     b.append("str", testStr)
     //b.append("ref", new com.mongodb.DBRef(_db, "testRef", test_ref_id))
     b.append("object", testDoc)

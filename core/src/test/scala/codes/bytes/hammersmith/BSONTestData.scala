@@ -51,7 +51,9 @@ trait BSONTestData extends StrictLogging {
 
   def scalaBSON = {
     val b = OrderedDocument.newBuilder
+
     b += "_id" -> oid
+
     b += "max" -> BSONMaxKey
     b += "min" -> BSONMinKey
     b += "booleanTrue" -> true
@@ -68,6 +70,7 @@ trait BSONTestData extends StrictLogging {
     b += "oid" -> testOID
     b += "code" -> testCode
     // Problem starts here, with testCodeWScope... related to embedded doc?
+
     b += "codeScoped" -> testCodeWScope
     b += "str" -> testStr
     //b += "ref" -> DBRef

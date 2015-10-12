@@ -18,11 +18,11 @@ class BSONCodeWScopeSpec extends Specification with BSONTestData with StrictLogg
       endp
 
   def hasScopedCode_Code = {
-    parsedBSON.getAs[BSONCodeWScope]("code_scoped") must beSome.which(_.code == testCodeWScope.code)
+    parsedBSON.getAs[BSONCodeWScope]("codeScoped") must beSome.which(_.code == testCodeWScope.code)
   }
 
   def hasScopedCode_Scope = {
-    parsedBSON.getAs[BSONCodeWScope]("code_scoped").get.scope must havePairs("foo" -> "bar", "x" -> 5.23)
+    parsedBSON.getAs[BSONCodeWScope]("codeScoped").get.scope must havePairs("foo" -> "bar", "x" -> 5.23)
   }
 }
 

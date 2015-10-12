@@ -85,9 +85,13 @@ sealed trait BSONType extends StrictLogging {
       throw new BSONParsingException("Unable to decode UTF8 String from BSON.", e)
     } 
     parse {
-      new String(buf, 0, size - 1, "UTF-8")
+      val str = new String(buf, 0, size - 1, "UTF-8")
+      logger.trace(s"UTF8 String Result: $str")
+      str
     }
   }
+
+
 
   def readInt(bytes: Array[Byte])(implicit endianness: ByteOrder) = {
     var x = 0
@@ -478,10 +482,12 @@ object BSONScopedJSCodeType extends BSONType {
       logger.trace(s"\t # JSCode w/ Scope declared as size $size [${frame.len}]")
       val code = readUTF8String(frame)
       logger.trace(s"\t * JSCode w/ Scope data '$code' [${frame.len}]")
-      // TODO - READ SCOPE
       logger.debug(s"JSCode at '$name' - '$code'")
-      val scopeSize = frame.getInt
-      val scope = Map[String, Any](childParser.parse(frame, size): _*)
+      val subLen = frame.getInt - 4
+      require(subLen < BSONDocumentType.MaxSize,
+        "Invalid embedded document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
+      logger.trace(s"Reading an embedded BSON object of '$subLen' bytes.")
+      val scope = childParser.parse(frame, subLen).toMap
       logger.trace(s"Scope: $scope")
       Some((name, BSONCodeWScope(code, scope)))
     } else None
