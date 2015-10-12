@@ -52,7 +52,7 @@ trait BSONParser[T] extends StrictLogging {
     val len = frame.getInt(ByteOrder.LITTLE_ENDIAN) - 4
     require(len < BSONDocumentType.MaxSize,
       "Invalid document. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, len))
-    logger.debug(s"Frame Size: $sz Doc Size: $len")
+    logger.debug(s"Frame Size: $sz (includes length header); Doc Size: $len")
     // This *was* doing take which is bad, you can't take on an iterator and expect a usable original iterator...
     logger.debug(s"Parsing a BSON doc of $len bytes [may contain embedded]")
     val obj = parseRootObject(parse(frame, len))

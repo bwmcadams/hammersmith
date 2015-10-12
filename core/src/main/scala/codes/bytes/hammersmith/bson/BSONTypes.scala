@@ -471,11 +471,15 @@ object BSONScopedJSCodeType extends BSONType {
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, BSONCodeWScope)] =
     if (frame.head == typeCode) {
+      logger.trace(s"\t ! Reading JSCode w/ Scope frame length [${frame.len}]")
       val name = readCString(frame.drop(1))
+      logger.trace(s"\t ~ JSCode w/ Scope field name: $name [${frame.len}]")
       val size = frame.getInt
+      logger.trace(s"\t # JSCode w/ Scope declared as size $size [${frame.len}]")
       val code = readUTF8String(frame)
+      logger.trace(s"\t * JSCode w/ Scope data '$code' [${frame.len}]")
       // TODO - READ SCOPE
-      logger.trace(s"JSCode at '$name' - '$code'")
+      logger.debug(s"JSCode at '$name' - '$code'")
       val scopeSize = frame.getInt
       val scope = Map[String, Any](childParser.parse(frame, size): _*)
       logger.trace(s"Scope: $scope")

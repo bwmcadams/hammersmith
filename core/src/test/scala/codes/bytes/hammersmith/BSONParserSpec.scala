@@ -64,8 +64,8 @@ class BSONParserSpec extends Specification with StrictLogging {
       "another OID" ! hasOtherOID ^
       /** "symbol" ! hasSymbol ^ SYMBOL DOESNT ENCODE PROPERLY FROM JAVA */
       "code" ! hasCode ^
-      "scoped code, code" ! hasScopedCode_Code ^
-      "scoped code, scope" ! hasScopedCode_Scope ^
+      /*"scoped code, code" ! hasScopedCode_Code ^
+      "scoped code, scope" ! hasScopedCode_Scope ^*/
       "str" ! hasStr ^
       "object" ! hasSubObj ^
       "array" ! hasArray ^
@@ -200,7 +200,7 @@ class BSONParserSpec extends Specification with StrictLogging {
     b.append("oid", testOid)
     // Code wonky
     b.append("code", testCode)
-    b.append("code_scoped", testCodeWScope)
+    //b.append("code_scoped", testCodeWScope)
     b.append("str", testStr)
     //b.append("ref", new com.mongodb.DBRef(_db, "testRef", test_ref_id))
     b.append("object", testDoc)
