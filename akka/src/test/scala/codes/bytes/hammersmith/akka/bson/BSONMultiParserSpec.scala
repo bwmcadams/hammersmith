@@ -11,7 +11,6 @@ import org.specs2.runner.JUnitRunner
 
 import scala.collection.mutable.ArrayBuffer
 
-@RunWith(classOf[JUnitRunner])
 class BSONMultiParserSpec extends Specification with StrictLogging {
   sequential
 

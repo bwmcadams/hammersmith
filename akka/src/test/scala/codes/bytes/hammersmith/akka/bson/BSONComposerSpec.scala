@@ -26,7 +26,6 @@ import org.specs2._
 import org.specs2.matcher.ThrownExpectations
 import org.specs2.runner.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
 class BSONComposerSpec extends Specification with ThrownExpectations with BSONTestData with StrictLogging {
 
   def is =

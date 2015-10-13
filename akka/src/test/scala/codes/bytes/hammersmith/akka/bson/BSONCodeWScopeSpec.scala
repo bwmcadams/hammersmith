@@ -6,7 +6,6 @@ import org.junit.runner.RunWith
 import org.specs2.Specification
 import org.specs2.runner.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
 class BSONCodeWScopeSpec extends Specification with BSONTestData with StrictLogging {
 
   def is =

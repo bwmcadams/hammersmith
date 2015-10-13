@@ -9,6 +9,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= compileOptions,
   parallelExecution in Test := false,
   fork in Test := true,
+  testOptions in Test += Tests.Argument("sequential"),
   libraryDependencies ++= Seq(
     netty,
     scalaLogging,
@@ -25,8 +26,6 @@ lazy val commonSettings = Seq(
 lazy val hammersmith = (project in file(".")).
   settings(commonSettings: _*).
   settings(
-    parallelExecution in Test := false,
-    fork in Test := true,
     name := "hammersmith"
   ).
   aggregate(core, akka)
@@ -36,7 +35,6 @@ lazy val core = (project in file("core")).
   settings(commonSettings).
   settings(
     name := "hammersmith-core",
-    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
     )
   )
@@ -49,8 +47,6 @@ lazy val akka = (project in file("akka")).
   settings(commonSettings).
   settings(
     name := "hammersmith-akka",
-    parallelExecution in Test := false,
-    fork in Test := true,
     libraryDependencies ++= Seq(
       akkaActors,
       akkaTestkit,
@@ -63,7 +59,7 @@ lazy val compileOptions = Seq(
   "-unchecked",
   "-deprecation",
   "-language:_",
-  "-target:jvm-1.7",
+  "-target:jvm-1.8", // come on, Java 1.7 is EOL. I'm not supporting it. Upgrade your JDK ... or use mongo's official drivers.
   "-encoding", "UTF-8"
 )
 

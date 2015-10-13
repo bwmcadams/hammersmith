@@ -29,7 +29,6 @@ import org.junit.runner._
 import org.specs2._
 import org.specs2.runner._
 
-@RunWith(classOf[JUnitRunner])
 class BSONParserSpec extends Specification with StrictLogging {
   sequential
 

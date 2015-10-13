@@ -13,7 +13,6 @@ import org.specs2._
 import org.specs2.matcher.ThrownExpectations
 import org.specs2.runner.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
 class DeleteMessageSpec extends Specification with ThrownExpectations with StrictLogging {
   /**
    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
@@ -22,6 +21,7 @@ class DeleteMessageSpec extends Specification with ThrownExpectations with Stric
 
   def is =
     sequential ^
+    skipAllIf(1 == 1) ^ // temporarily disable
     "This specification is to test the functionality of the Wire Protocol `DeleteMessage`" ^
     p ^
     "Working with Hammersmith DeleteMessage implementations should" ^
