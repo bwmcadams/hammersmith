@@ -23,7 +23,7 @@ object Libraries {
   val logback  = "ch.qos.logback" % "logback-classic" % Version.logback
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
   // used for saner logback config because fuck XML. TODO: Make this optional for users...
-  val groovy = "org.codehaus.groovy" % "groovy" % Version.groovy
+  val groovy = "org.codehaus.groovy" % "groovy" % Version.groovy % "test"
 
   // Config
   val ficus = "net.ceedubs" %% "ficus" % Version.ficus
