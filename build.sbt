@@ -26,6 +26,7 @@ lazy val hammersmith = (project in file(".")).
   settings(commonSettings: _*).
   settings(
     parallelExecution in Test := false,
+    fork in Test := true,
     name := "hammersmith"
   ).
   aggregate(core, akka)
@@ -49,6 +50,7 @@ lazy val akka = (project in file("akka")).
   settings(
     name := "hammersmith-akka",
     parallelExecution in Test := false,
+    fork in Test := true,
     libraryDependencies ++= Seq(
       akkaActors,
       akkaTestkit,
