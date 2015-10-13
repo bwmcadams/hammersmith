@@ -20,6 +20,7 @@ import java.nio.ByteOrder
 
 import _root_.akka.util.ByteIterator
 import codes.bytes.hammersmith.bson._
+import codes.bytes.hammersmith.bson.types.{BSONBinaryUUID, BSONBinaryContainer, BSONUndef, BSONNull}
 import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.collection.mutable.{DBList => MutableDBList, Document => MutableDocument, OrderedDocument => MutableOrderedDocument}

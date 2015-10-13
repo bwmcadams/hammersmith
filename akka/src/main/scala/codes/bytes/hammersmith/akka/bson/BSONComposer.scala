@@ -23,6 +23,7 @@ import java.util.{Date, UUID}
 import _root_.akka.util.{ByteString, ByteStringBuilder}
 import codes.bytes.hammersmith.bson._
 import codes.bytes.hammersmith.bson.primitive.BSONPrimitive
+import codes.bytes.hammersmith.bson.types._
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.collection.mutable.{DBList => MutableDBList, Document => MutableDocument, OrderedDocument => MutableOrderedDocument}
 import codes.bytes.hammersmith.collection.{BSONDocument, BSONList}

@@ -2,13 +2,12 @@
 package codes.bytes.hammersmith.akka.wire
 
 import akka.util.ByteString
-import codes.bytes.hammersmith._
-import codes.bytes.hammersmith.akka.wire.DeleteMessage
-import codes.bytes.hammersmith.collection.Implicits._
+import codes.bytes.hammersmith.akka.collection._
 import codes.bytes.hammersmith.collection.immutable._
 import codes.bytes.hammersmith.util.hexValue
 import codes.bytes.hammersmith.wire.WriteConcern
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONCallback, BasicBSONEncoder, BasicBSONDecoder}
 import org.junit.runner._
 import org.specs2._
 import org.specs2.matcher.ThrownExpectations

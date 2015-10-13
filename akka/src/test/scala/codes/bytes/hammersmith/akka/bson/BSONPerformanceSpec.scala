@@ -5,6 +5,7 @@ import java.util.regex.Pattern
 import akka.util.ByteString
 import codes.bytes.hammersmith.collection.immutable.Document
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONDecoder, NewBSONDecoder}
 
 object BSONPerformanceSpec extends App with StrictLogging {
 

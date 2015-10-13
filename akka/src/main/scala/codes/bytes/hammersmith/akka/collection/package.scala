@@ -6,6 +6,7 @@ import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.collection.immutable.OrderedDocument
 import com.typesafe.scalalogging.StrictLogging
 
+// todo fix me so we chain down implicits into immutable/mutable
 package object collection {
 
   trait SerializableBSONDocumentLike[T <: BSONDocument] extends SerializableBSONObject[T] with StrictLogging {

@@ -1,6 +1,6 @@
 package codes.bytes.hammersmith.akka.bson
 
-import BSONCodeWScope
+import codes.bytes.hammersmith.bson.types.BSONCodeWScope
 import com.typesafe.scalalogging.StrictLogging
 import org.junit.runner.RunWith
 import org.specs2.Specification

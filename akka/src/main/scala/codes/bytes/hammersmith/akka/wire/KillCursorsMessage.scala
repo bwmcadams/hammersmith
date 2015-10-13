@@ -18,6 +18,7 @@
 package codes.bytes.hammersmith.akka.wire
 
 import akka.util.ByteString
+import codes.bytes.hammersmith.wire.WriteConcern
 
 /**
  * OP_KILL_CURSORS

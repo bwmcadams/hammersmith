@@ -1,7 +1,8 @@
 
-package codes.bytes.hammersmith
+package com.mongodb
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+
 
 // old syntax but easiest for this patching
 object `package` {

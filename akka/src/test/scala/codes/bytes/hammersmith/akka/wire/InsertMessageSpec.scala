@@ -2,9 +2,8 @@
 package codes.bytes.hammersmith.akka.wire
 
 import akka.util.ByteString
-import codes.bytes.hammersmith.akka.wire.InsertMessage
-import codes.bytes.hammersmith.collection.Implicits._
 import codes.bytes.hammersmith.collection.immutable._
+import codes.bytes.hammersmith.akka.collection._
 import codes.bytes.hammersmith.wire.WriteConcern
 import org.junit.runner._
 import org.specs2._

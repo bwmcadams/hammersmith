@@ -17,8 +17,10 @@
 
 package codes.bytes.hammersmith.akka.bson
 
+import akka.util.ByteString
 import codes.bytes.hammersmith.collection.immutable.Document
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONCallback, BasicBSONDecoder}
 import org.junit.runner._
 import org.specs2._
 import org.specs2.matcher.ThrownExpectations

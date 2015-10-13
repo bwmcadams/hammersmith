@@ -20,6 +20,7 @@ import java.nio.ByteOrder
 
 import akka.util.ByteIterator
 import codes.bytes.hammersmith.bson.ObjectID
+import codes.bytes.hammersmith.bson.types._
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.annotation.tailrec
@@ -156,14 +157,6 @@ object BSONEndOfObjectType extends BSONType {
 
 }
 
-sealed trait SpecialBSONValue
-/** BSON Min Key and Max Key represent special internal types for Sharding */
-case object BSONMinKey extends SpecialBSONValue
-case object BSONMaxKey extends SpecialBSONValue
-/** The dumbest types I've ever seen on earth */
-case object BSONNull extends SpecialBSONValue
-case object BSONUndef extends SpecialBSONValue
-
 /** BSON null value */
 object BSONNullType extends BSONType {
   val typeCode: Byte = 0x0A
@@ -200,13 +193,7 @@ object BSONStringType extends BSONType {
 }
 
 
-trait BSONBinaryContainer
-case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) extends BSONBinaryContainer
-case class BSONBinaryMD5(bytes: Array[Byte]) extends BSONBinaryContainer
-case class BSONBinary(bytes: Array[Byte]) extends BSONBinaryContainer
-case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinaryContainer
-
-/** 
+/**
  * BSON Binary - can actually be of several subtypes 
  *  
  * TODO - User customised container classes for subtypes 
@@ -349,8 +336,6 @@ object BSONRegExType extends BSONType {
 
 }
 
-// Currently no dereferencing support, etc. (not a fan anyway)
-final case class DBRef(namespace: String, oid: ObjectID)
 
 /** BSON DBPointers are deprecated, in favor of a 'parsed aware' DBRef which is stupid and slows parsers down. */
 object BSONDBPointerType extends BSONType {
@@ -373,7 +358,6 @@ object BSONDBPointerType extends BSONType {
 
 }
 
-final case class BSONCode(code: String)
 
 /** BSON JS Code ... basically a block of javascript stored in DB */
 object BSONJSCodeType extends BSONType {
@@ -428,7 +412,6 @@ object BSONInt64Type extends BSONType {
     } else None
 }
 
-final case class BSONTimestamp(time: Int, increment: Int)
 
 /** BSON Timestamp - this is a special type for sharding, oplog etc */
 object BSONTimestampType extends BSONType {
@@ -462,8 +445,6 @@ object BSONMaxKeyType extends BSONType {
     } else None
 }
 
-// needs a document for scope
-final case class BSONCodeWScope(code: String, scope: Map[String, Any])
 
 /** BSON JS Code with a scope ... basically a block of javascript stored in DB */
 object BSONScopedJSCodeType extends BSONType {

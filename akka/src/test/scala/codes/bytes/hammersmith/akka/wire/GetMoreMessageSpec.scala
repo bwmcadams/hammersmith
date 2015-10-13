@@ -1,9 +1,10 @@
 
 package codes.bytes.hammersmith.akka.wire
 
-import codes.bytes.hammersmith.akka.wire.GetMoreMessage
+import akka.util.ByteString
 import codes.bytes.hammersmith.util.hexValue
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONCallback, BasicBSONEncoder, BasicBSONDecoder}
 import org.junit.runner._
 import org.specs2._
 import org.specs2.matcher.ThrownExpectations

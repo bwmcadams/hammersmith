@@ -18,6 +18,7 @@ package codes.bytes.hammersmith.akka.wire
 
 import akka.util.ByteString
 import codes.bytes.hammersmith.akka.bson.{SerializableBSONObject, ImmutableBSONDocumentComposer}
+import codes.bytes.hammersmith.wire.WriteConcern
 
 /**
  * OP_INSERT Message

@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.util.{ByteIterator, ByteString}
 import codes.bytes.hammersmith.collection.immutable.Document
+import codes.bytes.hammersmith.wire.WriteConcern
 import com.typesafe.scalalogging.StrictLogging
 
 

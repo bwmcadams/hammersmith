@@ -20,9 +20,11 @@ import java.util.regex._
 
 import _root_.akka.util.ByteString
 import codes.bytes.hammersmith.bson._
+import codes.bytes.hammersmith.bson.types._
 import codes.bytes.hammersmith.collection._
 import codes.bytes.hammersmith.collection.immutable.Document
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONDecoder, NewBSONDecoder}
 import org.junit.runner._
 import org.specs2._
 import org.specs2.runner._

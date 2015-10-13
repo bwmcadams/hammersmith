@@ -1,8 +1,7 @@
 package codes.bytes.hammersmith
 
-import codes.bytes.hammersmith.akka.bson.{BSONCodeWScope, BSONTimestamp, BSONCode, BSONBinary}
 import codes.bytes.hammersmith.bson._
-import codes.bytes.hammersmith.collection.{BSONDocument, BSONList}
+import codes.bytes.hammersmith.bson.types.{BSONTimestamp, BSONCodeWScope, BSONCode, BSONBinary}
 
 package object collection {
   abstract class ValidBSONType[T]

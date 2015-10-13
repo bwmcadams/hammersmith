@@ -2,8 +2,9 @@ package codes.bytes.hammersmith.akka.bson
 
 import java.util.regex.Pattern
 
+import codes.bytes.hammersmith.akka.collection.SerializableBSONDocument
 import codes.bytes.hammersmith.bson._
-import codes.bytes.hammersmith.collection.Implicits.SerializableBSONDocument
+import codes.bytes.hammersmith.bson.types._
 import codes.bytes.hammersmith.collection.immutable.{DBList, Document, OrderedDocument}
 import codes.bytes.hammersmith.util._
 import com.typesafe.scalalogging.StrictLogging

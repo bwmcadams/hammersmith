@@ -2,12 +2,13 @@
 package codes.bytes.hammersmith.akka.wire
 
 import akka.util.ByteString
-import codes.bytes.hammersmith.akka.wire.UpdateMessage
-import codes.bytes.hammersmith.collection.Implicits._
+import codes.bytes.hammersmith.akka.collection._
 import codes.bytes.hammersmith.collection.immutable._
 import codes.bytes.hammersmith.util.hexValue
 import codes.bytes.hammersmith.wire.WriteConcern
+import com.mongodb.{BasicDBObject, BasicDBObjectBuilder}
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONCallback, BasicBSONDecoder, BasicBSONEncoder}
 import org.junit.runner._
 import org.specs2._
 import org.specs2.matcher.ThrownExpectations

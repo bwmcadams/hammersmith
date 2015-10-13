@@ -4,8 +4,9 @@ package codes.bytes.hammersmith.akka.wire
 import akka.util.ByteString
 import codes.bytes.hammersmith.collection.immutable._
 import codes.bytes.hammersmith.util.hexValue
-import QueryMessage
+import com.mongodb.BasicDBObjectBuilder
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.{BasicBSONCallback, BasicBSONEncoder, BasicBSONDecoder}
 import org.junit.runner._
 import org.specs2._
 import org.specs2.matcher.ThrownExpectations
