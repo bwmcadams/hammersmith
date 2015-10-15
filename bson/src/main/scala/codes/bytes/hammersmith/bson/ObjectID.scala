@@ -16,13 +16,11 @@
  */
 package codes.bytes.hammersmith.bson
 
-
-import java.util.concurrent.atomic.AtomicInteger
-import java.nio.ByteBuffer
 import java.net.NetworkInterface
-import com.typesafe.scalalogging.StrictLogging
+import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicInteger
 
-import math.BigDecimal.long2bigDecimal
+import com.typesafe.scalalogging.StrictLogging
 
 
 /**

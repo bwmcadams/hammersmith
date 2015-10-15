@@ -18,7 +18,6 @@
 package codes.bytes.hammersmith.bson.primitive
 
 import codes.bytes.hammersmith.bson.types.BSONBinaryUUID
-import codes.bytes.hammersmith.collection.BSONDocument
 
 /**
  * A Container for BSON Primitive types
@@ -200,7 +199,7 @@ trait BSONSymbolPrimitive[T] extends BSONPrimitive {
 
 trait BSONScopedJSCodePrimitive[T] extends BSONPrimitive {
   type Native = T
-  type Primitive = (String /* code */, BSONDocument /* Scope */)
+  type Primitive = (String /* code */, Seq[(String, Any)] /* Scope */)
   val typeCode: Byte = 0x0F
 }
 

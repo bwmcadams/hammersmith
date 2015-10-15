@@ -12,6 +12,13 @@ object Version {
   val scalaTest    = "2.2.4"
   // used for saner logback config because fuck XML
   val groovy       = "2.4.3"
+  // the "bits" and pieces of different scodec modules, which are all versioned different
+  val scodecBits   = "1.0.10"
+  val scodecCore   = "1.8.2"
+  val scodecSpire  = "0.2.0"
+  // Add on modules for scodec for compat between other systems
+  val scodecScalaz = "1.1.0"
+  val scodecStream = "0.10.0"
 }
 
 object Libraries {
@@ -38,6 +45,13 @@ object Libraries {
   val akkaActors = "com.typesafe.akka" %% "akka-actor" % Version.akka
   val akkaTestkit = "com.typesafe.akka" %% "akka-testkit" % Version.akka % "test"
   val akkaSlf4J = "com.typesafe.akka" %% "akka-slf4j" % Version.akka
+
+  // scodec
+  val scodecBits = "org.scodec" %% "scodec-bits" % Version.scodecBits
+  val scodecCore = "org.scodec" %% "scodec-core" % Version.scodecCore
+  val scodecSpire = "org.scodec" %% "scodec-spire" % Version.scodecSpire
+  val scodecScalaz = "org.scodec" %% "scodec-scalaz" % Version.scodecScalaz
+  val scodecStream = "org.scodec" %% "scodec-stream" % Version.scodecStream
 
 }
 

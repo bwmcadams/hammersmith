@@ -16,12 +16,11 @@
  */
 
 package codes.bytes.hammersmith.bson
-package primitive
 
+import codes.bytes.hammersmith.bson.primitive._
 import codes.bytes.hammersmith.bson.types.BSONBinaryUUID
-import codes.bytes.hammersmith.collection.immutable.{Document => ImmutableDocument, DBList => ImmutableDBList, OrderedDocument => ImmutableOrderedDocument}
-import codes.bytes.hammersmith.collection.mutable.{Document => MutableDocument, DBList => MutableDBList, OrderedDocument => MutableOrderedDocument}
-import codes.bytes.hammersmith.collection.BSONDocument
+import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
+import codes.bytes.hammersmith.collection.mutable.{DBList => MutableDBList, Document => MutableDocument, OrderedDocument => MutableOrderedDocument}
 
 // Mostly provided as examples... we hardcode where possible for performance.
 
