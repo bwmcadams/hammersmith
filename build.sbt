@@ -24,7 +24,7 @@ lazy val hammersmith = (project in file(".")).
   settings(
     name := "hammersmith"
   ).
-  aggregate(core, akka, bson)
+  aggregate(core, akka, bson, collections, collections_mutable)
 
 
 lazy val core = (project in file("core")).
@@ -74,10 +74,10 @@ lazy val collections = (project in file("collections")).
  * We shouldn't encourage mutable by default, so you opt in to mutable
  * collection support
  */
-lazy val mutable_collections = (project in file("mutable-collections")).
+lazy val collections_mutable = (project in file("collections-mutable")).
   settings(commonSettings: _*).
   settings(
-    name := "hammersmith-mutable-collections",
+    name := "hammersmith-collections-mutable",
     libraryDependencies ++= Seq(
     )
   ).
