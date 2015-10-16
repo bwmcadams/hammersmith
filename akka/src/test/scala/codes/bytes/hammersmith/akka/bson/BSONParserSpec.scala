@@ -30,12 +30,12 @@ import org.specs2._
 import org.specs2.runner._
 
 class BSONParserSpec extends Specification with StrictLogging {
-  sequential
 
   def is =
 
+    sequential ^
     "This is a specification to test the functionality of the new BSON Parser" ^
-      p ^
+/*      p ^
       "Parsing of BSON should" ^
       "Provide clear, valid, and sane interop w/ old 10gen Java driver" ^
       "Parsing returns a valid document, checking fields" ! testBasicParse ^
@@ -63,7 +63,7 @@ class BSONParserSpec extends Specification with StrictLogging {
       "object" ! hasSubObj ^
       "array" ! hasArray ^
       "binary" ! hasBytes ^
-      "uuid" ! hasUUID ^
+      "uuid" ! hasUUID ^*/
       endp
 
       /*
