@@ -19,11 +19,14 @@ package codes.bytes.hammersmith.collection.mutable
 import codes.bytes.hammersmith.collection.BSONListFactory
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList}
 
+import scala.collection.mutable
 import scala.collection.mutable.{Buffer, Seq}
 
-class DBList protected[collection](protected[mutable] val underlying: Buffer[Any]) extends codes.bytes.hammersmith.collection.BSONList
-                                                                                     with Buffer[Any] {
-  def self: Seq[Any] = underlying
+class DBList protected[collection](
+  protected[mutable] val underlying: mutable.Buffer[Any]
+) extends codes.bytes.hammersmith.collection.BSONList with mutable.Buffer[Any] {
+
+  def self: mutable.Buffer[Any] = underlying
 
   def update(idx: Int, elem: Any) { underlying.update(idx, elem) }
 
@@ -58,12 +61,12 @@ class DBList protected[collection](protected[mutable] val underlying: Buffer[Any
    * Converts this DBList to an Immutable DBList
    * @return an Immutable version of the current DBList
    */
-  def toDBList: ImmutableDBList = new ImmutableDBList(underlying)
+  def toDBList: ImmutableDBList = new ImmutableDBList(underlying.toBuffer)
 
 }
 
 object DBList extends BSONListFactory[DBList] {
-  def empty: DBList = new DBList(Buffer.empty[Any])
+  def empty: DBList = new DBList(mutable.Buffer.empty[Any])
 
   def newBuilder: DBListBuilder[DBList] = new DBListBuilder[DBList](empty)
 }

@@ -19,13 +19,19 @@ package codes.bytes.hammersmith.collection.immutable
 
 import codes.bytes.hammersmith.collection.BSONDocumentFactory
 
-import scala.collection.immutable.MapLike
-import scala.collection.mutable.{HashMap, LinkedHashMap}
+import scala.collection.immutable.{TreeMap, MapLike}
+import scala.collection.immutable
+import scala.collection.mutable.{LinkedHashMap}
 
-trait BSONDocument extends codes.bytes.hammersmith.collection.BSONDocument with Map[String, Any]
-                                                               with MapLike[String, Any, BSONDocument] {
-  // todo - this is needed for now, to allow easy mutation of internal repr but unsafe.
-  protected def self: scala.collection.mutable.Map[String, Any]
+trait BSONDocument extends codes.bytes.hammersmith.collection.BSONDocument
+  with Map[String, Any]
+  with MapLike[String, Any, BSONDocument] {
+
+  protected def self: scala.collection.immutable.Map[String, Any]
+
+  protected def newDocument(newSelf: Map[String, Any]): BSONDocument = new BSONDocument {
+    override protected def self = newSelf
+  }
 
   override def empty: BSONDocument = Document.empty
 
@@ -34,20 +40,18 @@ trait BSONDocument extends codes.bytes.hammersmith.collection.BSONDocument with 
   def iterator: Iterator[(String, Any)] = self.iterator
 
   def -(key: String): BSONDocument = {
-    self -= key
-    this
+    newDocument(self - key)
   }
 
-  def +[B1 >: Any](kv: (String, B1)): Map[String, B1] = add(kv)
+  override def +[B1 >: Any](kv: (String, B1)): BSONDocument = add(kv)
 
   def add(kv: (String, Any)): BSONDocument = {
-    self += kv
-    this
+    newDocument(self + kv)
   }
 
+  // todo - mutable backing value bad, esp. when we talk about reconstructing ourselves. CanBuildFrom?
   def add(key: String, value: Any): BSONDocument = {
-    self += key -> value
-    this
+    newDocument(self + (key -> value))
   }
 
   /**
@@ -59,7 +63,7 @@ trait BSONDocument extends codes.bytes.hammersmith.collection.BSONDocument with 
 
 
 class Document extends BSONDocument {
-  protected val self = new HashMap[String, Any]
+  protected val self = new immutable.HashMap[String, Any]
 }
 
 object Document extends BSONDocumentFactory[Document] {
@@ -71,7 +75,8 @@ object Document extends BSONDocumentFactory[Document] {
  * Needed for some tasks such as Commands to run safely.
  */
 class OrderedDocument extends BSONDocument {
-  protected val self = new LinkedHashMap[String, Any]
+  // http://stackoverflow.com/questions/9313866/immutable-scala-map-implementation-that-preserves-insertion-order
+  protected override val self = new TreeMap[String, Any]
 }
 
 object OrderedDocument extends BSONDocumentFactory[OrderedDocument] {

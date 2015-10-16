@@ -25,7 +25,6 @@ import codes.bytes.hammersmith.bson._
 import codes.bytes.hammersmith.bson.primitive.BSONPrimitive
 import codes.bytes.hammersmith.bson.types._
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
-import codes.bytes.hammersmith.collection.mutable.{DBList => MutableDBList, Document => MutableDocument, OrderedDocument => MutableOrderedDocument}
 import codes.bytes.hammersmith.collection.{BSONDocument, BSONList}
 import com.typesafe.scalalogging.StrictLogging
 
@@ -691,6 +690,7 @@ object ImmutableOrderedBSONDocumentComposer extends BSONComposer[ImmutableOrdere
   def elements(doc: ImmutableOrderedDocument) = doc.iterator
 }
 
+/*
 object MutableBSONDocumentComposer extends BSONComposer[MutableDocument] {
   def primitives = Map.empty[Class[_], BSONPrimitive]
 
@@ -703,4 +703,5 @@ object MutableOrderedBSONDocumentComposer extends BSONComposer[MutableOrderedDoc
   def elements(doc: MutableOrderedDocument) = doc.iterator
 }
 
+*/
 case class BSONCompositionException(message: String, t: Throwable = null) extends Exception(message, t) with scala.util.control.NoStackTrace

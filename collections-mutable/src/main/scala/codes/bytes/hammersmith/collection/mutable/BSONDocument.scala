@@ -20,19 +20,45 @@ package codes.bytes.hammersmith.collection.mutable
 import codes.bytes.hammersmith.collection.BSONDocumentFactory
 import codes.bytes.hammersmith.collection.immutable.{BSONDocument => ImmutableBSONDocument, Document => ImmutableDocument}
 
+import scala.collection.mutable
 import scala.collection.mutable.{HashMap, LinkedHashMap, MapProxy}
 
-trait BSONDocument extends codes.bytes.hammersmith.collection.BSONDocument with MapProxy[String, Any] {
+trait BSONDocument extends codes.bytes.hammersmith.collection.BSONDocument
+  with mutable.Map[String, Any]
+  with mutable.MapLike[String, Any, BSONDocument] {
+
+  protected def self: scala.collection.mutable.Map[String, Any]
+
+  // todo
+  override def empty: BSONDocument = new Document
+
   /**
    * Convert this BSONDocument to an immutable representation
    *
    */
   def toDocument: ImmutableBSONDocument = ImmutableDocument(toSeq: _*)
+
+  protected def newDocument(newSelf: mutable.Map[String, Any]): BSONDocument = new BSONDocument {
+    override protected def self = newSelf
+  }
+
+  override def +=(kv: (String, Any)): BSONDocument.this.type = {
+    self += kv
+    this
+  }
+
+  override def -=(key: String): BSONDocument.this.type = {
+    self -= key
+    this
+  }
+
+  override def get(key: String): Option[Any] = self.get(key)
+
+  override def iterator: Iterator[(String, Any)] = self.iterator
 }
 
-class Document extends  BSONDocument {
-  protected val _map = new HashMap[String, Any]
-  def self = _map
+class Document extends BSONDocument {
+  override protected def self: mutable.Map[String, Any] = HashMap.empty[String, Any]
 }
 
 object Document extends BSONDocumentFactory[Document] {
@@ -53,12 +79,7 @@ object OrderedDocument extends BSONDocumentFactory[OrderedDocument] {
   def newBuilder: BSONDocumentBuilder[OrderedDocument] = new BSONDocumentBuilder[OrderedDocument](empty)
 }
 
-class BSONDocumentBuilder[T <: BSONDocument](empty: T) extends codes.bytes.hammersmith.collection.BSONDocumentBuilder[T](empty) {
-  def +=(x: (String, Any)) = {
-    elems += x
-    this
-  }
-}
+
 
 // TODO - get rid of the raw, etc code.
 /**

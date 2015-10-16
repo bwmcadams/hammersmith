@@ -23,7 +23,6 @@ import codes.bytes.hammersmith.bson._
 import codes.bytes.hammersmith.bson.types.{BSONBinaryUUID, BSONBinaryContainer, BSONUndef, BSONNull}
 import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
-import codes.bytes.hammersmith.collection.mutable.{DBList => MutableDBList, Document => MutableDocument, OrderedDocument => MutableOrderedDocument}
 import codes.bytes.hammersmith.util.hexValue
 import com.typesafe.scalalogging.StrictLogging
 
@@ -317,6 +316,7 @@ object ImmutableOrderedBSONDocumentParser extends BSONParser[ImmutableOrderedDoc
 
 }
 
+/*
 /* @deprecated("What the f**k is wrong with you? Reading mutable documents?") */
 object MutableBSONDocumentParser extends BSONParser[MutableDocument] {
   def parseRootObject(entries: Seq[(String, Any)]) = MutableDocument(entries: _*)
@@ -366,5 +366,6 @@ object MutableOrderedBSONDocumentParser extends BSONParser[MutableOrderedDocumen
    */
   override def parseArray(field: String, values: Seq[Any]): Any = MutableDBList(values: _*)
 }
+*/
 
 class BSONParsingException(message: String, t: Throwable = null) extends Exception(message, t)

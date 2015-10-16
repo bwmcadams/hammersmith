@@ -20,7 +20,6 @@ package codes.bytes.hammersmith.bson
 import codes.bytes.hammersmith.bson.primitive._
 import codes.bytes.hammersmith.bson.types.BSONBinaryUUID
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
-import codes.bytes.hammersmith.collection.mutable.{DBList => MutableDBList, Document => MutableDocument, OrderedDocument => MutableOrderedDocument}
 
 // Mostly provided as examples... we hardcode where possible for performance.
 
@@ -77,6 +76,9 @@ object ImmutableBSONDocumentPrimitive extends BSONDocumentPrimitive[ImmutableDoc
   def fromBSON(bson: Seq[(String, Any)]) = ImmutableDocument(bson: _*)
 }
 
+
+// todo - move me to mutable collections
+/*
 object MutableBSONDocumentPrimitive extends BSONDocumentPrimitive[MutableDocument] {
   /**
    * The bson "container" value, from the native type
@@ -93,6 +95,7 @@ object MutableBSONDocumentPrimitive extends BSONDocumentPrimitive[MutableDocumen
    */
   def fromBSON(bson: Seq[(String, Any)]) = MutableDocument(bson: _*)
 }
+*/
 
 object ImmutableDBListPrimitive extends BSONArrayPrimitive[ImmutableDBList] {
   /**
@@ -111,6 +114,8 @@ object ImmutableDBListPrimitive extends BSONArrayPrimitive[ImmutableDBList] {
   def toBSON(native: ImmutableDBList) = native.toSeq
 }
 
+// todo : Move me to mutable collections
+/*
 object MutableDBListPrimitive extends BSONArrayPrimitive[MutableDBList] {
   /**
    * The "Native" type, read from the BSON Primitive
@@ -127,6 +132,7 @@ object MutableDBListPrimitive extends BSONArrayPrimitive[MutableDBList] {
    */
   def toBSON(native: MutableDBList) = native.toSeq
 }
+*/
 
 // TODO - Binary handlers.
 

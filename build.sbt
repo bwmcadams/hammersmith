@@ -34,7 +34,7 @@ lazy val core = (project in file("core")).
     libraryDependencies ++= Seq(
     )
   ).
-  dependsOn(bson)
+  dependsOn(bson, collections)
 
 /**
  * The most likely scenario is we will base *all* bson ser/deser on scodec,
@@ -65,8 +65,7 @@ lazy val collections = (project in file("collections")).
     libraryDependencies ++= Seq(
     )
   ).
-  dependsOn(core)
-
+  dependsOn(bson)
 
 /**
  * A mutable collections library for Hammersmith, *purely optional*.

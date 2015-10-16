@@ -86,6 +86,7 @@ package object collection {
 
   //implicit object SerializableImmutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.immutable.BSONList]
 
+  /*
   implicit object SerializableMutableDocument extends SerializableBSONDocumentLike[codes.bytes.hammersmith.collection.mutable.Document]{
     val parser = MutableBSONDocumentParser
     val composer = MutableBSONDocumentComposer
@@ -96,5 +97,6 @@ package object collection {
     val composer = MutableOrderedBSONDocumentComposer
   }
 
+  */
   //implicit object SerializableMutableBSONList extends SerializableBSONDocumentLike[hammersmith.collection.mutable.BSONList]
 }
