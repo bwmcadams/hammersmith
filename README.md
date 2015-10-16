@@ -1,6 +1,7 @@
 Hammersmith 0.30.0 ("Zathrus")
 ==============================
 
+[![Build Status](https://travis-ci.org/bwmcadams/hammersmith.svg)](https://travis-ci.org/bwmcadams/hammersmith)
 [![Join the chat at https://gitter.im/bwmcadams/hammersmith](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/bwmcadams/hammersmith?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 A Pure Scala, asynchronous MongoDB Driver with type-classes for custom type encoding and a highly optimized BSON serialiation layer.
