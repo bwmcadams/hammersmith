@@ -36,6 +36,8 @@ import com.typesafe.scalalogging.StrictLogging
  * </pre></blockquote>
  *
  * @see http://docs.mongodb.org/manual/core/object-id/
+ *
+ * TODO: unapply etc
  */
 class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
 							 				 val machineID: Int = ObjectID.generatedMachineID,
@@ -79,7 +81,7 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).
 
 		val buf = new StringBuilder(24)
 
-		for (i <- 0 until bytes.length) {
+		for (i <- bytes.indices) {
 			val s = (bytes(i) & 0xFF).toHexString
 			if (s.length == 1) buf.append(0)
 			buf.append(s)
@@ -103,7 +105,7 @@ object ObjectID extends StrictLogging {
 	def apply(b: Array[Byte]) = {
 		require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
 		val buf = ByteBuffer.wrap(b)
-		new ObjectID(buf.getInt(), buf.getInt(), buf.getInt(), false)
+		new ObjectID(buf.getInt, buf.getInt, buf.getInt, false)
 	}
 
 	def apply(s: String) = {
@@ -111,7 +113,7 @@ object ObjectID extends StrictLogging {
 		val bytes = new Array[Byte](12)
 		for (i <- 0 until 12) bytes(i) = Integer.parseInt(s.substring(i*2, i*2 + 2), 16).toByte
 		val buf = ByteBuffer.wrap(bytes)
-		new ObjectID(buf.getInt(), buf.getInt(), buf.getInt(), false)
+		new ObjectID(buf.getInt, buf.getInt, buf.getInt, false)
 	}
 
 	private val increment = new AtomicInteger(new java.util.Random().nextInt())
@@ -125,7 +127,7 @@ object ObjectID extends StrictLogging {
 		val machinePiece = {
 			import scala.collection.JavaConversions._
 			try {
-				val nics = for (nic <- NetworkInterface.getNetworkInterfaces()) yield nic.toString()
+				val nics = for (nic <- NetworkInterface.getNetworkInterfaces) yield nic.toString
 				nics.mkString.hashCode << 16
 			} catch {
 				case t: Throwable =>
@@ -143,8 +145,9 @@ object ObjectID extends StrictLogging {
 		val processPiece = { 
 			val pid = try {
 				java.lang.management.ManagementFactory.getRuntimeMXBean.getName.hashCode
-			} catch { 
-				case t => 
+			} catch {
+        // todo - better exception choice
+				case t: Throwable =>
 					// fallback
 					new java.util.Random().nextInt() 
 			}
@@ -167,17 +170,19 @@ object ObjectID extends StrictLogging {
 	 */
 	def isValid(s: String): Boolean = {
 		if (s == null) false
+    else {
 
-		val len = s.length
-		if (len != 24) false 
-		else { 
-			for (i <- 0 until len) {
-				val c = s.charAt(i)			
-				if (!(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'))
-					false
-			}
+      val len = s.length
+      if (len != 24) false
+      else {
+        for (i <- 0 until len) {
+          val c = s.charAt(i)
+          if (!(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'))
+            false
+        }
 
-			true
+        true
+      }
 
 		}
 	}
