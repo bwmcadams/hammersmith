@@ -111,14 +111,14 @@ class BSONParserSpec extends Specification with StrictLogging {
 
   def hasSymbol = parsedBSON.getAs[Symbol]("symbol") must beSome(testSym.getSymbol())
 
-  def hasCode = parsedBSON.getAs[BSONCode]("code") must beSome.which(_.code == testCode.getCode())
+  def hasCode = parsedBSON.getAs[BSONJSCode]("code") must beSome.which(_.code == testCode.getCode())
 
   def hasScopedCode_Code = {
-    parsedBSON.getAs[BSONCodeWScope]("code_scoped") must beSome.which(_.code == testCodeWScope.getCode())
+    parsedBSON.getAs[BSONScopedJSCode]("code_scoped") must beSome.which(_.code == testCodeWScope.getCode())
   }
   
   def hasScopedCode_Scope = {
-    parsedBSON.getAs[BSONCodeWScope]("code_scoped").get.scope must havePairs("foo" -> "bar", "x"-> 5.23)
+    parsedBSON.getAs[BSONScopedJSCode]("code_scoped") must beSome
   }
   
   def hasStr = parsedBSON.getAs[String]("str") must beSome(testStr)
@@ -127,7 +127,7 @@ class BSONParserSpec extends Specification with StrictLogging {
       
   def hasArray = parsedBSON.getAs[BSONList]("array") must beSome.which(_ must contain("foo", "bar", "baz", "x", "y", "z"))
   
-  def hasBytes = parsedBSON.getAs[BSONBinary]("binary") must beSome.which(_.bytes must beEqualTo(testBin.getData()))
+  def hasBytes = parsedBSON.getAs[BSONBinaryGeneric]("binary") must beSome.which(_.bytes must beEqualTo(testBin.getData))
 
   def hasUUID =  parsedBSON.getAs[java.util.UUID]("uuid") must beSome.which { _ must beEqualTo(testUUID) }
 

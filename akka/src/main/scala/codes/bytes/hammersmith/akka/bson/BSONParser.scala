@@ -20,7 +20,7 @@ import java.nio.ByteOrder
 
 import _root_.akka.util.ByteIterator
 import codes.bytes.hammersmith.bson._
-import codes.bytes.hammersmith.bson.types.{BSONBinaryUUID, BSONBinaryContainer, BSONUndef, BSONNull}
+import codes.bytes.hammersmith.bson.types.{BSONBinary, BSONBinaryUUID, BSONUndefined, BSONNull}
 import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.util.hexValue
@@ -91,7 +91,7 @@ trait BSONParser[T] extends StrictLogging {
       case BSONUndefType(field) =>
         // TODO - how best to represent nulls / undefs?
         logger.warn(s"DEPRECATED TYPE: Got a BSON Undef for field '$field'")
-        entries :+ (field, BSONUndef)
+        entries :+ (field, BSONUndefined)
       case BSONDoubleType(field, value) =>
         logger.trace(s"Got a BSON Double '$value' for field '$field'")
         entries :+ (field, parseDouble(field, value))
@@ -280,7 +280,7 @@ trait BSONParser[T] extends StrictLogging {
    * Field is provided in case you need to respond differently based
    * upon field name; should not be returned back.
    */
-  def parseBinary(field: String, value: BSONBinaryContainer): Any = value match {
+  def parseBinary(field: String, value: BSONBinary): Any = value match {
     case BSONBinaryUUID(most, least) => new java.util.UUID(most, least)
     //case BSONBinaryMD5(bytes)
     case other => value

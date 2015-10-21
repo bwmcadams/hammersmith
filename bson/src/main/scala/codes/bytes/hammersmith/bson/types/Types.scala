@@ -61,21 +61,21 @@ case class BSONString(primitive: String) extends BSONType {
   def primitiveValue = primitive
 }
 
-object BSONDocument extends BSONTypeCompanion {
+object BSONRawDocument extends BSONTypeCompanion {
   val typeCode: Byte = 0x03
 }
 
 // I don't see forcibly converting it into a map as having any value, given how the primitives are deconstructed
-case class BSONDocument(primitive: Seq[(String, Any)]) extends BSONType {
+case class BSONRawDocument(primitive: Seq[(String, Any)]) extends BSONType {
   type Primitive = Seq[(String, Any)]
   def primitiveValue = primitive
 }
 
-object BSONArray extends BSONTypeCompanion {
+object BSONRawArray extends BSONTypeCompanion {
   val typeCode: Byte = 0x04
 }
 
-case class BSONArray(primitive: Seq[Any]) extends BSONType {
+case class BSONRawArray(primitive: Seq[Any]) extends BSONType {
   type Primitive = Seq[Any]
   def primitiveValue = primitive
 }
@@ -187,10 +187,56 @@ case class BSONObjectID(timestamp: Int = (System.currentTimeMillis() / 1000).toI
                         increment: Int = ObjectID.nextIncrement(),
                         isNew: Boolean = true) extends BSONType {
 
-  override type Primitive = BSONObjectID
+  type Primitive = BSONObjectID
 
-  override def primitiveValue: Primitive = this
+  def primitiveValue: Primitive = this
 
+}
+
+sealed trait BSONBooleanCompanion extends BSONTypeCompanion {
+  val typeCode: Byte = 0x08
+  def subTypeCode: Byte
+}
+
+sealed trait BSONBoolean extends BSONType {
+  def booleanValue: Boolean
+}
+
+case object BSONBooleanTrue extends BSONBooleanCompanion with BSONType {
+  def subTypeCode: Byte = 0x00
+  val booleanValue = true
+  type Primitive = Boolean
+
+  def primitiveValue = true
+}
+
+case object BSONBooleanFalse extends BSONBooleanCompanion with BSONType {
+  def subTypeCode: Byte = 0x01
+  val booleanValue = false
+  type Primitive = Boolean
+
+  def primitiveValue = false
+}
+
+object BSONDateTime extends BSONTypeCompanion {
+  def typeCode: Byte = 0x09
+}
+
+case class BSONDateTime(epoch: Long) extends BSONType {
+  type Primitive = Long
+
+  def primitiveValue = epoch
+}
+
+/**
+ *
+ * fucking bson null.
+ */
+case object BSONNull extends BSONType with BSONTypeCompanion {
+  val typeCode: Byte = 0x0A
+  // todo - how do we really wanna represent undef?
+  type Primitive = None.type
+  def primitiveValue = None
 }
 
 object BSONRegex extends BSONTypeCompanion {
@@ -235,9 +281,9 @@ object BSONRegex extends BSONTypeCompanion {
 // todo - make sure pattern matching works cleanly...it should as we get unapply from scala.util.matching.Regex
 case class BSONRegex(override val regex: String, groupNames: String*) extends Regex(regex, groupNames: _*) with BSONType {
   import BSONRegex._
-  override type Primitive = (String, String)
+  type Primitive = (String, String)
   // todo - verify valid flags both in and out
-  override def primitiveValue: Primitive = (regex, optionsFromFlags(flags))
+  def primitiveValue: Primitive = (regex, optionsFromFlags(flags))
 
   // TODO - Verify the flags from the generated regex are getting shoved in. (Have to compile into regex)
 
@@ -245,21 +291,103 @@ case class BSONRegex(override val regex: String, groupNames: String*) extends Re
   lazy val flags = pattern.flags
 }
 
+// TODO - Make sure we warn users that DBPointer is deprecated.
+// TODO - Note that DBRefs aren't a BSONType but identified by a $ref field
+object BSONDBPointer extends BSONTypeCompanion {
+  val typeCode: Byte = 0x0C
+}
 
-// Things that are mostly hard representations
-sealed trait SpecialBSONValue
-/** BSON Min Key and Max Key represent special internal types for Sharding */
-case object BSONMinKey extends SpecialBSONValue
-case object BSONMaxKey extends SpecialBSONValue
-/** The dumbest types I've ever seen on earth */
-case object BSONNull extends SpecialBSONValue
-case object BSONUndef extends SpecialBSONValue
+
+// TODO - This is probably not a good marker as we'll have to reference it in our code. Find userspace ref deprecate.
+//@deprecated("DBPointers have long been deprecated in BSON/MongoDB. Please use DBRefs instead.")
+case class BSONDBPointer(ns: String, id: BSONObjectID) extends BSONType {
+  type Primitive = (String, BSONObjectID)
+
+  def primitiveValue: Primitive = (ns, id)
+}
+
+sealed trait BSONJSCodeBlockCompanion extends BSONTypeCompanion
+sealed trait BSONJSCodeBlock extends BSONType
+
+object BSONJSCode extends BSONJSCodeBlockCompanion {
+  val typeCode: Byte = 0x0D
+}
+
+case class BSONJSCode(code: String) extends BSONJSCodeBlock {
+  type Primitive = String
+
+  def primitiveValue = code
+}
+
+// NOTE: BSONSymbols are deprecated as well, and Scala Symbols aren't the best...
+object BSONSymbol extends BSONTypeCompanion {
+  val typeCode: Byte = 0x0E
+}
+
+case class BSONSymbol(symbol: Symbol) extends BSONType {
+  type Primitive = Symbol
+
+  def primitiveValue = symbol
+}
+
+object BSONScopedJSCode extends BSONJSCodeBlockCompanion {
+  val typeCode: Byte = 0x0F
+}
+
+case class BSONScopedJSCode(code: String, scope: BSONRawDocument) extends BSONJSCodeBlock {
+  type Primitive = String
+
+  def primitiveValue = code
+}
+
+object BSONInteger extends BSONTypeCompanion {
+  val typeCode: Byte = 0x10
+}
+
+case class BSONInteger(int: Int) extends BSONType {
+  type Primitive = Int
+  def primitiveValue = int
+}
+
+/** Special internal type for MongoDB Sharding, won't be representable as a JDK Type
+  * TODO - Special BSON Type
+  **/
+object BSONTimestamp extends BSONTypeCompanion {
+  val typeCode = 0x11.toByte
+}
+
+case class BSONTimestamp(time: Int, increment: Int) extends BSONType {
+  type Primitive = (Int, Int)
+  def primitiveValue = (time, increment)
+}
+
+object BSONLong extends BSONTypeCompanion {
+  val typeCode: Byte = 0x12
+}
+
+case class BSONLong(long: Long) extends BSONType {
+  type Primitive = Long
+  def primitiveValue = long
+}
+
+sealed trait BSONKeyBoundaryCompanion extends BSONTypeCompanion
+sealed trait BSONKeyBoundary extends BSONType
+
+case object BSONMinKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
+  val typeCode: Byte = 0xFF.toByte
+  // TODO - we need a sane representation of this type as a primitive
+  type Primitive = None.type
+  def primitiveValue = None
+}
+
+case object BSONMaxKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
+  val typeCode: Byte = 0x7F.toByte
+  // TODO - we need a sane representation of this type as a primitive
+  type Primitive = None.type
+  def primitiveValue = None
+}
 
 // Currently no dereferencing support, etc. (not a fan anyway)
+// not a BSON builtin type...
 final case class DBRef(namespace: String, oid: ObjectID)
 
-sealed trait BSONCodeBlock
-// needs a document for scope
-final case class BSONCodeWScope(code: String, scope: Map[String, Any]) extends BSONCodeBlock
-final case class BSONCode(code: String) extends BSONCodeBlock
-final case class BSONTimestamp(time: Int, increment: Int)

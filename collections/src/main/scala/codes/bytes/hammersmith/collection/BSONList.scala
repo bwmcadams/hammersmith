@@ -92,7 +92,7 @@ trait BSONListFactory[T <: BSONList] {
    */
   def apply(doc: BSONDocument): BSONList = {
     // this is a really shitty implementation
-    require(doc.keys.forall(x => try { x.toInt; true } catch { case e => false }),
+    require(doc.keys.forall(x => try { x.toInt; true } catch { case e: Exception => false }),
             "Unable to massage Document into DBList; keys are not all numeric.")
     apply(doc.keys.toSeq.sortWith((l, r) => l.toInt.compareTo(r.toInt) < 0).map { k =>
       doc(k)

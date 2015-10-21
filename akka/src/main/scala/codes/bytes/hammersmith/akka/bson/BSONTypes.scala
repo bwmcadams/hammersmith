@@ -209,7 +209,7 @@ object BSONBinaryType extends BSONType with StrictLogging {
   val Binary_MD5: Byte = 0x05
   val Binary_UserDefined: Byte = 0x80.toByte
 
-  def unapply(frame: ByteIterator): Option[(String, BSONBinaryContainer)] =
+  def unapply(frame: ByteIterator): Option[(String, BSONBinary)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val _binLen = frame.getInt
@@ -240,7 +240,7 @@ object BSONBinaryType extends BSONType with StrictLogging {
           // TODO - parse MD5
           Some((name, BSONBinaryMD5(bin)))
         case Binary_Generic | Binary_Old =>
-          Some((name, BSONBinary(bin)))
+          Some((name, BSONBinaryGeneric(bin)))
         case Binary_UserDefined =>
           Some((name, BSONBinaryUserDefined(bin)))
         case other => 
@@ -364,12 +364,12 @@ object BSONJSCodeType extends BSONType {
   val typeCode: Byte = 0x0D
 
 
-  def unapply(frame: ByteIterator): Option[(String, BSONCode)] = 
+  def unapply(frame: ByteIterator): Option[(String, BSONJSCode)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val code = readUTF8String(frame)
       logger.debug(s"JSCode at '$name' - '$code'")
-      Some((name, BSONCode(code)))
+      Some((name, BSONJSCode(code)))
     } else None
 }
 
@@ -450,7 +450,7 @@ object BSONMaxKeyType extends BSONType {
 object BSONScopedJSCodeType extends BSONType {
   val typeCode: Byte = 0x0F
 
-  def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, BSONCodeWScope)] =
+  def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, BSONScopedJSCode)] =
     if (frame.head == typeCode) {
       logger.trace(s"\t ! Reading JSCode w/ Scope frame length [${frame.len}]")
       val name = readCString(frame.drop(1))
@@ -466,7 +466,9 @@ object BSONScopedJSCodeType extends BSONType {
       logger.trace(s"Reading an embedded BSON object of '$subLen' bytes.")
       val scope = childParser.parse(frame, subLen).toMap
       logger.trace(s"Scope: $scope")
-      Some((name, BSONCodeWScope(code, scope)))
+      // TODO - Foobar Fix
+      //Some((name, BSONScopedJSCode(code, scope)))
+      None
     } else None
 }
 

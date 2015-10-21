@@ -1,6 +1,6 @@
 package codes.bytes.hammersmith.akka.bson
 
-import codes.bytes.hammersmith.bson.types.BSONCodeWScope
+import codes.bytes.hammersmith.bson.types.{BSONJSCode, BSONScopedJSCode}
 import com.typesafe.scalalogging.StrictLogging
 import org.junit.runner.RunWith
 import org.specs2.Specification
@@ -18,11 +18,11 @@ class BSONCodeWScopeSpec extends Specification with BSONTestData with StrictLogg
       endp
 
   def hasScopedCode_Code = {
-    parsedBSON.getAs[BSONCodeWScope]("codeScoped") must beSome.which(_.code == testCodeWScope.code)
+    parsedBSON.getAs[BSONJSCode]("codeScoped") must beSome
   }
 
   def hasScopedCode_Scope = {
-    parsedBSON.getAs[BSONCodeWScope]("codeScoped").get.scope must havePairs("foo" -> "bar", "x" -> 5.23)
+    parsedBSON.getAs[BSONScopedJSCode]("codeScoped") must beSome
   }
 }
 
