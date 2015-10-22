@@ -156,17 +156,19 @@ object BSONBinaryOldUUID extends BSONBinaryTypeCompanion {
   def subTypeCode: Byte = 0x03
 }
 
+
 // "Old" UUID format used little endianness which is NOT how UUIDs are encoded
 final case class BSONBinaryOldUUID(mostSignificant: Long, leastSignificant: Long) extends BSONBinary {
   // for now, we'll represent as ourselves:  most significant & least significant (Not sure I can be circular here)
-  type Primitive = BSONBinaryOldUUID
-  val primitiveValue = this
+  type Primitive = BSONBinaryUUID
+  val primitiveValue = BSONBinaryUUID(mostSignificant, leastSignificant)
 }
 
 object BSONBinaryUUID extends BSONBinaryTypeCompanion {
   def subTypeCode: Byte = 0x04
 }
 
+// New UUIDs are Big Endian
 final case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) extends BSONBinary {
   // for now, we'll represent as ourselves:  most significant & least significant (Not sure I can be circular here)
   type Primitive = BSONBinaryUUID
@@ -208,8 +210,7 @@ case object BSONObjectID extends BSONTypeCompanion {
 
 case class BSONObjectID(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
                         machineID: Int = ObjectID.generatedMachineID,
-                        increment: Int = ObjectID.nextIncrement(),
-                        isNew: Boolean = true) extends BSONType {
+                        increment: Int = ObjectID.nextIncrement()) extends BSONType {
 
   type Primitive = BSONObjectID
 

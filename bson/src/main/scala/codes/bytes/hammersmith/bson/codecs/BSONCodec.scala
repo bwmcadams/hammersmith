@@ -1,5 +1,7 @@
 package codes.bytes.hammersmith.bson.codecs
 
+import java.util.UUID
+
 import codes.bytes.hammersmith.bson.types._
 import com.typesafe.scalalogging.StrictLogging
 import scodec.{DecodeResult, Attempt, SizeBound, Codec}
@@ -10,23 +12,26 @@ import spire.math.Interval
 
 object BSONCodec extends Codec[BSONType] with StrictLogging {
 
+  implicit val byteOrdering = ByteOrdering.LittleEndian
+
   val MaxBSONSize = 16 * 1024 * 1024
 
+  val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize - 1))
 
   // todo - internal type vs. external
   implicit val bsonDocument: Codec[BSONRawDocument] =
-    (int32 :: variableSizeBytes(int32.bounded(Interval(4, MaxBSONSize - 1)), BSONCodec, 4)).dropUnits.as[BSONRawDocument]
+    (int32 :: variableSizeBytes(bsonSizeHeader, BSONCodec, 4)).dropUnits.as[BSONRawDocument]
 
   // todo - internal type vs. external
   implicit val bsonArray: Codec[BSONRawArray] =
-    (int32 :: variableSizeBytes(int32.bounded(Interval(4, MaxBSONSize - 1)), BSONCodec, 4)).dropUnits.as[BSONRawArray]
+    (int32 :: variableSizeBytes(bsonSizeHeader, BSONCodec, 4)).dropUnits.as[BSONRawArray]
 
   implicit val bsonBinaryField: Codec[BSONBinary] =
     (BSONBinary.typeCodeConstant :: cstring ::
-      variableSizeBytes(int32.bounded(Interval(4, MaxBSONSize - 1)), BSONBinaryCodec)
+      variableSizeBytes(bsonSizeHeader, BSONBinaryCodec)
     ).dropUnits.as[BSONBinary]
 
-  val bsonDoubleCodec: Codec[BSONDouble] = double.as[BSONDouble]
+  val bsonDoubleCodec: Codec[BSONDouble] = doubleL.as[BSONDouble]
   val bsonStringCodec: Codec[BSONString] = utf8_32.as[BSONString]
   val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
     vector(cstring ~ BSONCodec)
@@ -48,22 +53,48 @@ object BSONCodec extends Codec[BSONType] with StrictLogging {
   val bsonBinaryOldCodec: Codec[BSONBinaryOld] =
     bytes.xmap( bytes => BSONBinaryOld(bytes), bin => bin.bytes )
 
-  val bsonBinaryOldUUIDCodec: Codec[BSONBinaryOldUUID] =
-    bytes.xmap( bytes => BSONBinaryOldUUID(bytes), bin => bin.bytes )
+  val bsonBinaryOldUUIDCodec: Codec[BSONBinaryOldUUID] = BSONOldUUIDCodec
+  
+  val bsonBinaryUUIDCodec: Codec[BSONBinaryUUID] = BSONNewUUIDCodec
 
+  val bsonBinaryMD5Codec: Codec[BSONBinaryMD5] =
+    bytes.xmap( bytes => BSONBinaryMD5(bytes), bin => bin.bytes )
+
+  val bsonBinaryUserDefinedCodec: Codec[BSONBinaryUserDefined] =
+    bytes.xmap( bytes => BSONBinaryUserDefined(bytes), bin => bin.bytes )
+  
   val bsonBinaryCodec: Codec[BSONBinary] = lazily {
     // determine bson subtype
-    discriminated[BSONBinary].by(uint8).
+    discriminated[BSONBinary].by(uint8L).
       typecase(BSONBinaryGeneric.subTypeCode,
-        variableSizeBytes(int32.bounded(Interval(4, MaxBSONSize - 1)), bsonBinaryGenericCodec, 4)
+        variableSizeBytes(bsonSizeHeader, bsonBinaryGenericCodec, 4)
       ).
       typecase(BSONBinaryFunction.subTypeCode,
-        variableSizeBytes(int32.bounded(Interval(4, MaxBSONSize - 1)), bsonBinaryFunctionCodec, 4)
+        variableSizeBytes(bsonSizeHeader, bsonBinaryFunctionCodec, 4)
       ).
-      typecase(BSONBinaryOld.subTypeCode,
-        variableSizeBytes(int32.bounded(Interval(4, MaxBSONSize - 1)), bsonBinaryOldCodec, 4)
+      typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
+        variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOldCodec, 4))
       ).
+      typecase(BSONBinaryOldUUID.subTypeCode,
+        variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUIDCodec, 4)
+      ).
+      typecase(BSONBinaryUUID.subTypeCode,
+        variableSizeBytes(bsonSizeHeader, bsonBinaryUUIDCodec, 4)
+      ).
+      typecase(BSONBinaryMD5.subTypeCode,
+        variableSizeBytes(bsonSizeHeader, bsonBinaryMD5Codec, 4)
+      ).
+      typecase(BSONBinaryUserDefined.subTypeCode,
+        variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefinedCodec, 4)
+      )
   }
+
+  // #s in OID are big endian. I love consistency.
+  val bsonObjectIDCodec: Codec[BSONObjectID] =
+    (int32 ~ int32 ~ int32).xmap[BSONObjectID](
+      { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
+      { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
+    )
 
 
   discriminated[(String, BSONType)].by(uint8).
@@ -71,7 +102,51 @@ object BSONCodec extends Codec[BSONType] with StrictLogging {
     typecase(BSONString.typeCode, cstring ~ bsonStringCodec).
     typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
     typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
-    typecase(BSONBinary.typeCode, cstring ~ bsonBinaryCodec)
+    typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
+      bsonSizeHeader, bsonBinaryCodec
+    )).
+    // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
+    typecase(BSONUndefined.typeCode, cstring ~ bytes.xmap(
+      bytes => BSONUndefined,
+      bin => ByteVector.empty
+    )).
+    typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec)
+
+}
+
+/**
+ * Old BSON UUIDs are little endian, new ones are big endian, though overall endianness is little in BSON
+ *
+ * TODO: At AST level, make sure we convert all Binary Old UUIDs to new standard Binary UUIDs
+ */
+object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID]{
+
+  protected val mkUUID: (Long, Long) => BSONBinaryOldUUID = BSONBinaryOldUUID(_, _)
+
+  override def encode(u: BSONBinaryOldUUID): Attempt[BitVector] =
+    Codec.encodeBoth(int64, int64)(u.leastSignificant, u.mostSignificant)
+
+  override def decode(bits: BitVector) =
+    Codec.decodeBothCombine(int64, int64)(bits)(mkUUID)
+
+  override val sizeBound = int64.sizeBound * 2L
+
+  override def toString = "uuid"
+}
+
+object BSONNewUUIDCodec extends Codec[BSONBinaryUUID]{
+
+  protected val mkUUID: (Long, Long) => BSONBinaryUUID = BSONBinaryUUID(_, _)
+
+  override def encode(u: BSONBinaryUUID): Attempt[BitVector] =
+    Codec.encodeBoth(int64, int64)(u.mostSignificant, u.leastSignificant)
+
+  override def decode(bits: BitVector) =
+    Codec.decodeBothCombine(int64, int64)(bits)(mkUUID)
+
+  override val sizeBound = int64.sizeBound * 2L
+
+  override def toString = "uuid"
 }
 
 object BSONBinaryCodec extends Codec[BSONBinary] {
