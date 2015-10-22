@@ -38,9 +38,11 @@ import com.typesafe.scalalogging.StrictLogging
  * @see http://docs.mongodb.org/manual/core/object-id/
  *
  * TODO: unapply etc
+ * TODO: Properly support the *OLD* Format as well. See java driver createFromLegacyFormat
  */
 class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
 							 				 val machineID: Int = ObjectID.generatedMachineID,
+                       val processID: Int = ObjectID.generatedProcessID,
 							 				 val increment: Int = ObjectID.nextIncrement(),
 							 				 val isNew: Boolean = true) extends Ordered[ObjectID] with StrictLogging {
 
@@ -123,21 +125,25 @@ object ObjectID extends StrictLogging {
 	 * Copied, for now, from the MongoDB Java Driver
 	 */
 	lazy val generatedMachineID = {
-		// Generate a 2-byte machine piece based on NIC Info
-		val machinePiece = {
-			import scala.collection.JavaConversions._
-			try {
-				val nics = for (nic <- NetworkInterface.getNetworkInterfaces) yield nic.toString
-				nics.mkString.hashCode << 16
-			} catch {
-				case t: Throwable =>
-					// Some versions of the IBM JDK May throw exceptions, make a random number
-					logger.warn(s"Failed to generate NIC section for ObjectID: ${t.getMessage}", t)
-					new java.util.Random().nextInt << 16
-			}
-		}
-		logger.trace(s"Generated ObjectID Machine Piece: $machinePiece")
+    // Generate a 2-byte machine piece based on NIC Info
+    val machinePiece = {
+      import scala.collection.JavaConversions._
+      try {
+        val nics = for (nic <- NetworkInterface.getNetworkInterfaces) yield nic.toString
+        nics.mkString.hashCode << 16
+      } catch {
+        case t: Throwable =>
+          // Some versions of the IBM JDK May throw exceptions, make a random number
+          logger.warn(s"Failed to generate NIC section for ObjectID: ${t.getMessage}", t)
+          new java.util.Random().nextInt << 16
+      }
+    }
+    logger.trace(s"Generated ObjectID Machine Piece: $machinePiece")
 
+    machinePiece
+  }
+
+  lazy val generatedProcessID = {
 		/**
 		 * We need a 2 byte process piece. It must represent not only the JVM
 		 * but any individual classloader to avoid collisions
@@ -146,7 +152,7 @@ object ObjectID extends StrictLogging {
 			val pid = try {
 				java.lang.management.ManagementFactory.getRuntimeMXBean.getName.hashCode
 			} catch {
-        // todo - better exception choice
+
 				case t: Throwable =>
 					// fallback
 					new java.util.Random().nextInt() 
@@ -156,10 +162,10 @@ object ObjectID extends StrictLogging {
 			val loaderID = if (loader != null) System.identityHashCode(loader) else 0
 			(pid.toHexString + loaderID.toHexString).hashCode & 0xFFFF
 		}
+
 		logger.trace(s"Generated ObjectID Process Piece: $processPiece")
 
-		logger.trace(s"Generated Machine ID for ObjectID: ${(machinePiece | processPiece).toHexString}")
-		machinePiece | processPiece
+		processPiece
 	}
 
 	def nextIncrement() = increment.getAndIncrement()
