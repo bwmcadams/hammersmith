@@ -40,11 +40,11 @@ trait BSONTestData extends StrictLogging {
 
   lazy val testSymbol = 'Foobar
 
-  lazy val testCode = BSONCode("108 * 5;")
+  lazy val testCode = null //BSONCode("108 * 5;")
 
-  lazy val testCodeWScope = BSONCodeWScope("return x * 500;", testDoc)
+  lazy val testCodeWScope = null // BSONCodeWScope("return x * 500;", testDoc)
 
-  lazy val testBin = BSONBinary("foobarbaz".getBytes())
+  lazy val testBin = BSONBinaryGeneric("foobarbaz".getBytes())
 
   lazy val testUUID = java.util.UUID.randomUUID()
 

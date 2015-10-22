@@ -237,7 +237,7 @@ trait BSONComposer[T] extends StrictLogging {
     case u: UUID =>
       composeBSONUUID(key, u)
     // todo MD5 support
-    case BSONBinary(bytes) =>
+    case BSONBinaryGeneric(bytes) =>
       composeBSONBinary(key, bytes, BSONBinaryType.Binary_Generic)
     case BSONBinaryUserDefined(bytes) =>
       composeBSONBinary(key, bytes, BSONBinaryType.Binary_UserDefined)
@@ -260,10 +260,10 @@ trait BSONComposer[T] extends StrictLogging {
     // Things we treat as a DBRef NOT as a deprecated DBPointer
     case d: DBRef => ??? // TODO - Uh, we should do something other than MethodNotImpemented here... Kind of important
     // Things we treat as JSCode
-    case code: BSONCode =>
+    case code: BSONJSCode =>
       composeBSONCode(key, code.code)
     // Things we treat as Scoped JSCode
-    case scoped: BSONCodeWScope =>
+    case scoped: BSONScopedJSCode =>
       composeBSONScopedCode(key, scoped.code, scoped.scope)
     // Things we treat as a Symbol
     case s: Symbol =>
@@ -331,7 +331,7 @@ trait BSONComposer[T] extends StrictLogging {
     len
   }
 
-  protected def composeBSONScopedCode(key: String, code: String, scope: Map[String, Any])(implicit b: ByteStringBuilder): Int = {
+  protected def composeBSONScopedCode(key: String, code: String, scope: BSONRawDocument /*Map[String, Any]*/)(implicit b: ByteStringBuilder): Int = {
     implicit val innerB = ByteString.newBuilder
     // type code
     b.putByte(BSONScopedJSCodeType.typeCode)
@@ -341,7 +341,8 @@ trait BSONComposer[T] extends StrictLogging {
     // code
     var len = 0 //type code doesn't count
     len += composeUTF8StringValue(code)(innerB)
-    len += composeBSONObject(None, scope.iterator)(innerB)
+    // todo - well, we won't need to use this again anytime soon but uncomment me and fix eventulaly
+    //len += composeBSONObject(None, scope.iterator)(innerB)
     len += 4 // (Itself)
     b.putInt(len) ++= innerB.result()
     totalLen += len // for outside, type code counts, + 4 for the internal length
