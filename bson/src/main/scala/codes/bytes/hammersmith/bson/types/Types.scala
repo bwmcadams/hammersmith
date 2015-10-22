@@ -21,6 +21,7 @@ import java.util.regex.Pattern
 
 import codes.bytes.hammersmith.bson.ObjectID
 import scodec.bits._
+import scodec.codecs._
 
 import scala.util.matching.Regex
 
@@ -34,6 +35,7 @@ import scala.util.matching.Regex
 
 sealed trait BSONTypeCompanion {
   def typeCode: Byte
+  def typeCodeConstant = constant(ByteVector(typeCode))
 }
 
 sealed trait BSONType {
@@ -90,6 +92,7 @@ object BSONBinary extends BSONTypeCompanion {
 sealed trait BSONBinaryTypeCompanion extends BSONTypeCompanion {
   val typeCode: Byte = 0x05
   def subTypeCode: Byte
+  def subTypeCodeConstant = constant(ByteVector(subTypeCode))
 }
 
 sealed trait BSONBinary extends BSONType
