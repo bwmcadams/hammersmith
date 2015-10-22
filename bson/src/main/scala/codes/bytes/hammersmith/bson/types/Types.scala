@@ -46,7 +46,7 @@ object BSONDouble extends BSONTypeCompanion {
   val typeCode: Byte = 0x01
 }
 
-case class BSONDouble(primitive: Double) extends AnyVal {
+case class BSONDouble(primitive: Double) extends BSONType {
   type Primitive = Double
   def primitiveValue = primitive
 }
