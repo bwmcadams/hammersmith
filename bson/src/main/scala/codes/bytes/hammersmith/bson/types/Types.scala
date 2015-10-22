@@ -20,6 +20,8 @@ package codes.bytes.hammersmith.bson.types
 import java.util.regex.Pattern
 
 import codes.bytes.hammersmith.bson.ObjectID
+import com.typesafe.scalalogging.StrictLogging
+import scodec.Codec
 import scodec.bits._
 import scodec.codecs._
 
@@ -44,13 +46,15 @@ sealed trait BSONType {
   // todo - the type class based support for working with converting to/from primitives flexibly
 }
 
+object BSONType {
+}
 object BSONDouble extends BSONTypeCompanion {
   val typeCode: Byte = 0x01
 }
 
-case class BSONDouble(primitive: Double) extends BSONType {
+case class BSONDouble(dbl: Double) extends BSONType {
   type Primitive = Double
-  def primitiveValue = primitive
+  def primitiveValue = dbl
 }
 
 object BSONString extends BSONTypeCompanion {
@@ -58,9 +62,9 @@ object BSONString extends BSONTypeCompanion {
 }
 
 // UTF8 string
-case class BSONString(primitive: String) extends BSONType {
+case class BSONString(str: String) extends BSONType {
   type Primitive = String
-  def primitiveValue = primitive
+  def primitiveValue = str
 }
 
 object BSONRawDocument extends BSONTypeCompanion {
@@ -68,18 +72,35 @@ object BSONRawDocument extends BSONTypeCompanion {
 }
 
 // I don't see forcibly converting it into a map as having any value, given how the primitives are deconstructed
-case class BSONRawDocument(primitive: Seq[(String, Any)]) extends BSONType {
-  type Primitive = Seq[(String, Any)]
-  def primitiveValue = primitive
+case class BSONRawDocument(entries: Vector[(String, BSONType)]) extends BSONType {
+  type Primitive = Vector[(String, BSONType)]
+  def primitiveValue = entries
 }
 
-object BSONRawArray extends BSONTypeCompanion {
+object BSONRawArray extends BSONTypeCompanion with StrictLogging {
   val typeCode: Byte = 0x04
+  def apply(entries: Vector[(String, BSONType)]): BSONRawArray = {
+    BSONRawArray(
+      entries.map { case (k, v) =>
+        val idx: Int = try {
+          k.toInt
+        } catch {
+          case nfe: NumberFormatException =>
+            logger.error("BSON Error: Typecode indicated array, but contains non-integer keys (indices)")
+            throw new IllegalArgumentException("BSON Error: Typecode indicated array, but contains non-integer keys (indices)")
+        }
+        idx -> v
+      } sortBy { case ((idx, value)) => idx } map (_._2)
+    )
+  }
 }
 
-case class BSONRawArray(primitive: Seq[Any]) extends BSONType {
-  type Primitive = Seq[Any]
-  def primitiveValue = primitive
+case class BSONRawArray(entries: Vector[BSONType]) extends BSONType {
+  // BSON Arrays are really docs with integer keys, but indexes (keys) are represented as strings...
+  type Primitive = Vector[(String, BSONType)]
+  def primitiveValue = entries.zipWithIndex.map { x =>
+    x._2.toString -> x._1
+  }
 }
 
 object BSONBinary extends BSONTypeCompanion {
@@ -106,8 +127,8 @@ object BSONBinaryGeneric extends BSONBinaryTypeCompanion {
   * TODO - Sort it out.
   * @param bytes
   */
-case class BSONBinaryGeneric(bytes: Array[Byte]) extends BSONBinary {
-  type Primitive = Array[Byte]
+case class BSONBinaryGeneric(bytes: ByteVector) extends BSONBinary {
+  type Primitive = ByteVector
   def primitiveValue = bytes
 }
 
@@ -116,8 +137,8 @@ object BSONBinaryFunction extends BSONBinaryTypeCompanion {
 }
 
 // note sure why anyone would need a binary function storage but the JS stuff Mongo has always supported is f-ing weird
-case class BSONBinaryFunction(bytes: Array[Byte]) extends BSONBinary {
-  type Primitive = Array[Byte]
+case class BSONBinaryFunction(bytes: ByteVector) extends BSONBinary {
+  type Primitive = ByteVector
   val primitiveValue = bytes
 }
 
@@ -126,8 +147,8 @@ object BSONBinaryOld extends BSONBinaryTypeCompanion {
   def subTypeCode: Byte = 0x02
 }
 
-case class BSONBinaryOld(bytes: Array[Byte]) extends BSONBinary {
-  type Primitive=  Array[Byte]
+case class BSONBinaryOld(bytes: ByteVector) extends BSONBinary {
+  type Primitive=  ByteVector
   val primitiveValue = bytes
 }
 
@@ -157,8 +178,8 @@ object BSONBinaryMD5 extends BSONBinaryTypeCompanion {
 }
 
 // todo - should these use BitVectors from SCodec instead?
-case class BSONBinaryMD5(bytes: Array[Byte]) extends BSONBinary {
-  type Primitive = Array[Byte]
+case class BSONBinaryMD5(bytes: ByteVector) extends BSONBinary {
+  type Primitive = ByteVector
   def primitiveValue = bytes
 }
 
@@ -167,8 +188,8 @@ object BSONBinaryUserDefined extends BSONBinaryTypeCompanion {
   def subTypeCode: Byte = 0x80.toByte
 }
 
-case class BSONBinaryUserDefined(bytes: Array[Byte]) extends BSONBinary {
-  type Primitive = Array[Byte]
+case class BSONBinaryUserDefined(bytes: ByteVector) extends BSONBinary {
+  type Primitive = ByteVector
   def primitiveValue = bytes
 }
 
