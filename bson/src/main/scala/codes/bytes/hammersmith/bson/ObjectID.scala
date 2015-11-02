@@ -100,14 +100,14 @@ object ObjectID extends StrictLogging {
 	def apply(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
 						machineID: Int = generatedMachineID,
 						increment: Int = nextIncrement(),
-						isNew: Boolean = false) = 
-		new ObjectID(timestamp, machineID, increment, isNew)
+						isNew: Boolean = false) =
+		new ObjectID(timestamp, machineID, 0, increment, isNew)
 
 
 	def apply(b: Array[Byte]) = {
 		require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
 		val buf = ByteBuffer.wrap(b)
-		new ObjectID(buf.getInt, buf.getInt, buf.getInt, false)
+		new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
 	}
 
 	def apply(s: String) = {
@@ -115,7 +115,7 @@ object ObjectID extends StrictLogging {
 		val bytes = new Array[Byte](12)
 		for (i <- 0 until 12) bytes(i) = Integer.parseInt(s.substring(i*2, i*2 + 2), 16).toByte
 		val buf = ByteBuffer.wrap(bytes)
-		new ObjectID(buf.getInt, buf.getInt, buf.getInt, false)
+		new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
 	}
 
 	private val increment = new AtomicInteger(new java.util.Random().nextInt())

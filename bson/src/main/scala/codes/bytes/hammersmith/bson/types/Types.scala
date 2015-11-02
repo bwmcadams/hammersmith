@@ -210,7 +210,7 @@ case object BSONObjectID extends BSONTypeCompanion {
 
 case class BSONObjectID(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
                         machineID: Int = ObjectID.generatedMachineID,
-                        processID: Int = ObjectID.
+                        processID: Int = ObjectID.generatedProcessID,
                         increment: Int = ObjectID.nextIncrement()) extends BSONType {
 
   type Primitive = BSONObjectID

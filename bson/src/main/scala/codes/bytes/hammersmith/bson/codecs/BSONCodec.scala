@@ -8,9 +8,11 @@ import scodec.{DecodeResult, Attempt, SizeBound, Codec}
 import scodec.bits._
 import scodec.codecs._
 import scodec.interop.spire._
-import spire.math.Interval
+import spire.algebra._   // provides algebraic type classes
+import spire.math._      // provides functions, types, and type classes
+import spire.implicits._ // provides infix operators, instances and conversions
 
-object BSONCodec extends Codec[BSONType] with StrictLogging {
+object BSONCodec extends StrictLogging {
 
   implicit val byteOrdering = ByteOrdering.LittleEndian
 
@@ -18,99 +20,94 @@ object BSONCodec extends Codec[BSONType] with StrictLogging {
 
   val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize - 1))
 
-  // todo - internal type vs. external
-  implicit val bsonDocument: Codec[BSONRawDocument] =
-    (int32 :: variableSizeBytes(bsonSizeHeader, BSONCodec, 4)).dropUnits.as[BSONRawDocument]
+  implicit val bsonCodec: Codec[(String, BSONType)] = {
+    implicit val bsonBinaryField: Codec[BSONBinary] =
+      (
+        BSONBinary.typeCodeConstant :: cstring ::
+          variableSizeBytes(bsonSizeHeader, BSONBinaryCodec)
+        ).dropUnits.as[BSONBinary]
 
-  // todo - internal type vs. external
-  implicit val bsonArray: Codec[BSONRawArray] =
-    (int32 :: variableSizeBytes(bsonSizeHeader, BSONCodec, 4)).dropUnits.as[BSONRawArray]
+    val bsonDoubleCodec: Codec[BSONDouble] = doubleL.as[BSONDouble]
+    val bsonStringCodec: Codec[BSONString] = utf8_32.as[BSONString]
+    val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
+      vector(bsonCodec)
+        .xmap(fields => BSONRawDocument(fields), doc => doc.primitiveValue)
+    }
 
-  implicit val bsonBinaryField: Codec[BSONBinary] =
-    (BSONBinary.typeCodeConstant :: cstring ::
-      variableSizeBytes(bsonSizeHeader, BSONBinaryCodec)
-    ).dropUnits.as[BSONBinary]
+    val bsonArrayCodec: Codec[BSONRawArray] = lazily {
+      vector(bsonCodec)
+        // TODO: Test me... all keys should be ints
+        .xmap(entries => BSONRawArray(entries), arr => arr.primitiveValue)
+    }
 
-  val bsonDoubleCodec: Codec[BSONDouble] = doubleL.as[BSONDouble]
-  val bsonStringCodec: Codec[BSONString] = utf8_32.as[BSONString]
-  val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
-    vector(cstring ~ BSONCodec)
-      .xmap(fields => BSONRawDocument(fields), doc => doc.primitiveValue)
-  }
+    val bsonBinaryGenericCodec: Codec[BSONBinaryGeneric] =
+      bytes.xmap(bytes => BSONBinaryGeneric(bytes), bin => bin.bytes)
 
-  val bsonArrayCodec: Codec[BSONRawArray] = lazily {
-    vector(cstring ~ BSONCodec)
-      // TODO: Test me... all keys should be ints
-      .xmap(entries => BSONRawArray(entries), arr => arr.primitiveValue)
-  }
+    val bsonBinaryFunctionCodec: Codec[BSONBinaryFunction] =
+      bytes.xmap(bytes => BSONBinaryFunction(bytes), bin => bin.bytes)
 
-  val bsonBinaryGenericCodec: Codec[BSONBinaryGeneric] =
-    bytes.xmap( bytes => BSONBinaryGeneric(bytes), bin => bin.bytes )
+    val bsonBinaryOldCodec: Codec[BSONBinaryOld] =
+      bytes.xmap(bytes => BSONBinaryOld(bytes), bin => bin.bytes)
 
-  val bsonBinaryFunctionCodec: Codec[BSONBinaryFunction] =
-    bytes.xmap( bytes => BSONBinaryFunction(bytes), bin => bin.bytes )
+    val bsonBinaryOldUUIDCodec: Codec[BSONBinaryOldUUID] = BSONOldUUIDCodec
 
-  val bsonBinaryOldCodec: Codec[BSONBinaryOld] =
-    bytes.xmap( bytes => BSONBinaryOld(bytes), bin => bin.bytes )
+    val bsonBinaryUUIDCodec: Codec[BSONBinaryUUID] = BSONNewUUIDCodec
 
-  val bsonBinaryOldUUIDCodec: Codec[BSONBinaryOldUUID] = BSONOldUUIDCodec
-  
-  val bsonBinaryUUIDCodec: Codec[BSONBinaryUUID] = BSONNewUUIDCodec
+    val bsonBinaryMD5Codec: Codec[BSONBinaryMD5] =
+      bytes.xmap(bytes => BSONBinaryMD5(bytes), bin => bin.bytes)
 
-  val bsonBinaryMD5Codec: Codec[BSONBinaryMD5] =
-    bytes.xmap( bytes => BSONBinaryMD5(bytes), bin => bin.bytes )
+    val bsonBinaryUserDefinedCodec: Codec[BSONBinaryUserDefined] =
+      bytes.xmap(bytes => BSONBinaryUserDefined(bytes), bin => bin.bytes)
 
-  val bsonBinaryUserDefinedCodec: Codec[BSONBinaryUserDefined] =
-    bytes.xmap( bytes => BSONBinaryUserDefined(bytes), bin => bin.bytes )
-  
-  val bsonBinaryCodec: Codec[BSONBinary] = lazily {
-    // determine bson subtype
-    discriminated[BSONBinary].by(uint8L).
-      typecase(BSONBinaryGeneric.subTypeCode,
-        variableSizeBytes(bsonSizeHeader, bsonBinaryGenericCodec, 4)
-      ).
-      typecase(BSONBinaryFunction.subTypeCode,
-        variableSizeBytes(bsonSizeHeader, bsonBinaryFunctionCodec, 4)
-      ).
-      typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
-        variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOldCodec, 4))
-      ).
-      typecase(BSONBinaryOldUUID.subTypeCode,
-        variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUIDCodec, 4)
-      ).
-      typecase(BSONBinaryUUID.subTypeCode,
-        variableSizeBytes(bsonSizeHeader, bsonBinaryUUIDCodec, 4)
-      ).
-      typecase(BSONBinaryMD5.subTypeCode,
-        variableSizeBytes(bsonSizeHeader, bsonBinaryMD5Codec, 4)
-      ).
-      typecase(BSONBinaryUserDefined.subTypeCode,
-        variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefinedCodec, 4)
+    val bsonBinaryCodec: Codec[BSONBinary] = lazily {
+      // determine bson subtype
+      discriminated[BSONBinary].by(uint8L).
+        typecase(BSONBinaryGeneric.subTypeCode,
+          variableSizeBytes(bsonSizeHeader, bsonBinaryGenericCodec, 4)
+        ).
+        typecase(BSONBinaryFunction.subTypeCode,
+          variableSizeBytes(bsonSizeHeader, bsonBinaryFunctionCodec, 4)
+        ).
+        typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
+          variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOldCodec, 4))
+        ).
+        typecase(BSONBinaryOldUUID.subTypeCode,
+          variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUIDCodec, 4)
+        ).
+        typecase(BSONBinaryUUID.subTypeCode,
+          variableSizeBytes(bsonSizeHeader, bsonBinaryUUIDCodec, 4)
+        ).
+        typecase(BSONBinaryMD5.subTypeCode,
+          variableSizeBytes(bsonSizeHeader, bsonBinaryMD5Codec, 4)
+        ).
+        typecase(BSONBinaryUserDefined.subTypeCode,
+          variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefinedCodec, 4)
+        )
+    }
+
+    // #s in OID are big endian. I love consistency.
+    val bsonObjectIDCodec: Codec[BSONObjectID] =
+      (int32 ~ int32 ~ int32).xmap[BSONObjectID](
+        { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
+        { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
       )
+
+
+    discriminated[(String, BSONType)].by(uint8).
+      typecase(BSONDouble.typeCode, cstring ~ bsonDoubleCodec).
+      typecase(BSONString.typeCode, cstring ~ bsonStringCodec).
+      typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
+      typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
+      typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
+        bsonSizeHeader, bsonBinaryCodec
+      )).
+      // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
+      typecase(BSONUndefined.typeCode, cstring ~ bytes.xmap(
+        bytes => BSONUndefined,
+        bin => ByteVector.empty
+      )).
+      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec)
   }
-
-  // #s in OID are big endian. I love consistency.
-  val bsonObjectIDCodec: Codec[BSONObjectID] =
-    (int32 ~ int32 ~ int32).xmap[BSONObjectID](
-      { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
-      { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
-    )
-
-
-  discriminated[(String, BSONType)].by(uint8).
-    typecase(BSONDouble.typeCode, cstring ~ bsonDoubleCodec).
-    typecase(BSONString.typeCode, cstring ~ bsonStringCodec).
-    typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
-    typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
-    typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
-      bsonSizeHeader, bsonBinaryCodec
-    )).
-    // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
-    typecase(BSONUndefined.typeCode, cstring ~ bytes.xmap(
-      bytes => BSONUndefined,
-      bin => ByteVector.empty
-    )).
-    typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec)
 
 }
 
@@ -170,9 +167,6 @@ object BSONBinaryCodec extends Codec[BSONBinary] {
 
   implicit val bsonBinaryUserDefined: Codec[BSONBinaryUserDefined] =
     (BSONBinaryUserDefined.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryUserDefined]
-
-  private val codec: Codec[BSONBinary] =
-    scodec.codecs.lazily { Codec.coproduct[BSONBinary].choice }
 
   override def decode(bits: BitVector) = codec.decode(bits)
 
