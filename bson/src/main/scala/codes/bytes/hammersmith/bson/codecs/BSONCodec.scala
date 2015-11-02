@@ -21,11 +21,13 @@ object BSONCodec extends StrictLogging {
   val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize - 1))
 
   implicit val bsonCodec: Codec[(String, BSONType)] = {
+/*
     implicit val bsonBinaryField: Codec[BSONBinary] =
       (
         BSONBinary.typeCodeConstant :: cstring ::
           variableSizeBytes(bsonSizeHeader, BSONBinaryCodec)
         ).dropUnits.as[BSONBinary]
+*/
 
     val bsonDoubleCodec: Codec[BSONDouble] = doubleL.as[BSONDouble]
     val bsonStringCodec: Codec[BSONString] = utf8_32.as[BSONString]
@@ -37,7 +39,7 @@ object BSONCodec extends StrictLogging {
     val bsonArrayCodec: Codec[BSONRawArray] = lazily {
       vector(bsonCodec)
         // TODO: Test me... all keys should be ints
-        .xmap(entries => BSONRawArray(entries), arr => arr.primitiveValue)
+        .xmap(entries => BSONRawArray.fromEntries(entries), arr => arr.primitiveValue)
     }
 
     val bsonBinaryGenericCodec: Codec[BSONBinaryGeneric] =
@@ -102,10 +104,7 @@ object BSONCodec extends StrictLogging {
         bsonSizeHeader, bsonBinaryCodec
       )).
       // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
-      typecase(BSONUndefined.typeCode, cstring ~ bytes.xmap(
-        bytes => BSONUndefined,
-        bin => ByteVector.empty
-      )).
+      typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
       typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec)
   }
 
@@ -146,7 +145,7 @@ object BSONNewUUIDCodec extends Codec[BSONBinaryUUID]{
   override def toString = "uuid"
 }
 
-object BSONBinaryCodec extends Codec[BSONBinary] {
+/*object BSONBinaryCodec extends Codec[BSONBinary] {
   implicit val bsonBinaryGeneric: Codec[BSONBinaryGeneric] =
     (BSONBinaryGeneric.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryGeneric]
 
@@ -174,4 +173,4 @@ object BSONBinaryCodec extends Codec[BSONBinary] {
 
   override def sizeBound: SizeBound = codec.sizeBound
 
-}
+}*/

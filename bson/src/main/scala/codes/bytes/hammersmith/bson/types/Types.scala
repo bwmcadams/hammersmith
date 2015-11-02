@@ -79,7 +79,7 @@ case class BSONRawDocument(entries: Vector[(String, BSONType)]) extends BSONType
 
 object BSONRawArray extends BSONTypeCompanion with StrictLogging {
   val typeCode: Byte = 0x04
-  def apply(entries: Vector[(String, BSONType)]): BSONRawArray = {
+  def fromEntries(entries: Vector[(String, BSONType)]): BSONRawArray = {
     BSONRawArray(
       entries.map { case (k, v) =>
         val idx: Int = try {
@@ -121,11 +121,16 @@ sealed trait BSONBinary extends BSONType
 
 object BSONBinaryGeneric extends BSONBinaryTypeCompanion {
   val subTypeCode: Byte = 0x00
+
+  /**
+    * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
+    */
+  def apply(bytes: Array[Byte]): BSONBinaryGeneric = apply(ByteVector(bytes))
 }
+
 
 /** Technically anything that ISN'T A user Defined (0x80+) would fit in generic...
   * TODO - Sort it out.
-  * @param bytes
   */
 case class BSONBinaryGeneric(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
@@ -134,6 +139,10 @@ case class BSONBinaryGeneric(bytes: ByteVector) extends BSONBinary {
 
 object BSONBinaryFunction extends BSONBinaryTypeCompanion {
   val subTypeCode: Byte = 0x01
+  /**
+    * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
+    */
+  def apply(bytes: Array[Byte]): BSONBinaryFunction = apply(ByteVector(bytes))
 }
 
 // note sure why anyone would need a binary function storage but the JS stuff Mongo has always supported is f-ing weird
@@ -145,6 +154,10 @@ case class BSONBinaryFunction(bytes: ByteVector) extends BSONBinary {
 object BSONBinaryOld extends BSONBinaryTypeCompanion {
   // encoded with an int32 length at beginning
   def subTypeCode: Byte = 0x02
+  /**
+    * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
+    */
+  def apply(bytes: Array[Byte]): BSONBinaryOld = apply(ByteVector(bytes))
 }
 
 case class BSONBinaryOld(bytes: ByteVector) extends BSONBinary {
@@ -177,6 +190,10 @@ final case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) e
 
 object BSONBinaryMD5 extends BSONBinaryTypeCompanion {
   def subTypeCode: Byte = 0x05
+  /**
+    * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
+    */
+  def apply(bytes: Array[Byte]): BSONBinaryMD5 = apply(ByteVector(bytes))
 }
 
 // todo - should these use BitVectors from SCodec instead?
@@ -188,6 +205,10 @@ case class BSONBinaryMD5(bytes: ByteVector) extends BSONBinary {
 object BSONBinaryUserDefined extends BSONBinaryTypeCompanion {
   // TODO - *technically* user defined can by >= 0x80 ... we need to sort that out.
   def subTypeCode: Byte = 0x80.toByte
+  /**
+    * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
+    */
+  def apply(bytes: Array[Byte]): BSONBinaryUserDefined = apply(ByteVector(bytes))
 }
 
 case class BSONBinaryUserDefined(bytes: ByteVector) extends BSONBinary {

@@ -239,11 +239,13 @@ object BSONBinaryType extends BSONType with StrictLogging {
             throw new BSONParsingException("Invalid MD5 Length in Binary. Expected 16, got " + _binLen)
           // TODO - parse MD5
           Some((name, BSONBinaryMD5(bin)))
+          /*
         case Binary_Generic | Binary_Old =>
           Some((name, BSONBinaryGeneric(bin)))
         case Binary_UserDefined =>
           Some((name, BSONBinaryUserDefined(bin)))
-        case other => 
+          */
+        case other =>
           Some((name, BSONBinaryUserDefined(bin)))
       }
     } else None 
@@ -260,7 +262,7 @@ object BSONObjectIDType extends BSONType {
       val timestamp = frame.getInt(bigEndian)
       val machineID = frame.getInt(bigEndian)
       val increment = frame.getInt(bigEndian)
-      val oid = ObjectID(timestamp, machineID, increment, false)
+      val oid = ObjectID(timestamp, machineID, increment, isNew = false)
       logger.trace(s"Parsed out an ObjectID in '$name' from BSON '$oid'")
       Some(name, oid)
     } else None
@@ -353,7 +355,7 @@ object BSONDBPointerType extends BSONType {
       val timestamp = frame.getInt
       val machineID = frame.getInt
       val increment = frame.getInt
-      Some((name, DBRef(namespace, ObjectID(timestamp, machineID, increment, false))))
+      Some((name, DBRef(namespace, ObjectID(timestamp, machineID, increment, isNew = false))))
     } else None
 
 }

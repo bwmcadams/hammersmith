@@ -238,9 +238,9 @@ trait BSONComposer[T] extends StrictLogging {
       composeBSONUUID(key, u)
     // todo MD5 support
     case BSONBinaryGeneric(bytes) =>
-      composeBSONBinary(key, bytes, BSONBinaryType.Binary_Generic)
+      composeBSONBinary(key, bytes.toArray, BSONBinaryType.Binary_Generic)
     case BSONBinaryUserDefined(bytes) =>
-      composeBSONBinary(key, bytes, BSONBinaryType.Binary_UserDefined)
+      composeBSONBinary(key, bytes.toArray, BSONBinaryType.Binary_UserDefined)
     // Things we treat as ObjectID
     case oid: ObjectID =>
       composeBSONObjectID(key, oid)
