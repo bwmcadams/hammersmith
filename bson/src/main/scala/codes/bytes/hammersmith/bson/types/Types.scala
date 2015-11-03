@@ -241,7 +241,7 @@ case class BSONObjectID(timestamp: Int = (System.currentTimeMillis() / 1000).toI
 }
 
 sealed trait BSONBooleanCompanion extends BSONTypeCompanion {
-  val typeCode: Byte = 0x08
+  val typeCode: Byte = BSONBoolean.typeCode
   def subTypeCode: Byte
 }
 
@@ -249,7 +249,14 @@ sealed trait BSONBoolean extends BSONType {
   def booleanValue: Boolean
 }
 
-case object BSONBooleanTrue extends BSONBooleanCompanion with BSONType {
+
+// todo - unfuck me
+object BSONBoolean extends BSONTypeCompanion {
+  val typeCode: Byte = 0x08
+}
+
+
+case object BSONBooleanTrue extends BSONBooleanCompanion with BSONBoolean {
   def subTypeCode: Byte = 0x00
   val booleanValue = true
   type Primitive = Boolean
@@ -257,7 +264,7 @@ case object BSONBooleanTrue extends BSONBooleanCompanion with BSONType {
   def primitiveValue = true
 }
 
-case object BSONBooleanFalse extends BSONBooleanCompanion with BSONType {
+case object BSONBooleanFalse extends BSONBooleanCompanion with BSONBoolean {
   def subTypeCode: Byte = 0x01
   val booleanValue = false
   type Primitive = Boolean
@@ -265,11 +272,11 @@ case object BSONBooleanFalse extends BSONBooleanCompanion with BSONType {
   def primitiveValue = false
 }
 
-object BSONDateTime extends BSONTypeCompanion {
+object BSONUTCDateTime extends BSONTypeCompanion {
   def typeCode: Byte = 0x09
 }
 
-case class BSONDateTime(epoch: Long) extends BSONType {
+case class BSONUTCDateTime(epoch: Long) extends BSONType {
   type Primitive = Long
 
   def primitiveValue = epoch

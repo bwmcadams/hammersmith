@@ -12,6 +12,7 @@ import spire.algebra._   // provides algebraic type classes
 import spire.math._      // provides functions, types, and type classes
 import spire.implicits._ // provides infix operators, instances and conversions
 
+// TODO - Check all our endianness corner cases becasue BSON is Crazytown Bananapants with endian consistency.
 object BSONCodec extends StrictLogging {
 
   implicit val byteOrdering = ByteOrdering.LittleEndian
@@ -31,6 +32,7 @@ object BSONCodec extends StrictLogging {
 
     val bsonDoubleCodec: Codec[BSONDouble] = doubleL.as[BSONDouble]
     val bsonStringCodec: Codec[BSONString] = utf8_32.as[BSONString]
+
     val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
       vector(bsonCodec)
         .xmap(fields => BSONRawDocument(fields), doc => doc.primitiveValue)
@@ -94,8 +96,30 @@ object BSONCodec extends StrictLogging {
         { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
       )
 
+    val bsonBooleanCodec: Codec[BSONBoolean] = lazily {
+      // determine bson subtype
+      discriminated[BSONBoolean].by(uint8L).
+        typecase(BSONBooleanTrue.subTypeCode, provide(BSONBooleanTrue)).
+        typecase(BSONBooleanFalse.subTypeCode, provide(BSONBooleanFalse))
+    }
 
-    discriminated[(String, BSONType)].by(uint8).
+
+/*    val bsonBooleanCodec: Codec[BSONBoolean] =
+      (uint8L).xmap[BSONBoolean]({
+        case BSONBooleanTrue.subTypeCode => BSONBooleanTrue
+        case BSONBooleanFalse.subTypeCode => BSONBooleanFalse
+      },
+        { bool =>
+          )*/
+
+    val bsonUTCDateTimeCodec: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
+
+    val bsonRegexCodec: Codec[BSONRegex] = (cstring ~ cstring).xmap[BSONRegex](
+      { case (pattern, options) => BSONRegex(pattern, options) },
+      { case BSONRegex(pattern, options) => (pattern, options) }
+    )
+
+    discriminated[(String, BSONType)].by(uint8L).
       typecase(BSONDouble.typeCode, cstring ~ bsonDoubleCodec).
       typecase(BSONString.typeCode, cstring ~ bsonStringCodec).
       typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
@@ -105,7 +129,12 @@ object BSONCodec extends StrictLogging {
       )).
       // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
       typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
-      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec)
+      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec). // todo make me not suck
+      typecase(BSONBoolean.typeCode, cstring ~ bsonBooleanCodec).
+      typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTimeCodec).
+      typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
+      typecase(BSONRegex.typeCode, cstring ~ bsonRegexCodec)/*.
+      typecase(BSONDBPointer.typeCode, cstring ~ ^)*/
   }
 
 }
