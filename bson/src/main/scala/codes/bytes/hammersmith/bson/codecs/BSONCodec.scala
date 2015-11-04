@@ -22,119 +22,114 @@ object BSONCodec extends StrictLogging {
   val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize - 1))
 
   implicit val bsonCodec: Codec[(String, BSONType)] = {
-/*
-    implicit val bsonBinaryField: Codec[BSONBinary] =
-      (
-        BSONBinary.typeCodeConstant :: cstring ::
-          variableSizeBytes(bsonSizeHeader, BSONBinaryCodec)
-        ).dropUnits.as[BSONBinary]
-*/
 
-    val bsonDoubleCodec: Codec[BSONDouble] = doubleL.as[BSONDouble]
-    val bsonStringCodec: Codec[BSONString] = utf8_32.as[BSONString]
+    val bsonDouble: Codec[BSONDouble] = doubleL.as[BSONDouble]
+    val bsonString: Codec[BSONString] = utf8_32.as[BSONString]
 
-    val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
+    val bsonDocument: Codec[BSONRawDocument] = lazily {
       vector(bsonCodec)
         .xmap(fields => BSONRawDocument(fields), doc => doc.primitiveValue)
-    }
+    } // todo - can we .as this instead?
 
-    val bsonArrayCodec: Codec[BSONRawArray] = lazily {
+    val bsonArray: Codec[BSONRawArray] = lazily {
       vector(bsonCodec)
         // TODO: Test me... all keys should be ints
         .xmap(entries => BSONRawArray.fromEntries(entries), arr => arr.primitiveValue)
-    }
+    } // todo - can we .as this instead?
 
-    val bsonBinaryGenericCodec: Codec[BSONBinaryGeneric] =
-      bytes.xmap(bytes => BSONBinaryGeneric(bytes), bin => bin.bytes)
+    val bsonBinaryGeneric: Codec[BSONBinaryGeneric] = bytes.as[BSONBinaryGeneric]
+      // bytes.xmap(bytes => BSONBinaryGeneric(bytes), bin => bin.bytes)
 
-    val bsonBinaryFunctionCodec: Codec[BSONBinaryFunction] =
-      bytes.xmap(bytes => BSONBinaryFunction(bytes), bin => bin.bytes)
+    val bsonBinaryFunction: Codec[BSONBinaryFunction] = bytes.as[BSONBinaryFunction]
+      //bytes.xmap(bytes => BSONBinaryFunction(bytes), bin => bin.bytes)
 
-    val bsonBinaryOldCodec: Codec[BSONBinaryOld] =
-      bytes.xmap(bytes => BSONBinaryOld(bytes), bin => bin.bytes)
+    val bsonBinaryOld: Codec[BSONBinaryOld] = bytes.as[BSONBinaryOld]
+      //bytes.xmap(bytes => BSONBinaryOld(bytes), bin => bin.bytes)
 
-    val bsonBinaryOldUUIDCodec: Codec[BSONBinaryOldUUID] = BSONOldUUIDCodec
+    val bsonBinaryOldUUID: Codec[BSONBinaryOldUUID] = BSONOldUUIDCodec
 
-    val bsonBinaryUUIDCodec: Codec[BSONBinaryUUID] = BSONNewUUIDCodec
+    val bsonBinaryUUID: Codec[BSONBinaryUUID] = BSONNewUUIDCodec
 
-    val bsonBinaryMD5Codec: Codec[BSONBinaryMD5] =
-      bytes.xmap(bytes => BSONBinaryMD5(bytes), bin => bin.bytes)
+    val bsonBinaryMD5: Codec[BSONBinaryMD5] = bytes.as[BSONBinaryMD5]
+      //bytes.xmap(bytes => BSONBinaryMD5(bytes), bin => bin.bytes)
 
-    val bsonBinaryUserDefinedCodec: Codec[BSONBinaryUserDefined] =
-      bytes.xmap(bytes => BSONBinaryUserDefined(bytes), bin => bin.bytes)
+    val bsonBinaryUserDefined: Codec[BSONBinaryUserDefined] = bytes.as[BSONBinaryUserDefined]
+      //bytes.xmap(bytes => BSONBinaryUserDefined(bytes), bin => bin.bytes)
 
-    val bsonBinaryCodec: Codec[BSONBinary] = lazily {
+    val bsonBinary: Codec[BSONBinary] = lazily {
       // determine bson subtype
       discriminated[BSONBinary].by(uint8L).
         typecase(BSONBinaryGeneric.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryGenericCodec, 4)
+          variableSizeBytes(bsonSizeHeader, bsonBinaryGeneric, 4)
         ).
         typecase(BSONBinaryFunction.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryFunctionCodec, 4)
+          variableSizeBytes(bsonSizeHeader, bsonBinaryFunction, 4)
         ).
         typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
-          variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOldCodec, 4))
+          variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOld, 4))
         ).
         typecase(BSONBinaryOldUUID.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUIDCodec, 4)
+          variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUID, 4)
         ).
         typecase(BSONBinaryUUID.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryUUIDCodec, 4)
+          variableSizeBytes(bsonSizeHeader, bsonBinaryUUID, 4)
         ).
         typecase(BSONBinaryMD5.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryMD5Codec, 4)
+          variableSizeBytes(bsonSizeHeader, bsonBinaryMD5, 4)
         ).
         typecase(BSONBinaryUserDefined.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefinedCodec, 4)
+          variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefined, 4)
         )
     }
 
     // #s in OID are big endian. I love consistency.
-    val bsonObjectIDCodec: Codec[BSONObjectID] =
+    val bsonObjectID: Codec[BSONObjectID] =
       (int32 ~ int32 ~ int32).xmap[BSONObjectID](
         { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
         { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
       )
 
-    val bsonBooleanCodec: Codec[BSONBoolean] = lazily {
+    val bsonBoolean: Codec[BSONBoolean] = lazily {
       // determine bson subtype
       discriminated[BSONBoolean].by(uint8L).
         typecase(BSONBooleanTrue.subTypeCode, provide(BSONBooleanTrue)).
         typecase(BSONBooleanFalse.subTypeCode, provide(BSONBooleanFalse))
     }
 
+    val bsonUTCDateTime: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
 
-/*    val bsonBooleanCodec: Codec[BSONBoolean] =
-      (uint8L).xmap[BSONBoolean]({
-        case BSONBooleanTrue.subTypeCode => BSONBooleanTrue
-        case BSONBooleanFalse.subTypeCode => BSONBooleanFalse
-      },
-        { bool =>
-          )*/
+    val bsonRegex: Codec[BSONRegex] = (cstring ~ cstring).as[BSONRegex] // todo - check if this translates cleanly the case class
 
-    val bsonUTCDateTimeCodec: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
-
-    val bsonRegexCodec: Codec[BSONRegex] = (cstring ~ cstring).xmap[BSONRegex](
+      /*.xmap[BSONRegex](
       { case (pattern, options) => BSONRegex(pattern, options) },
       { case BSONRegex(pattern, options) => (pattern, options) }
-    )
+    )*/
+
+    val bsonDBPointer: Codec[BSONDBPointer] =
+      (utf8 ~ bsonObjectID).as[BSONDBPointer] // todo - check if this translates cleanly the case class
+
+    val bsonJSCode: Codec[BSONJSCode] = (utf8).as[BSONJSCode]
+
+    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8).as[BSONScopedJSCode]
 
     discriminated[(String, BSONType)].by(uint8L).
-      typecase(BSONDouble.typeCode, cstring ~ bsonDoubleCodec).
-      typecase(BSONString.typeCode, cstring ~ bsonStringCodec).
-      typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
-      typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
+      typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
+      typecase(BSONString.typeCode, cstring ~ bsonString).
+      typecase(BSONRawDocument.typeCode, cstring ~ bsonDocument).
+      typecase(BSONRawArray.typeCode, cstring ~ bsonArray).
       typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
-        bsonSizeHeader, bsonBinaryCodec
+        bsonSizeHeader, bsonBinary
       )).
       // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
       typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
-      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectIDCodec). // todo make me not suck
-      typecase(BSONBoolean.typeCode, cstring ~ bsonBooleanCodec).
-      typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTimeCodec).
+      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID). // todo make me not suck
+      typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
+      typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
       typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
-      typecase(BSONRegex.typeCode, cstring ~ bsonRegexCodec)/*.
-      typecase(BSONDBPointer.typeCode, cstring ~ ^)*/
+      typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
+      typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
+      typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
+      typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode)
   }
 
 }
