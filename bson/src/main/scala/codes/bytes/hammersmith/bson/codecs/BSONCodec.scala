@@ -1,18 +1,16 @@
 package codes.bytes.hammersmith.bson.codecs
 
-import java.util.UUID
-
 import codes.bytes.hammersmith.bson.types._
 import com.typesafe.scalalogging.StrictLogging
-import scodec.{DecodeResult, Attempt, SizeBound, Codec}
 import scodec.bits._
 import scodec.codecs._
 import scodec.interop.spire._
-import spire.algebra._   // provides algebraic type classes
-import spire.math._      // provides functions, types, and type classes
-import spire.implicits._ // provides infix operators, instances and conversions
+import scodec.{Attempt, Codec}
+import spire.implicits._
+import spire.math._ // provides infix operators, instances and conversions
 
 // TODO - Check all our endianness corner cases becasue BSON is Crazytown Bananapants with endian consistency.
+// TODO - Finish ScalaDoc
 object BSONCodec extends StrictLogging {
 
   implicit val byteOrdering = ByteOrdering.LittleEndian
@@ -29,48 +27,86 @@ object BSONCodec extends StrictLogging {
       * - Little Endian encoded
       * - 8 bytes (64-bit IEEE 754-2008 binary floating point)
       *
-      * @group
+      * @group bsonTypeCodec
       * @see http://bsonspec.org
       */
     val bsonDouble: Codec[BSONDouble] = doubleL.as[BSONDouble]
+
+    /**
+      * BSON String
+      *
+      * - Little Endian encoded
+      * - UTF8 with int32 length header
+      *
+      * @group bsonTypeCodec
+      * @see http://bsonspec.org
+      */
     val bsonString: Codec[BSONString] = utf8_32L.as[BSONString]
 
+    /**
+      * BSON Document
+      *
+      * This is, fundamentally, the core type of BSON. But BSON Docs can contain docs as fields;
+      * note we recurse against the parent codec.
+      *
+      * @group bsonTypeCodec
+      * @see http://bsonspec.org
+      */
     val bsonDocument: Codec[BSONRawDocument] = lazily {
-      // `as` doesn't seem to work with the vector piece
       vector(bsonCodec).xmap(
         { fields => BSONRawDocument(fields) },
         { doc => doc.primitiveValue }
       )
     }
 
-    // TODO: Test me... all keys should be ints
+
+    /**
+      * BSON Array
+      *
+      * Technically a standard BSON Document with integer keys
+      * - indexed from 0
+      * - sequential
+      *
+      * TODO: Test me... all keys should be ints
+      *
+      * @group bsonTypeCodec
+      * @see http://bsonspec.org
+      */
     val bsonArray: Codec[BSONRawArray] = lazily {
-      // `as` doesn't seem to work with the vector piece
       vector(bsonCodec).xmap(
         { entries => BSONRawArray.fromEntries(entries) },
         { arr => arr.primitiveValue }
       )
     }
 
+    /**
+      * BSON Binary Subtype for “Generic” binary.
+      */
     val bsonBinaryGeneric: Codec[BSONBinaryGeneric] = bytes.as[BSONBinaryGeneric]
-      // bytes.xmap(bytes => BSONBinaryGeneric(bytes), bin => bin.bytes)
 
     val bsonBinaryFunction: Codec[BSONBinaryFunction] = bytes.as[BSONBinaryFunction]
-      //bytes.xmap(bytes => BSONBinaryFunction(bytes), bin => bin.bytes)
 
     val bsonBinaryOld: Codec[BSONBinaryOld] = bytes.as[BSONBinaryOld]
-      //bytes.xmap(bytes => BSONBinaryOld(bytes), bin => bin.bytes)
 
     val bsonBinaryOldUUID: Codec[BSONBinaryOldUUID] = BSONOldUUIDCodec
 
     val bsonBinaryUUID: Codec[BSONBinaryUUID] = BSONNewUUIDCodec
 
     val bsonBinaryMD5: Codec[BSONBinaryMD5] = bytes.as[BSONBinaryMD5]
-      //bytes.xmap(bytes => BSONBinaryMD5(bytes), bin => bin.bytes)
 
     val bsonBinaryUserDefined: Codec[BSONBinaryUserDefined] = bytes.as[BSONBinaryUserDefined]
-      //bytes.xmap(bytes => BSONBinaryUserDefined(bytes), bin => bin.bytes)
 
+    /**
+      * Binary data, with special subtypes.
+      *
+      * - Int32 prefix of length
+      * - Byte Array
+      *
+      * TODO: Support full range of user subtypes, which can be 128-255, rather than just 255
+      *
+      * @group bsonTypeCodec
+      * @see http://bsonspec.org
+      */
     val bsonBinary: Codec[BSONBinary] = lazily {
       // determine bson subtype
       discriminated[BSONBinary].by(uint8L).
@@ -98,20 +134,36 @@ object BSONCodec extends StrictLogging {
     }
 
     /**
-     * Some #s in OID are big endian, unlike rest of BSON is supposd to be (little end.).
-     * [bwm: I love consistency!]
-     *
-     * Some of the pieces are simply broken into bytes here to let the deeper AST decode/encode
-     * its crazytown bananapants quasi-ints.
-     *
-     * @see https://docs.mongodb.org/manual/reference/object-id/
-     * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
-     * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
-     */
-    val bsonObjectID: Codec[BSONObjectID] = (int32 ~ bytes(5) ~ uint32).xmap[BSONObjectID](
-      { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
-      { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
-    )
+      * Some #s in OID are big endian, unlike rest of BSON is supposd to be (little end.).
+      * [bwm: I love consistency!]
+      *
+      * The pieces are simply weird here including 3 byte unsigned, big endian integers
+      * its crazytown bananapants quasi-ints.
+      *
+      * From Mongo Server Doc:
+      * {{{
+      *               4 byte timestamp    5 byte process unique   3 byte counter
+      *             |<----------------->|<---------------------->|<------------->
+      * OID layout: [----|----|----|----|----|----|----|----|----|----|----|----]
+      *             0                   4                   8                   12
+      * }}}
+      *
+      * - Timestamp is a 4 byte signed int32, encoded as Big Endian
+      * - “Process Unique” is 2 sections
+      *   + Machine Identifier is an int32 composed of 3 Low Order (Per Spec: Little Endian Bytes)
+      *   + Process Identifier is a short (composed of 2 Low Order (Per Spec: Little Endian Bytes)
+      *   % The Java Driver seems to ignore this and stores process-unique in BE.
+      *   % Other drivers like Python seem to ignore spec, too.
+      * - Counter / Increment is a 3 byte counter to prevent races against tsp/mid/pid
+      *
+      * @note There's no value I know of in exposing the actual pieces of an ObjectID in user code... so we
+      *       read & write as the raw binary value. Generation of new OIDs will hide those pieces too.
+      *
+      * @see https://docs.mongodb.org/manual/reference/object-id/
+      * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
+      * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
+      */
+    val bsonObjectID: Codec[BSONObjectID] = (bytes(12)).as[BSONObjectID]
 
     val bsonBoolean: Codec[BSONBoolean] = lazily {
       // determine bson subtype
@@ -144,7 +196,7 @@ object BSONCodec extends StrictLogging {
 
     val bsonLong: Codec[BSONLong] = (int64L).as[BSONLong]
 
-    val bsonTimestamp: Codec[BSONTimestamp] = (int64).as[BSONTimestamp]
+    val bsonTimestamp: Codec[BSONTimestamp] = (int32L :: int32L).as[BSONTimestamp]
 
     /**
       * Codec for decoding and encoding between BSON Documents, all valid inner types, and our internal AST
@@ -214,32 +266,3 @@ object BSONNewUUIDCodec extends Codec[BSONBinaryUUID]{
   override def toString = "uuid"
 }
 
-/*object BSONBinaryCodec extends Codec[BSONBinary] {
-  implicit val bsonBinaryGeneric: Codec[BSONBinaryGeneric] =
-    (BSONBinaryGeneric.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryGeneric]
-
-  implicit val bsonBinaryFunction: Codec[BSONBinaryFunction] =
-    (BSONBinaryFunction.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryFunction]
-
-  implicit val bsonBinaryOld: Codec[BSONBinaryOld] =
-    (BSONBinaryOld.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryOld]
-
-  implicit val bsonBinaryOldUUID: Codec[BSONBinaryOldUUID] =
-    (BSONBinaryOldUUID.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryOldUUID]
-
-  implicit val bsonBinaryUUID: Codec[BSONBinaryUUID] =
-    (BSONBinaryUUID.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryUUID]
-
-  implicit val bsonBinaryMD5: Codec[BSONBinaryMD5] =
-    (BSONBinaryMD5.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryMD5]
-
-  implicit val bsonBinaryUserDefined: Codec[BSONBinaryUserDefined] =
-    (BSONBinaryUserDefined.subTypeCodeConstant :: bytes).dropUnits.as[BSONBinaryUserDefined]
-
-  override def decode(bits: BitVector) = codec.decode(bits)
-
-  override def encode(value: BSONBinary) = codec.encode(value)
-
-  override def sizeBound: SizeBound = codec.sizeBound
-
-}*/

@@ -17,15 +17,10 @@
 
 package codes.bytes.hammersmith.bson.types
 
-import java.util.regex.Pattern
-
 import codes.bytes.hammersmith.bson.ObjectID
 import com.typesafe.scalalogging.StrictLogging
-import scodec.Codec
 import scodec.bits._
 import scodec.codecs._
-
-import scala.util.matching.Regex
 
 /*
  * Roughly, this is an ADT representing an AST for BSON.
@@ -46,8 +41,9 @@ sealed trait BSONType {
   // todo - the type class based support for working with converting to/from primitives flexibly
 }
 
-object BSONType {
-}
+object BSONType { }
+
+
 object BSONDouble extends BSONTypeCompanion {
   val typeCode: Byte = 0x01
 }
@@ -225,30 +221,53 @@ case object BSONUndefined extends BSONType with BSONTypeCompanion {
   def primitiveValue = None
 }
 
+
+
+
 case object BSONObjectID extends BSONTypeCompanion {
   val typeCode: Byte = 0x07
+
+
+
+
 }
 
-
 /**
-  * Object IDs have some odd pieces which we can't decode entirely sanely in scodec...
+  * Some #s in OID are big endian, unlike rest of BSON is supposd to be (little end.).
+  * [bwm: I love consistency!]
   *
-  * Some of the pieces are simply broken into bytes here to let the deeper AST decode/encode
+  * The pieces are simply weird here including 3 byte unsigned, big endian integers
   * its crazytown bananapants quasi-ints.
+  *
+  * From Mongo Server Doc:
+  * {{{
+  *               4 byte timestamp    5 byte process unique   3 byte counter
+  *             |<----------------->|<---------------------->|<------------->
+  * OID layout: [----|----|----|----|----|----|----|----|----|----|----|----]
+  *             0                   4                   8                   12
+  * }}}
+  *
+  * - Timestamp is a 4 byte signed int32, encoded as Big Endian
+  * - “Process Unique” is 2 sections
+  *   + Machine Identifier is an int32 composed of 3 Low Order (Per Spec: Little Endian Bytes)
+  *   + Process Identifier is a short (composed of 2 Low Order (Per Spec: Little Endian Bytes)
+  *   % The Java Driver seems to ignore this and stores process-unique in BE.
+  *   % Other drivers like Python seem to ignore spec, too.
+  * - Counter / Increment is a 3 byte counter to prevent races against tsp/mid/pid
+  *
+  * @note There's no value I know of in exposing the actual pieces of an ObjectID in user code... so we
+  *       read & write as the raw binary value. Generation of new OIDs will hide those pieces too.
   *
   * @see https://docs.mongodb.org/manual/reference/object-id/
   * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
   * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
   */
-case class BSONObjectID(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
-                        machineID: Int = ObjectID.generatedMachineID,
-                        processID: Int = ObjectID.generatedProcessID,
-                        increment: Int = ObjectID.nextIncrement()) extends BSONType {
-
+case class BSONObjectID(bytes: ByteVector) extends BSONType {
   type Primitive = BSONObjectID
 
-  def primitiveValue: Primitive = this
+  val primitiveValue: Primitive = this
 
+  // todo: to ObjectID
 }
 
 sealed trait BSONBooleanCompanion extends BSONTypeCompanion {
@@ -268,23 +287,23 @@ object BSONBoolean extends BSONTypeCompanion {
 
 
 case object BSONBooleanTrue extends BSONBooleanCompanion with BSONBoolean {
-  def subTypeCode: Byte = 0x00
+  val subTypeCode: Byte = 0x00
   val booleanValue = true
   type Primitive = Boolean
 
-  def primitiveValue = true
+  val primitiveValue = true
 }
 
 case object BSONBooleanFalse extends BSONBooleanCompanion with BSONBoolean {
-  def subTypeCode: Byte = 0x01
+  val subTypeCode: Byte = 0x01
   val booleanValue = false
   type Primitive = Boolean
 
-  def primitiveValue = false
+  val primitiveValue = false
 }
 
 object BSONUTCDateTime extends BSONTypeCompanion {
-  def typeCode: Byte = 0x09
+  val typeCode: Byte = 0x09
 }
 
 case class BSONUTCDateTime(epoch: Long) extends BSONType {
@@ -306,54 +325,13 @@ case object BSONNull extends BSONType with BSONTypeCompanion {
 
 object BSONRegex extends BSONTypeCompanion {
   val typeCode: Byte = 0x0B
-  
-  sealed case class BSONRegexFlag(javaCode: Int, charCode: Char) {
-
-    // options == string, flags == int
-    def apply(pattern: String, options: String): BSONRegex =
-      BSONRegex("(?%s)%s".format(options, pattern))
-
-  }
-
-  def optionsFromFlags(flags: Int): String = {
-    val buf = StringBuilder.newBuilder
-    var _flags = flags
-
-    for (flag <- Flags) {
-      if ((_flags & flag.javaCode) > 0) {
-        buf += flag.charCode
-        _flags -= flag.javaCode
-      }
-    }
-    buf.result()
-  }
-
-  val CanonEq = BSONRegexFlag(Pattern.CANON_EQ, 'c')
-  val UnixLines = BSONRegexFlag(Pattern.UNIX_LINES, 'd')
-  val Global = BSONRegexFlag(256, 'g')
-  val CaseInsensitive = BSONRegexFlag(Pattern.CASE_INSENSITIVE, 'i')
-  val Multiline = BSONRegexFlag(Pattern.MULTILINE, 'm')
-  val DotAll = BSONRegexFlag(Pattern.DOTALL, 's')
-  val Literal = BSONRegexFlag(Pattern.LITERAL, 't')
-  val UnicodeCase = BSONRegexFlag(Pattern.UNICODE_CASE, 'u')
-  val Comments = BSONRegexFlag(Pattern.COMMENTS, 'x')
-  // this as an enumy list isn't ideal but it gets the job done cleanly for now.
-  val Flags = List(CanonEq, UnixLines, Global, CaseInsensitive, Multiline, DotAll, Literal, UnicodeCase, Comments)
-
 }
 
-// also usable directly as its type... some of the ADT code will always be.
-// todo - make sure pattern matching works cleanly...it should as we get unapply from scala.util.matching.Regex
-case class BSONRegex(override val regex: String, groupNames: String*) extends Regex(regex, groupNames: _*) with BSONType {
-  import BSONRegex._
+case class BSONRegex(regex: String, flags: String) extends BSONType {
   type Primitive = (String, String)
   // todo - verify valid flags both in and out
-  def primitiveValue: Primitive = (regex, optionsFromFlags(flags))
+  def primitiveValue: Primitive = (regex, flags)
 
-  // TODO - Verify the flags from the generated regex are getting shoved in. (Have to compile into regex)
-
-  //override val pattern = Pattern.compile(regex, flags)
-  lazy val flags = pattern.flags
 }
 
 // TODO - Make sure we warn users that DBPointer is deprecated.
@@ -422,9 +400,9 @@ object BSONTimestamp extends BSONTypeCompanion {
   val typeCode = 0x11.toByte
 }
 
-case class BSONTimestamp(time: Int, increment: Int) extends BSONType {
+case class BSONTimestamp(increment: Int, time: Int) extends BSONType {
   type Primitive = (Int, Int)
-  def primitiveValue = (time, increment)
+  def primitiveValue = (increment, time)
 }
 
 object BSONLong extends BSONTypeCompanion {
