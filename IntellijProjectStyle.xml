@@ -1,0 +1,22 @@
+<code_scheme name="Project">
+  <option name="LINE_SEPARATOR" value="&#xA;" />
+  <option name="FORMATTER_TAGS_ENABLED" value="true" />
+  <option name="FORMATTER_TAGS_ACCEPT_REGEXP" value="true" />
+  <ScalaCodeStyleSettings>
+    <option name="WRAP_BEFORE_WITH_KEYWORD" value="true" />
+    <option name="FINALLY_BRACE_FORCE" value="3" />
+    <option name="TRY_BRACE_FORCE" value="3" />
+    <option name="REPLACE_CASE_ARROW_WITH_UNICODE_CHAR" value="true" />
+    <option name="REPLACE_MAP_ARROW_WITH_UNICODE_CHAR" value="true" />
+    <option name="REPLACE_FOR_GENERATOR_ARROW_WITH_UNICODE_CHAR" value="true" />
+    <option name="REPLACE_LAMBDA_WITH_GREEK_LETTER" value="true" />
+  </ScalaCodeStyleSettings>
+  <codeStyleSettings language="Scala">
+    <option name="KEEP_FIRST_COLUMN_COMMENT" value="true" />
+    <option name="ALIGN_MULTILINE_EXTENDS_LIST" value="true" />
+    <option name="METHOD_PARAMETERS_WRAP" value="5" />
+    <option name="METHOD_PARAMETERS_RPAREN_ON_NEXT_LINE" value="true" />
+    <option name="KEEP_SIMPLE_BLOCKS_IN_ONE_LINE" value="true" />
+    <option name="KEEP_SIMPLE_METHODS_IN_ONE_LINE" value="true" />
+  </codeStyleSettings>
+</code_scheme>
