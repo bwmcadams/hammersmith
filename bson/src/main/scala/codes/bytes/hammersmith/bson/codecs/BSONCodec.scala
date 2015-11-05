@@ -23,19 +23,34 @@ object BSONCodec extends StrictLogging {
 
   implicit val bsonCodec: Codec[(String, BSONType)] = {
 
+    /**
+      * BSON Double
+      *
+      * - Little Endian encoded
+      * - 8 bytes (64-bit IEEE 754-2008 binary floating point)
+      *
+      * @group
+      * @see http://bsonspec.org
+      */
     val bsonDouble: Codec[BSONDouble] = doubleL.as[BSONDouble]
-    val bsonString: Codec[BSONString] = utf8_32.as[BSONString]
+    val bsonString: Codec[BSONString] = utf8_32L.as[BSONString]
 
     val bsonDocument: Codec[BSONRawDocument] = lazily {
-      vector(bsonCodec)
-        .xmap(fields => BSONRawDocument(fields), doc => doc.primitiveValue)
-    } // todo - can we .as this instead?
+      // `as` doesn't seem to work with the vector piece
+      vector(bsonCodec).xmap(
+        { fields => BSONRawDocument(fields) },
+        { doc => doc.primitiveValue }
+      )
+    }
 
+    // TODO: Test me... all keys should be ints
     val bsonArray: Codec[BSONRawArray] = lazily {
-      vector(bsonCodec)
-        // TODO: Test me... all keys should be ints
-        .xmap(entries => BSONRawArray.fromEntries(entries), arr => arr.primitiveValue)
-    } // todo - can we .as this instead?
+      // `as` doesn't seem to work with the vector piece
+      vector(bsonCodec).xmap(
+        { entries => BSONRawArray.fromEntries(entries) },
+        { arr => arr.primitiveValue }
+      )
+    }
 
     val bsonBinaryGeneric: Codec[BSONBinaryGeneric] = bytes.as[BSONBinaryGeneric]
       // bytes.xmap(bytes => BSONBinaryGeneric(bytes), bin => bin.bytes)
@@ -82,12 +97,21 @@ object BSONCodec extends StrictLogging {
         )
     }
 
-    // #s in OID are big endian. I love consistency.
-    val bsonObjectID: Codec[BSONObjectID] =
-      (int32 ~ int32 ~ int32).xmap[BSONObjectID](
-        { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
-        { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
-      )
+    /**
+     * Some #s in OID are big endian, unlike rest of BSON is supposd to be (little end.).
+     * [bwm: I love consistency!]
+     *
+     * Some of the pieces are simply broken into bytes here to let the deeper AST decode/encode
+     * its crazytown bananapants quasi-ints.
+     *
+     * @see https://docs.mongodb.org/manual/reference/object-id/
+     * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
+     * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
+     */
+    val bsonObjectID: Codec[BSONObjectID] = (int32 ~ bytes(5) ~ uint32).xmap[BSONObjectID](
+      { nums => BSONObjectID(nums._1._1, nums._1._2, nums._2) }, // todo - check me? double tupled?
+      { bin: BSONObjectID => ((bin.timestamp, bin.machineID), bin.increment) }  // todo - check me? double tupled?
+    )
 
     val bsonBoolean: Codec[BSONBoolean] = lazily {
       // determine bson subtype
@@ -98,20 +122,36 @@ object BSONCodec extends StrictLogging {
 
     val bsonUTCDateTime: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
 
-    val bsonRegex: Codec[BSONRegex] = (cstring ~ cstring).as[BSONRegex] // todo - check if this translates cleanly the case class
-
-      /*.xmap[BSONRegex](
+    // TODO - JSON spec says flags must be stored in alphabet order
+    val bsonRegex: Codec[BSONRegex] = (cstring ~ cstring).xmap[BSONRegex](
       { case (pattern, options) => BSONRegex(pattern, options) },
       { case BSONRegex(pattern, options) => (pattern, options) }
-    )*/
+    )
 
-    val bsonDBPointer: Codec[BSONDBPointer] =
-      (utf8 ~ bsonObjectID).as[BSONDBPointer] // todo - check if this translates cleanly the case class
+    val bsonDBPointer: Codec[BSONDBPointer] = (utf8 :: bsonObjectID).as[BSONDBPointer]
 
     val bsonJSCode: Codec[BSONJSCode] = (utf8).as[BSONJSCode]
 
-    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8).as[BSONScopedJSCode]
+    // Best to let the AST decide what it is , be it a Scala Symbol or what.
+    val bsonSymbol: Codec[BSONSymbol] = (utf8).xmap[BSONSymbol](
+      { str => BSONSymbol(str) },
+      { case BSONSymbol(str) => str }
+    )
 
+    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocument).as[BSONScopedJSCode]
+
+    val bsonInteger: Codec[BSONInteger] = (int32).as[BSONInteger]
+
+    val bsonLong: Codec[BSONLong] = (int64L).as[BSONLong]
+
+    val bsonTimestamp: Codec[BSONTimestamp] = (int64).as[BSONTimestamp]
+
+    /**
+      * Codec for decoding and encoding between BSON Documents, all valid inner types, and our internal AST
+      *
+      * @see http://bsonspec.org
+      * @note Defined in the order they are in the BSON Spec , which is why the groupings are slightly odd
+      */
     discriminated[(String, BSONType)].by(uint8L).
       typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
       typecase(BSONString.typeCode, cstring ~ bsonString).
@@ -129,7 +169,12 @@ object BSONCodec extends StrictLogging {
       typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
       typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
       typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
-      typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode)
+      typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
+      typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
+      typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
+      typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
+      typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))
+
   }
 
 }

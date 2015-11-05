@@ -229,6 +229,17 @@ case object BSONObjectID extends BSONTypeCompanion {
   val typeCode: Byte = 0x07
 }
 
+
+/**
+  * Object IDs have some odd pieces which we can't decode entirely sanely in scodec...
+  *
+  * Some of the pieces are simply broken into bytes here to let the deeper AST decode/encode
+  * its crazytown bananapants quasi-ints.
+  *
+  * @see https://docs.mongodb.org/manual/reference/object-id/
+  * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
+  * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
+  */
 case class BSONObjectID(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
                         machineID: Int = ObjectID.generatedMachineID,
                         processID: Int = ObjectID.generatedProcessID,
@@ -378,10 +389,11 @@ object BSONSymbol extends BSONTypeCompanion {
   val typeCode: Byte = 0x0E
 }
 
-case class BSONSymbol(symbol: Symbol) extends BSONType {
+case class BSONSymbol(strValue: String) extends BSONType {
   type Primitive = Symbol
 
-  def primitiveValue = symbol
+  def primitiveValue = Symbol(strValue)
+
 }
 
 object BSONScopedJSCode extends BSONJSCodeBlockCompanion {
