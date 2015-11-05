@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 package codes.bytes.hammersmith.akka.bson
 
 import java.nio.ByteOrder
@@ -37,21 +37,21 @@ sealed trait BSONType extends StrictLogging {
   /** All ops default to little endianness, which is the encoding of BSON */
   implicit val byteOrder = littleEndian
 
-  /** 
-   * A "NOOP" Unapply for certain field types that are *just* a field name
-   */
-  def noopUnapply(frame: ByteIterator): Option[String] = 
+  /**
+    * A "NOOP" Unapply for certain field types that are *just* a field name
+    */
+  def noopUnapply(frame: ByteIterator): Option[String] =
     if (frame.head == typeCode) {
       Some(readCString(frame.drop(1))) // drop the header type byte
     } else None
 
   /**
-   * Read a BSON CString.
-   * 
-   * BSON CStrings are an example of bad network frame design:
-   * Rather than containing a length header, they are
-   * Byte* terminated by \x00
-   */
+    * Read a BSON CString.
+    *
+    * BSON CStrings are an example of bad network frame design:
+    * Rather than containing a length header, they are
+    * Byte* terminated by \x00
+    */
   @tailrec
   final def readCString(frame: ByteIterator, buffer: StringBuilder = new StringBuilder): String = {
 
@@ -66,10 +66,10 @@ sealed trait BSONType extends StrictLogging {
   }
 
   /**
-   * Read a BSON UTF8 String (0x02)
-   * Length(int32) followed by $Length bytes and an additional \x00 for obnoxiousness' sake
-   * TODO - NONPERFORMANT! Use UTF8 parsing routines from Jackson or Postgres driver!
-   */
+    * Read a BSON UTF8 String (0x02)
+    * Length(int32) followed by $Length bytes and an additional \x00 for obnoxiousness' sake
+    * TODO - NONPERFORMANT! Use UTF8 parsing routines from Jackson or Postgres driver!
+    */
   def readUTF8String(frame: ByteIterator): String = {
     val size = frame.getInt
     logger.trace(s"Attempting to read a UTF8 string of '$size' bytes.")
@@ -80,7 +80,7 @@ sealed trait BSONType extends StrictLogging {
     // TODO - Catching is heavy on the profiler.. lets try to leave it out for now (though may hav runtime blowup :/)
     val parse = catching(classOf[UnsupportedOperationException]).withApply { e =>
       throw new BSONParsingException("Unable to decode UTF8 String from BSON.", e)
-    } 
+    }
     parse {
       val str = new String(buf, 0, size - 1, "UTF-8")
       logger.trace(s"UTF8 String Result: $str")
@@ -89,16 +89,15 @@ sealed trait BSONType extends StrictLogging {
   }
 
 
-
   def readInt(bytes: Array[Byte])(implicit endianness: ByteOrder) = {
     var x = 0
     endianness match {
-      case `littleEndian` => 
+      case `littleEndian` =>
         x |= (0xFF & bytes(0)) << 0
         x |= (0xFF & bytes(1)) << 8
         x |= (0xFF & bytes(2)) << 16
         x |= (0xFF & bytes(3)) << 24
-      case `bigEndian` => 
+      case `bigEndian` =>
         x |= (0xFF & bytes(0)) << 24
         x |= (0xFF & bytes(1)) << 16
         x |= (0xFF & bytes(2)) << 8
@@ -164,7 +163,7 @@ object BSONNullType extends BSONType {
   def unapply(frame: ByteIterator) = noopUnapply(frame)
 }
 
-/** BSON Undefined value - deprecated in the BSON Spec; use null*/
+/** BSON Undefined value - deprecated in the BSON Spec; use null */
 object BSONUndefType extends BSONType {
   val typeCode: Byte = 0x06
 
@@ -186,7 +185,7 @@ object BSONStringType extends BSONType {
   val typeCode: Byte = 0x02
 
   // TODO - Performant UTF8 parsing
-  def unapply(frame: ByteIterator): Option[(String, String)] = 
+  def unapply(frame: ByteIterator): Option[(String, String)] =
     if (frame.head == typeCode) {
       Some((readCString(frame.drop(1)), readUTF8String(frame)))
     } else None
@@ -194,10 +193,10 @@ object BSONStringType extends BSONType {
 
 
 /**
- * BSON Binary - can actually be of several subtypes 
- *  
- * TODO - User customised container classes for subtypes 
- */
+  * BSON Binary - can actually be of several subtypes
+  *
+  * TODO - User customised container classes for subtypes
+  */
 object BSONBinaryType extends BSONType with StrictLogging {
   val typeCode: Byte = 0x05
 
@@ -223,7 +222,7 @@ object BSONBinaryType extends BSONType with StrictLogging {
         // Old binary format contained an extra length header 
         // parse out before passing 
         frame.drop(4) // drop the extra length header
-      } 
+      }
 
       frame.getBytes(bin)
 
@@ -235,20 +234,20 @@ object BSONBinaryType extends BSONType with StrictLogging {
           // "Old" UUID format used little endianness which is NOT how UUIDs are encoded
           Some((name, parseUUID(bin, littleEndian)))
         case Binary_MD5 =>
-          if (_binLen != 16) 
+          if (_binLen != 16)
             throw new BSONParsingException("Invalid MD5 Length in Binary. Expected 16, got " + _binLen)
           // TODO - parse MD5
           Some((name, BSONBinaryMD5(bin)))
-          /*
-        case Binary_Generic | Binary_Old =>
-          Some((name, BSONBinaryGeneric(bin)))
-        case Binary_UserDefined =>
-          Some((name, BSONBinaryUserDefined(bin)))
-          */
+        /*
+      case Binary_Generic | Binary_Old =>
+        Some((name, BSONBinaryGeneric(bin)))
+      case Binary_UserDefined =>
+        Some((name, BSONBinaryUserDefined(bin)))
+        */
         case other =>
           Some((name, BSONBinaryUserDefined(bin)))
       }
-    } else None 
+    } else None
 }
 
 /** BSON ObjectID */
@@ -276,7 +275,7 @@ object BSONBooleanType extends BSONType {
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val bool = frame.next() == 0x01
-      Some(name, bool) 
+      Some(name, bool)
     } else None
 }
 
@@ -285,10 +284,10 @@ object BSONDateTimeType extends BSONType {
   val typeCode: Byte = 0x09
 
   /**
-   * Because different users will have different desired types
-   * for their dates, return a LONG representing epoch seconds 
-   */
-  def unapply(frame: ByteIterator): Option[(String, Long)] = 
+    * Because different users will have different desired types
+    * for their dates, return a LONG representing epoch seconds
+    */
+  def unapply(frame: ByteIterator): Option[(String, Long)] =
     if (frame.head == typeCode) {
       Some(readCString(frame.drop(1)), frame.getLong)
     } else None
@@ -302,6 +301,7 @@ object BSONRegExType extends BSONType {
   import java.util.regex.Pattern
 
   case class Flag(javaCode: Int, charCode: Char)
+
   val CanonEq = Flag(Pattern.CANON_EQ, 'c')
   val UnixLines = Flag(Pattern.UNIX_LINES, 'd')
   val Global = Flag(256, 'g')
@@ -379,7 +379,7 @@ object BSONJSCodeType extends BSONType {
 object BSONSymbolType extends BSONType {
   val typeCode: Byte = 0x0E
 
-  def unapply(frame: ByteIterator): Option[(String, Symbol)] = 
+  def unapply(frame: ByteIterator): Option[(String, Symbol)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       logger.trace(s"Symbol Name: '$name'  / ${frame.len}")
@@ -393,7 +393,7 @@ object BSONSymbolType extends BSONType {
 object BSONInt32Type extends BSONType {
   val typeCode: Byte = 0x10
 
-  def unapply(frame: ByteIterator): Option[(String, Int)] = 
+  def unapply(frame: ByteIterator): Option[(String, Int)] =
     if (frame.head == typeCode) {
       // The FIELD name, hence cString
       val name = readCString(frame.drop(1))
@@ -419,10 +419,10 @@ object BSONInt64Type extends BSONType {
 object BSONTimestampType extends BSONType {
   val typeCode: Byte = 0x11
 
-  def unapply(frame: ByteIterator): Option[(String, BSONTimestamp)] = 
+  def unapply(frame: ByteIterator): Option[(String, BSONTimestamp)] =
     if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
-      Some((name, BSONTimestamp(increment=frame.getInt, time=frame.getInt)))
+      Some((name, BSONTimestamp(increment = frame.getInt, time = frame.getInt)))
     } else None
 }
 
@@ -500,11 +500,11 @@ object BSONArrayType extends BSONType {
   val typeCode: Byte = 0x04
 
   def unapply(frame: ByteIterator)(implicit childParser: BSONParser[_]): Option[(String, Seq[Any])] =
-   if (frame.head == typeCode) {
+    if (frame.head == typeCode) {
       val name = readCString(frame.drop(1))
       val subLen = frame.getInt - 4
       require(subLen < BSONDocumentType.MaxSize,
-       "Invalid embedded array. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
+        "Invalid embedded array. Expected size less than Max BSON Size of '%s'. Got '%s'".format(BSONDocumentType.MaxSize, subLen))
       logger.trace(s"Reading a BSON Array of '$subLen' bytes.")
       val doc = childParser.parse(frame, subLen)
       logger.trace(s"Parsed a set of subdocument entries for '$name': '$doc'")
@@ -512,7 +512,7 @@ object BSONArrayType extends BSONType {
        * I have seen no contractual guarantees that the array items are in order
        * in mongo, but most drivers assume it, so shall we...
        * Flatten out and ignore the keys
-       */ 
+       */
       Some((name, doc.map(_._2)))
     } else None
 }

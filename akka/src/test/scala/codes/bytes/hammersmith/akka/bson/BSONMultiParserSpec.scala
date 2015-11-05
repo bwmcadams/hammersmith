@@ -16,11 +16,11 @@ class BSONMultiParserSpec extends Specification with StrictLogging {
 
   def is =
     sequential ^
-      "Able to properly parse multiple documents"  ! testMultiParse ^
+      "Able to properly parse multiple documents" ! testMultiParse ^
       "Able to properly parse multiple documents from a stream" ! testMultiParseStream ^
-    endp
+      endp
 
-  def multiTestDocs =  {
+  def multiTestDocs = {
     // todo - this is perfect for property based testing
     val rand = new scala.util.Random()
 
@@ -86,7 +86,7 @@ class BSONMultiParserSpec extends Specification with StrictLogging {
     val decoded = ArrayBuffer.empty[Document]
     val iter = frame.iterator
     var count = 1
-    try {
+    try { {
       while (iter.hasNext) {
         logger.debug(s"*************** START: ROUND $count [frame size: ${frame.size}] *************")
         val dec = ImmutableBSONDocumentParser(iter)
@@ -94,6 +94,7 @@ class BSONMultiParserSpec extends Specification with StrictLogging {
         logger.debug(s"*************** END: ROUND $count [frame size: ${frame.size}] *************")
         count += 1
       }
+    }
     } catch {
       case t: Throwable =>
         logger.error(s"Error: blewup in multiparse test; decoded ${decoded.size} items, from iter $iter")

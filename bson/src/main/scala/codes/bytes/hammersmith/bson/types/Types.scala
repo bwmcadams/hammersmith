@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 
 package codes.bytes.hammersmith.bson.types
 
@@ -32,16 +32,18 @@ import scodec.codecs._
 
 sealed trait BSONTypeCompanion {
   def typeCode: Byte
+
   def typeCodeConstant = constant(ByteVector(typeCode))
 }
 
 sealed trait BSONType {
   type Primitive
+
   def primitiveValue: Primitive
   // todo - the type class based support for working with converting to/from primitives flexibly
 }
 
-object BSONType { }
+object BSONType {}
 
 
 object BSONDouble extends BSONTypeCompanion {
@@ -50,6 +52,7 @@ object BSONDouble extends BSONTypeCompanion {
 
 case class BSONDouble(dbl: Double) extends BSONType {
   type Primitive = Double
+
   def primitiveValue = dbl
 }
 
@@ -60,6 +63,7 @@ object BSONString extends BSONTypeCompanion {
 // UTF8 string
 case class BSONString(str: String) extends BSONType {
   type Primitive = String
+
   def primitiveValue = str
 }
 
@@ -70,16 +74,19 @@ object BSONRawDocument extends BSONTypeCompanion {
 // I don't see forcibly converting it into a map as having any value, given how the primitives are deconstructed
 case class BSONRawDocument(entries: Vector[(String, BSONType)]) extends BSONType {
   type Primitive = Vector[(String, BSONType)]
+
   def primitiveValue = entries
 }
 
 object BSONRawArray extends BSONTypeCompanion with StrictLogging {
   val typeCode: Byte = 0x04
+
   def fromEntries(entries: Vector[(String, BSONType)]): BSONRawArray = {
     BSONRawArray(
       entries.map { case (k, v) =>
-        val idx: Int = try {
+        val idx: Int = try { {
           k.toInt
+        }
         } catch {
           case nfe: NumberFormatException =>
             logger.error("BSON Error: Typecode indicated array, but contains non-integer keys (indices)")
@@ -94,6 +101,7 @@ object BSONRawArray extends BSONTypeCompanion with StrictLogging {
 case class BSONRawArray(entries: Vector[BSONType]) extends BSONType {
   // BSON Arrays are really docs with integer keys, but indexes (keys) are represented as strings...
   type Primitive = Vector[(String, BSONType)]
+
   def primitiveValue = entries.zipWithIndex.map { x =>
     x._2.toString -> x._1
   }
@@ -108,7 +116,9 @@ object BSONBinary extends BSONTypeCompanion {
 
 sealed trait BSONBinaryTypeCompanion extends BSONTypeCompanion {
   val typeCode: Byte = 0x05
+
   def subTypeCode: Byte
+
   def subTypeCodeConstant = constant(ByteVector(subTypeCode))
 }
 
@@ -130,11 +140,13 @@ object BSONBinaryGeneric extends BSONBinaryTypeCompanion {
   */
 case class BSONBinaryGeneric(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
+
   def primitiveValue = bytes
 }
 
 object BSONBinaryFunction extends BSONBinaryTypeCompanion {
   val subTypeCode: Byte = 0x01
+
   /**
     * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
     */
@@ -150,6 +162,7 @@ case class BSONBinaryFunction(bytes: ByteVector) extends BSONBinary {
 object BSONBinaryOld extends BSONBinaryTypeCompanion {
   // encoded with an int32 length at beginning
   def subTypeCode: Byte = 0x02
+
   /**
     * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
     */
@@ -157,7 +170,7 @@ object BSONBinaryOld extends BSONBinaryTypeCompanion {
 }
 
 case class BSONBinaryOld(bytes: ByteVector) extends BSONBinary {
-  type Primitive=  ByteVector
+  type Primitive = ByteVector
   val primitiveValue = bytes
 }
 
@@ -186,6 +199,7 @@ final case class BSONBinaryUUID(mostSignificant: Long, leastSignificant: Long) e
 
 object BSONBinaryMD5 extends BSONBinaryTypeCompanion {
   def subTypeCode: Byte = 0x05
+
   /**
     * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
     */
@@ -195,12 +209,14 @@ object BSONBinaryMD5 extends BSONBinaryTypeCompanion {
 // todo - should these use BitVectors from SCodec instead?
 case class BSONBinaryMD5(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
+
   def primitiveValue = bytes
 }
 
 object BSONBinaryUserDefined extends BSONBinaryTypeCompanion {
   // TODO - *technically* user defined can by >= 0x80 ... we need to sort that out.
   def subTypeCode: Byte = 0x80.toByte
+
   /**
     * Legacy "just in case" support mostly for in-dev bridging before we kill Akka composers
     */
@@ -209,25 +225,22 @@ object BSONBinaryUserDefined extends BSONBinaryTypeCompanion {
 
 case class BSONBinaryUserDefined(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
+
   def primitiveValue = bytes
 }
-
 
 
 case object BSONUndefined extends BSONType with BSONTypeCompanion {
   val typeCode: Byte = 0x06
   // todo - how do we really wanna represent undef?
   type Primitive = None.type
+
   def primitiveValue = None
 }
 
 
-
-
 case object BSONObjectID extends BSONTypeCompanion {
   val typeCode: Byte = 0x07
-
-
 
 
 }
@@ -249,10 +262,10 @@ case object BSONObjectID extends BSONTypeCompanion {
   *
   * - Timestamp is a 4 byte signed int32, encoded as Big Endian
   * - “Process Unique” is 2 sections
-  *   + Machine Identifier is an int32 composed of 3 Low Order (Per Spec: Little Endian Bytes)
-  *   + Process Identifier is a short (composed of 2 Low Order (Per Spec: Little Endian Bytes)
-  *   % The Java Driver seems to ignore this and stores process-unique in BE.
-  *   % Other drivers like Python seem to ignore spec, too.
+  * + Machine Identifier is an int32 composed of 3 Low Order (Per Spec: Little Endian Bytes)
+  * + Process Identifier is a short (composed of 2 Low Order (Per Spec: Little Endian Bytes)
+  * % The Java Driver seems to ignore this and stores process-unique in BE.
+  * % Other drivers like Python seem to ignore spec, too.
   * - Counter / Increment is a 3 byte counter to prevent races against tsp/mid/pid
   *
   * @note There's no value I know of in exposing the actual pieces of an ObjectID in user code... so we
@@ -272,6 +285,7 @@ case class BSONObjectID(bytes: ByteVector) extends BSONType {
 
 sealed trait BSONBooleanCompanion extends BSONTypeCompanion {
   val typeCode: Byte = BSONBoolean.typeCode
+
   def subTypeCode: Byte
 }
 
@@ -313,13 +327,14 @@ case class BSONUTCDateTime(epoch: Long) extends BSONType {
 }
 
 /**
- *
- * fucking bson null.
- */
+  *
+  * fucking bson null.
+  */
 case object BSONNull extends BSONType with BSONTypeCompanion {
   val typeCode: Byte = 0x0A
   // todo - how do we really wanna represent undef?
   type Primitive = None.type
+
   def primitiveValue = None
 }
 
@@ -329,6 +344,7 @@ object BSONRegex extends BSONTypeCompanion {
 
 case class BSONRegex(regex: String, flags: String) extends BSONType {
   type Primitive = (String, String)
+
   // todo - verify valid flags both in and out
   def primitiveValue: Primitive = (regex, flags)
 
@@ -350,6 +366,7 @@ case class BSONDBPointer(ns: String, id: BSONObjectID) extends BSONType {
 }
 
 sealed trait BSONJSCodeBlockCompanion extends BSONTypeCompanion
+
 sealed trait BSONJSCodeBlock extends BSONType
 
 object BSONJSCode extends BSONJSCodeBlockCompanion {
@@ -390,18 +407,20 @@ object BSONInteger extends BSONTypeCompanion {
 
 case class BSONInteger(int: Int) extends BSONType {
   type Primitive = Int
+
   def primitiveValue = int
 }
 
 /** Special internal type for MongoDB Sharding, won't be representable as a JDK Type
   * TODO - Special BSON Type
-  **/
+  * */
 object BSONTimestamp extends BSONTypeCompanion {
   val typeCode = 0x11.toByte
 }
 
 case class BSONTimestamp(increment: Int, time: Int) extends BSONType {
   type Primitive = (Int, Int)
+
   def primitiveValue = (increment, time)
 }
 
@@ -411,16 +430,19 @@ object BSONLong extends BSONTypeCompanion {
 
 case class BSONLong(long: Long) extends BSONType {
   type Primitive = Long
+
   def primitiveValue = long
 }
 
 sealed trait BSONKeyBoundaryCompanion extends BSONTypeCompanion
+
 sealed trait BSONKeyBoundary extends BSONType
 
 case object BSONMinKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
   val typeCode: Byte = 0xFF.toByte
   // TODO - we need a sane representation of this type as a primitive
   type Primitive = None.type
+
   def primitiveValue = None
 }
 
@@ -428,6 +450,7 @@ case object BSONMaxKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
   val typeCode: Byte = 0x7F.toByte
   // TODO - we need a sane representation of this type as a primitive
   type Primitive = None.type
+
   def primitiveValue = None
 }
 

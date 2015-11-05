@@ -14,20 +14,20 @@ import org.specs2.runner.JUnitRunner
 
 class QueryMessageSpec extends Specification with ThrownExpectations with StrictLogging {
   /**
-   * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
-   */
+    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
+    */
   implicit val DefaultMaxBSONSize = 1024 * 1024 * 16
 
   def is =
     sequential ^
-    skipAllIf(1 == 1) ^ // temporarily disable
-    "This specification is to test the functionality of the Wire Protocol `QueryMessage`" ^
-    p ^
-    "Working with Hammersmith QueryMessage implementations should" ^
-    "Allow instantiation of a QueryMessage" ! testBasicInstantiation ^
-    "Be composed into a BSON bytestream" ! testBasicCompose ^
-    "Be comparable to a message created by the MongoDB Java Driver's BSON routines" ! testEncoding ^
-    endp
+      skipAllIf(1 == 1) ^ // temporarily disable
+      "This specification is to test the functionality of the Wire Protocol `QueryMessage`" ^
+      p ^
+      "Working with Hammersmith QueryMessage implementations should" ^
+      "Allow instantiation of a QueryMessage" ! testBasicInstantiation ^
+      "Be composed into a BSON bytestream" ! testBasicCompose ^
+      "Be comparable to a message created by the MongoDB Java Driver's BSON routines" ! testEncoding ^
+      endp
 
 
   def testBasicInstantiation = {
@@ -46,7 +46,7 @@ class QueryMessageSpec extends Specification with ThrownExpectations with Strict
     val q = BasicDBObjectBuilder.start()
     q.add("_id", "1234")
     val legacy = com.mongodb.legacyQuery("test.query", 10, 10, q.get(), None, false,
-                                         false, false, false, false, false)
+      false, false, false, false, false)
     logger.debug("Legacy Message Size: " + legacy.toArray.length)
     logger.debug("Legacy Message Hex: " + hexValue(legacy.toArray))
     logger.debug("Scala Message Size: " + scalaBSON.toArray.length)

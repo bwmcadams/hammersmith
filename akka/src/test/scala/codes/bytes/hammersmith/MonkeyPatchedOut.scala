@@ -11,9 +11,9 @@ object `package` {
   val decoder = DefaultDBDecoder.FACTORY.create()
 
   /**
-   * This should maintain a reset requestID for testing.
-   * @return
-   */
+    * This should maintain a reset requestID for testing.
+    * @return
+    */
   def legacyConn = new Mongo
 
   def legacyDelete(id: Any) = {
@@ -26,7 +26,7 @@ object `package` {
 
   def parseLegacyResponse(data: Array[Byte]) =
     new Response(legacyConn.getAddress, legacyConn.getDB("test").getCollection("deletion"),
-                                 new ByteArrayInputStream(data), decoder)
+      new ByteArrayInputStream(data), decoder)
 
   def legacyGetMore(numReturn: Int, cursorID: Long) = {
     val om = OutMessage.getMore(legacyConn.getDB("test").getCollection("getMore"), cursorID, numReturn)
@@ -51,14 +51,15 @@ object `package` {
 
   def legacyKillCursors(ids: Seq[Long]) = {
     val om = OutMessage.killCursors(legacyConn, ids.length)
-    ids foreach { om.writeLong }
+    ids foreach {om.writeLong}
     _out(om)
   }
 
   def legacyQuery(ns: String, numSkip: Int, numReturn: Int, q: DBObject,
-            fields: Option[DBObject] = None, tailable: Boolean = false,
-            slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
-            exhaust: Boolean = false, partial: Boolean = false) = {
+                  fields: Option[DBObject] = None, tailable: Boolean = false,
+                  slaveOkay: Boolean = false, disableCursorTimeout: Boolean = false, await: Boolean = false,
+                  exhaust: Boolean = false, partial: Boolean = false
+                 ) = {
     val dbColl = ns.split('.')
     // todo - flags for options
     val om = OutMessage.query(legacyConn.getDB(dbColl(0)).getCollection(dbColl(1)), 0, numSkip, numReturn, q, fields.getOrElse(null))

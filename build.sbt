@@ -37,12 +37,12 @@ lazy val core = (project in file("core")).
   dependsOn(bson, collections)
 
 /**
- * The most likely scenario is we will base *all* bson ser/deser on scodec,
- * given the bridges to other common apis like Akka.IO. Let's do it once, let's do it right.
- * Let's make it not have dependencies on other parts of the system so people can use it on their own.
- * We will have separate modules however for scalaz, akka support. I don't wanna pull in scalaz
- * for people who don't need it (however, spire support gives some advantages)
- */
+  * The most likely scenario is we will base *all* bson ser/deser on scodec,
+  * given the bridges to other common apis like Akka.IO. Let's do it once, let's do it right.
+  * Let's make it not have dependencies on other parts of the system so people can use it on their own.
+  * We will have separate modules however for scalaz, akka support. I don't wanna pull in scalaz
+  * for people who don't need it (however, spire support gives some advantages)
+  */
 lazy val bson = (project in file("bson")).
   settings(commonSettings: _*).
   settings(
@@ -55,9 +55,9 @@ lazy val bson = (project in file("bson")).
   )
 
 /**
- * The core collections library. Contains the base interfaces, and
- * an immutable implementation.
- */
+  * The core collections library. Contains the base interfaces, and
+  * an immutable implementation.
+  */
 lazy val collections = (project in file("collections")).
   settings(commonSettings: _*).
   settings(
@@ -68,11 +68,11 @@ lazy val collections = (project in file("collections")).
   dependsOn(bson)
 
 /**
- * A mutable collections library for Hammersmith, *purely optional*.
- *
- * We shouldn't encourage mutable by default, so you opt in to mutable
- * collection support
- */
+  * A mutable collections library for Hammersmith, *purely optional*.
+  *
+  * We shouldn't encourage mutable by default, so you opt in to mutable
+  * collection support
+  */
 lazy val collections_mutable = (project in file("collections-mutable")).
   settings(commonSettings: _*).
   settings(
@@ -83,9 +83,9 @@ lazy val collections_mutable = (project in file("collections-mutable")).
   dependsOn(collections)
 
 /**
- * Still TBD if we'll have one single "akka" project
- * or a separate one for raw/low level Akka IO and Akka Streams
- */
+  * Still TBD if we'll have one single "akka" project
+  * or a separate one for raw/low level Akka IO and Akka Streams
+  */
 lazy val akka = (project in file("akka")).
   settings(commonSettings: _*).
   settings(

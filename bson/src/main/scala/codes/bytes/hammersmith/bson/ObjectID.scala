@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 package codes.bytes.hammersmith.bson
 
 import java.net.NetworkInterface
@@ -24,113 +24,116 @@ import com.typesafe.scalalogging.StrictLogging
 
 
 /**
- * Globally unique ID for Objects, typically used as a primary key.
- * <p>Consists of 12 bytes, divided as follows:
- * <blockquote><pre>
- * <table border="1">
- * <tr><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td>
- *     <td>7</td><td>8</td><td>9</td><td>10</td><td>11</td></tr>
- * <tr><td colspan="4">time</td><td colspan="3">machine</td>
- *     <td colspan="2">pid</td><td colspan="3">inc</td></tr>
- * </table>
- * </pre></blockquote>
- *
- * @see http://docs.mongodb.org/manual/core/object-id/
- *
- * TODO: unapply etc
- * TODO: Properly support the *OLD* Format as well. See java driver createFromLegacyFormat
- */
+  * Globally unique ID for Objects, typically used as a primary key.
+  * <p>Consists of 12 bytes, divided as follows:
+  * <blockquote><pre>
+  * <table border="1">
+  * <tr><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td>
+  * <td>7</td><td>8</td><td>9</td><td>10</td><td>11</td></tr>
+  * <tr><td colspan="4">time</td><td colspan="3">machine</td>
+  * <td colspan="2">pid</td><td colspan="3">inc</td></tr>
+  * </table>
+  * </pre></blockquote>
+  *
+  * @see http://docs.mongodb.org/manual/core/object-id/
+  *
+  *      TODO: unapply etc
+  *      TODO: Properly support the *OLD* Format as well. See java driver createFromLegacyFormat
+  */
 class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
-							 				 val machineID: Int = ObjectID.generatedMachineID,
+                       val machineID: Int = ObjectID.generatedMachineID,
                        val processID: Int = ObjectID.generatedProcessID,
-							 				 val increment: Int = ObjectID.nextIncrement(),
-							 				 val isNew: Boolean = true) extends Ordered[ObjectID] with StrictLogging {
+                       val increment: Int = ObjectID.nextIncrement(),
+                       val isNew: Boolean = true
+                      ) extends Ordered[ObjectID] with StrictLogging {
 
-	def compare(that: ObjectID): Int = {
-		def compareUnsigned(n: Int, o: Int) = {
-			val mask = 0xFFFFFFFFL
-			val x = n & mask
-			val y = o & mask
-			val diff = x - y
-			if (diff < Int.MinValue) Int.MinValue 
-			else if (diff > Int.MaxValue) Int.MaxValue
-			else diff.toInt
-		}
+  def compare(that: ObjectID): Int = {
+    def compareUnsigned(n: Int, o: Int) = {
+      val mask = 0xFFFFFFFFL
+      val x = n & mask
+      val y = o & mask
+      val diff = x - y
+      if (diff < Int.MinValue) Int.MinValue
+      else if (diff > Int.MaxValue) Int.MaxValue
+      else diff.toInt
+    }
 
-		if (that == null) -1
-		else {
-			// crappy implementation, copied from Mongo Java driver.
-			lazy val timeComp = compareUnsigned(this.timestamp, that.timestamp)
-			lazy val machineComp = compareUnsigned(this.machineID, that.machineID)
-			lazy val incrementComp = compareUnsigned(this.increment, that.increment)
-			if (timeComp != 0) timeComp 
-			else if (machineComp != 0) timeComp
-			else incrementComp
-		}
-	}
+    if (that == null) -1
+    else {
+      // crappy implementation, copied from Mongo Java driver.
+      lazy val timeComp = compareUnsigned(this.timestamp, that.timestamp)
+      lazy val machineComp = compareUnsigned(this.machineID, that.machineID)
+      lazy val incrementComp = compareUnsigned(this.increment, that.increment)
+      if (timeComp != 0) timeComp
+      else if (machineComp != 0) timeComp
+      else incrementComp
+    }
+  }
 
-	def toBytes: Array[Byte] = {
-		val bytes = new Array[Byte](12)
-		val buf = ByteBuffer.wrap(bytes)
-		buf.putInt(timestamp)
-		buf.putInt(machineID)
-		buf.putInt(increment)
-		bytes
-	}
+  def toBytes: Array[Byte] = {
+    val bytes = new Array[Byte](12)
+    val buf = ByteBuffer.wrap(bytes)
+    buf.putInt(timestamp)
+    buf.putInt(machineID)
+    buf.putInt(increment)
+    bytes
+  }
 
-	override def toString: String = {
-		val bytes = toBytes
+  override def toString: String = {
+    val bytes = toBytes
 
-		val buf = new StringBuilder(24)
+    val buf = new StringBuilder(24)
 
-		for (i <- bytes.indices) {
-			val s = (bytes(i) & 0xFF).toHexString
-			if (s.length == 1) buf.append(0)
-			buf.append(s)
-		}
+    for (i <- bytes.indices) {
+      val s = (bytes(i) & 0xFF).toHexString
+      if (s.length == 1) buf.append(0)
+      buf.append(s)
+    }
 
-		buf.toString
-	}
+    buf.toString
+  }
 }
 
 object ObjectID extends StrictLogging {
 
-	def apply() = new ObjectID()
+  def apply() = new ObjectID()
 
-	def apply(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
-						machineID: Int = generatedMachineID,
-						increment: Int = nextIncrement(),
-						isNew: Boolean = false) =
-		new ObjectID(timestamp, machineID, 0, increment, isNew)
+  def apply(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
+            machineID: Int = generatedMachineID,
+            increment: Int = nextIncrement(),
+            isNew: Boolean = false
+           ) =
+    new ObjectID(timestamp, machineID, 0, increment, isNew)
 
 
-	def apply(b: Array[Byte]) = {
-		require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
-		val buf = ByteBuffer.wrap(b)
-		new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
-	}
+  def apply(b: Array[Byte]) = {
+    require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
+    val buf = ByteBuffer.wrap(b)
+    new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
+  }
 
-	def apply(s: String) = {
-		require(ObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
-		val bytes = new Array[Byte](12)
-		for (i <- 0 until 12) bytes(i) = Integer.parseInt(s.substring(i*2, i*2 + 2), 16).toByte
-		val buf = ByteBuffer.wrap(bytes)
-		new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
-	}
+  def apply(s: String) = {
+    require(ObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
+    val bytes = new Array[Byte](12)
+    for (i <- 0 until 12) bytes(i) = Integer.parseInt(s.substring(i * 2, i * 2 + 2), 16).toByte
+    val buf = ByteBuffer.wrap(bytes)
+    new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
+  }
 
-	private val increment = new AtomicInteger(new java.util.Random().nextInt())
+  private val increment = new AtomicInteger(new java.util.Random().nextInt())
 
-	/** 
-	 * We need a generated machine identifier that doesn't clash.
-	 * Copied, for now, from the MongoDB Java Driver
-	 */
-	lazy val generatedMachineID = {
+  /**
+    * We need a generated machine identifier that doesn't clash.
+    * Copied, for now, from the MongoDB Java Driver
+    */
+  lazy val generatedMachineID = {
     // Generate a 2-byte machine piece based on NIC Info
     val machinePiece = {
       import scala.collection.JavaConversions._
-      try {
+      try { {
         val nics = for (nic <- NetworkInterface.getNetworkInterfaces) yield nic.toString
         nics.mkString.hashCode << 16
+      }
       } catch {
         case t: Throwable =>
           // Some versions of the IBM JDK May throw exceptions, make a random number
@@ -144,38 +147,39 @@ object ObjectID extends StrictLogging {
   }
 
   lazy val generatedProcessID = {
-		/**
-		 * We need a 2 byte process piece. It must represent not only the JVM
-		 * but any individual classloader to avoid collisions
-		 */
-		val processPiece = { 
-			val pid = try {
-				java.lang.management.ManagementFactory.getRuntimeMXBean.getName.hashCode
-			} catch {
+    /**
+      * We need a 2 byte process piece. It must represent not only the JVM
+      * but any individual classloader to avoid collisions
+      */
+    val processPiece = {
+      val pid = try { {
+        java.lang.management.ManagementFactory.getRuntimeMXBean.getName.hashCode
+      }
+      } catch {
 
-				case t: Throwable =>
-					// fallback
-					new java.util.Random().nextInt() 
-			}
+        case t: Throwable =>
+          // fallback
+          new java.util.Random().nextInt()
+      }
 
-			val loader = this.getClass.getClassLoader
-			val loaderID = if (loader != null) System.identityHashCode(loader) else 0
-			(pid.toHexString + loaderID.toHexString).hashCode & 0xFFFF
-		}
+      val loader = this.getClass.getClassLoader
+      val loaderID = if (loader != null) System.identityHashCode(loader) else 0
+      (pid.toHexString + loaderID.toHexString).hashCode & 0xFFFF
+    }
 
-		logger.trace(s"Generated ObjectID Process Piece: $processPiece")
+    logger.trace(s"Generated ObjectID Process Piece: $processPiece")
 
-		processPiece
-	}
+    processPiece
+  }
 
-	def nextIncrement() = increment.getAndIncrement()
+  def nextIncrement() = increment.getAndIncrement()
 
-	/** 
-	 * Validates if a string could be a valid <code>ObjectID</code>
-	 * @return where or not the string *could* be an ObjectID
-	 */
-	def isValid(s: String): Boolean = {
-		if (s == null) false
+  /**
+    * Validates if a string could be a valid <code>ObjectID</code>
+    * @return where or not the string *could* be an ObjectID
+    */
+  def isValid(s: String): Boolean = {
+    if (s == null) false
     else {
 
       val len = s.length
@@ -190,6 +194,6 @@ object ObjectID extends StrictLogging {
         true
       }
 
-		}
-	}
+    }
+  }
 }

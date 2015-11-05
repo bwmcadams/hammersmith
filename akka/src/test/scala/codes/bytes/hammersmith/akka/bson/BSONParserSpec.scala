@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License")
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License")
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 package codes.bytes.hammersmith.akka.bson
 
 import java.util.regex._
@@ -34,7 +34,7 @@ class BSONParserSpec extends Specification with StrictLogging {
   def is =
 
     sequential ^
-    "This is a specification to test the functionality of the new BSON Parser" ^
+      "This is a specification to test the functionality of the new BSON Parser" ^
 /*      p ^
       "Parsing of BSON should" ^
       "Provide clear, valid, and sane interop w/ old 10gen Java driver" ^
@@ -66,11 +66,11 @@ class BSONParserSpec extends Specification with StrictLogging {
       "uuid" ! hasUUID ^*/
       endp
 
-      /*
-      "Perform somewhat sanely" ^
-        "Scala Parser Performs" ! scalaParserPerfTest ^
-        "'New' Java Parser Performs" ! newJavaParserPerfTest ^
-        "'Old' Java Parser Performs" ! oldJavaParserPerfTest ^*/
+  /*
+  "Perform somewhat sanely" ^
+    "Scala Parser Performs" ! scalaParserPerfTest ^
+    "'New' Java Parser Performs" ! newJavaParserPerfTest ^
+    "'Old' Java Parser Performs" ! oldJavaParserPerfTest ^*/
 
 
   def testBasicParse = {
@@ -116,20 +116,20 @@ class BSONParserSpec extends Specification with StrictLogging {
   def hasScopedCode_Code = {
     parsedBSON.getAs[BSONScopedJSCode]("code_scoped") must beSome.which(_.code == testCodeWScope.getCode())
   }
-  
+
   def hasScopedCode_Scope = {
     parsedBSON.getAs[BSONScopedJSCode]("code_scoped") must beSome
   }
-  
+
   def hasStr = parsedBSON.getAs[String]("str") must beSome(testStr)
-  
+
   def hasSubObj = parsedBSON.getAs[Document]("object") must beSome.which(_ must havePairs("foo" -> "bar", "x" -> 5.23))
-      
+
   def hasArray = parsedBSON.getAs[BSONList]("array") must beSome.which(_ must contain("foo", "bar", "baz", "x", "y", "z"))
-  
+
   def hasBytes = parsedBSON.getAs[BSONBinaryGeneric]("binary") must beSome.which(_.bytes must beEqualTo(testBin.getData))
 
-  def hasUUID =  parsedBSON.getAs[java.util.UUID]("uuid") must beSome.which { _ must beEqualTo(testUUID) }
+  def hasUUID = parsedBSON.getAs[java.util.UUID]("uuid") must beSome.which {_ must beEqualTo(testUUID)}
 
   // -- Setup definitions
 
@@ -170,12 +170,12 @@ class BSONParserSpec extends Specification with StrictLogging {
   lazy val testBin = new org.bson.types.Binary("foobarbaz".getBytes())
 
   lazy val testUUID = java.util.UUID.randomUUID()
-  
+
   lazy val testCodeWScope = new org.bson.types.CodeWScope("return x * 500;", testDoc)
 
   lazy val testStr = "foobarbaz"
-   
-    
+
+
   lazy val javaBSON = {
 
     val b = com.mongodb.BasicDBObjectBuilder.start()
@@ -225,7 +225,7 @@ class BSONParserSpec extends Specification with StrictLogging {
     newJavaParser.readObject(javaBSON)
   }
 
- def parseBSONWithOldJava = {
+  def parseBSONWithOldJava = {
     oldJavaParser.readObject(javaBSON)
   }
 

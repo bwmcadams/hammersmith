@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 package codes.bytes.hammersmith.akka.bson
 
 import java.nio.ByteOrder
@@ -37,28 +37,28 @@ trait BSONComposer[T] extends StrictLogging {
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
 
   /**
-   *
-   * The lookup table for "Type" to "Primitive" conversions.
-   *
-   * NOTE: For concurrency, sanity, etc this should be statically composed
-   * at instantiation time of your BSONComposer.
-   *
-   * I'm leaving it open ended for you to play with, but mutate instances at your own risk.
-   */
+    *
+    * The lookup table for "Type" to "Primitive" conversions.
+    *
+    * NOTE: For concurrency, sanity, etc this should be statically composed
+    * at instantiation time of your BSONComposer.
+    *
+    * I'm leaving it open ended for you to play with, but mutate instances at your own risk.
+    */
   def primitives: Map[Class[_], BSONPrimitive]
 
   /**
-   * Produces an elements iterator from T
-   */
+    * Produces an elements iterator from T
+    */
   def elements(doc: T): Iterator[(String, Any)]
 
   /**
-   * Encodes a document of type T down into BSON via a ByteString
-   * This method is concrete, in that it invokes "composeDocument",
-   * which you'll need to provide a concrete version of for T.
-   *
-   * // TODO - Make sure ordered documents compose in order... it's crucial for commands!
-   */
+    * Encodes a document of type T down into BSON via a ByteString
+    * This method is concrete, in that it invokes "composeDocument",
+    * which you'll need to provide a concrete version of for T.
+    *
+    * // TODO - Make sure ordered documents compose in order... it's crucial for commands!
+    */
   def apply(doc: T): ByteString = {
     implicit val b = ByteString.newBuilder
     val sz = composeBSONObject(None, elements(doc))
@@ -67,41 +67,41 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * Write out a BSON Object as bytes.
-   *
-   * Note this comes after any conversions/separations etc.
-   * This is just "Convert Iterator[(String, Any)] to BSON".
-   *
-   * Name is OPTIONAL as a Toplevel BSON Object (aka the full document)
-   * will have no name, and won't write out a typecode either.
-   *
-   * From the BSON Spec a BSON Object (aka Document) is
-   *
-   *    document ::= int32 e_list "\x00"
-   *
-   *  int32 represents the total number of bytes comprising the following document – *inclusive* of the int32's 4 bytes
-   *  e_list is a list of possible elements, where:
-   *
-   *    e_list ::= element e_list
-   *
-   *  As a sequence of elements, wherein an element is
-   *
-   *    element ::= typeCode fieldName typeValue
-   *
-   * The above of which (typeCode and typeValue) are defined for each possible BSON type.
-   *
-   * Field Name is a CString, not a UTF8 String
-   *
-   * \x00 terminates the document (somewhat redundant given a fixed length header but what the hell)..
-   *  it wouldn't be so bad if \x00 wasn't used a million other places inside BSON, thereby precluding "scanahead" parsing
-   *
-   * For the curious, Document being embeddable, its representation in the element section of the BNF grammar is:
-   *
-   *    document_element ::= "\x03" e_name document
-   *
-   * @param fieldName Optionally (if an embedded doc) the field name for this document entry
-   * @param values An Iterator of String -> Any, representing the values of the Document.
-   */
+    * Write out a BSON Object as bytes.
+    *
+    * Note this comes after any conversions/separations etc.
+    * This is just "Convert Iterator[(String, Any)] to BSON".
+    *
+    * Name is OPTIONAL as a Toplevel BSON Object (aka the full document)
+    * will have no name, and won't write out a typecode either.
+    *
+    * From the BSON Spec a BSON Object (aka Document) is
+    *
+    * document ::= int32 e_list "\x00"
+    *
+    * int32 represents the total number of bytes comprising the following document – *inclusive* of the int32's 4 bytes
+    * e_list is a list of possible elements, where:
+    *
+    * e_list ::= element e_list
+    *
+    * As a sequence of elements, wherein an element is
+    *
+    * element ::= typeCode fieldName typeValue
+    *
+    * The above of which (typeCode and typeValue) are defined for each possible BSON type.
+    *
+    * Field Name is a CString, not a UTF8 String
+    *
+    * \x00 terminates the document (somewhat redundant given a fixed length header but what the hell)..
+    * it wouldn't be so bad if \x00 wasn't used a million other places inside BSON, thereby precluding "scanahead" parsing
+    *
+    * For the curious, Document being embeddable, its representation in the element section of the BNF grammar is:
+    *
+    * document_element ::= "\x03" e_name document
+    *
+    * @param fieldName Optionally (if an embedded doc) the field name for this document entry
+    * @param values An Iterator of String -> Any, representing the values of the Document.
+    */
   final def composeBSONObject(fieldName: Option[String], values: Iterator[(String, Any)])(implicit b: ByteStringBuilder): Int = {
     implicit val innerB = ByteString.newBuilder
 
@@ -113,9 +113,9 @@ trait BSONComposer[T] extends StrictLogging {
 
     val hdr = innerB.length + 4 /* include int32 bytes as header*/
     /**
-     * If no name, this is a toplevel object, which gets no type written
-     * Otherwise, write our typecode and field name (e.g. embedded object)
-     */
+      * If no name, this is a toplevel object, which gets no type written
+      * Otherwise, write our typecode and field name (e.g. embedded object)
+      */
     fieldName match {
       case Some(name) =>
         b.putByte(BSONDocumentType.typeCode) // typeCode
@@ -127,41 +127,41 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * Write out a BSON Array as bytes.
-   *
-   * Note this comes after any conversions/separations etc.
-   * This is just "Convert Iterator[(String, Any)] to BSON".
-   *
-   * Fundamentally, under the covers a BSON Array is just an Int indexed BSON Document,
-   * which means we will recurse back on the whole encoder as it is possible for Arrays to
-   * contain other arrays, Documents, etc. So encoding of any types is dealt with elsewhee.
-   *
-   * From the BSON Spec a BSON Object (aka Document) is
-   *
-   *    document ::= int32 e_list "\x00"
-   *
-   *  int32 represents the total number of bytes comprising the following document – *inclusive* of the int32's 4 bytes
-   *  e_list is a list of possible elements, where:
-   *
-   *    e_list ::= element e_list
-   *
-   *  As a sequence of elements, wherein an element is
-   *
-   *    element ::= typeCode fieldName typeValue
-   *
-   *  The above of which (typeCode and typeValue) are defined for each possible BSON type.
-   *  For arrays, fieldName will always be an Int32.
-   *
-   * \x00 terminates the document (somewhat redundant given a fixed length header but what the hell)..
-   *  it wouldn't be so bad if \x00 wasn't used a million other places inside BSON, thereby precluding "scanahead" parsing
-   *
-   * For the curious, Array has a representation in the element section of the BNF grammar is:
-   *
-   *    document_element ::= "\x04" e_name document
-   *
-   * @param key The field name to write the array into
-   * @param values An Iterator of Any, representing the values of the Array
-   */
+    * Write out a BSON Array as bytes.
+    *
+    * Note this comes after any conversions/separations etc.
+    * This is just "Convert Iterator[(String, Any)] to BSON".
+    *
+    * Fundamentally, under the covers a BSON Array is just an Int indexed BSON Document,
+    * which means we will recurse back on the whole encoder as it is possible for Arrays to
+    * contain other arrays, Documents, etc. So encoding of any types is dealt with elsewhee.
+    *
+    * From the BSON Spec a BSON Object (aka Document) is
+    *
+    * document ::= int32 e_list "\x00"
+    *
+    * int32 represents the total number of bytes comprising the following document – *inclusive* of the int32's 4 bytes
+    * e_list is a list of possible elements, where:
+    *
+    * e_list ::= element e_list
+    *
+    * As a sequence of elements, wherein an element is
+    *
+    * element ::= typeCode fieldName typeValue
+    *
+    * The above of which (typeCode and typeValue) are defined for each possible BSON type.
+    * For arrays, fieldName will always be an Int32.
+    *
+    * \x00 terminates the document (somewhat redundant given a fixed length header but what the hell)..
+    * it wouldn't be so bad if \x00 wasn't used a million other places inside BSON, thereby precluding "scanahead" parsing
+    *
+    * For the curious, Array has a representation in the element section of the BNF grammar is:
+    *
+    * document_element ::= "\x04" e_name document
+    *
+    * @param key The field name to write the array into
+    * @param values An Iterator of Any, representing the values of the Array
+    */
   def composeBSONArray(key: String, values: Iterator[Any])(implicit b: ByteStringBuilder): Int = {
     require(values.length < Integer.MAX_VALUE, "MongoDB Arrays use Int indexing and cannot exceed MAX_INT entries.")
     implicit val innerB = ByteString.newBuilder
@@ -176,7 +176,6 @@ trait BSONComposer[T] extends StrictLogging {
     b.putInt(hdr) ++= innerB.result() // not as elegant as i'd like but we need to compose on a separate inner bytestringbuilder.
     hdr
   }
-
 
 
   protected def composeField(key: String, value: Any)(implicit b: ByteStringBuilder): Int = {
@@ -198,7 +197,6 @@ trait BSONComposer[T] extends StrictLogging {
   protected def primitiveFieldComposition(key: String, primitive: BSONPrimitive, value: Any)(implicit b: ByteStringBuilder) = ???
 
 
-
   protected def defaultFieldComposition(key: String, value: Any)(implicit b: ByteStringBuilder) = value match {
     // things we handle as Double
     case dbl: Double =>
@@ -218,14 +216,14 @@ trait BSONComposer[T] extends StrictLogging {
       composeBSONObject(Some(key), doc.iterator)
     case m: Map[String, Any] =>
       logger.warn(s"['$key'] Writing raw Maps to BSON is inadvisable; all values will be encoded as Any, " +
-                   "and type erasure may wreak havoc. Please consider creating a BSONDocument.")
+        "and type erasure may wreak havoc. Please consider creating a BSONDocument.")
       composeBSONObject(Some(key), m.iterator)
     // Things we handle as arrays
     case lst: BSONList =>
       composeBSONArray(key, lst.iterator)
     case arr: Array[Any] =>
       logger.warn(s"['$key'] Got an Array , which due to type erasure is being treated as a BSON Array. " +
-                   "If you meant to store Binary data, Please construct an instance of BSONBinaryContainer for serialization.")
+        "If you meant to store Binary data, Please construct an instance of BSONBinaryContainer for serialization.")
       composeBSONArray(key, arr.iterator)
     case set: Set[Any] =>
       logger.warn(s"['$key'] WARNING: MongoDB does NOT provide storage guarantees around Sets, only allowing arrays to be " +
@@ -285,16 +283,16 @@ trait BSONComposer[T] extends StrictLogging {
     case BSONMaxKey =>
       composeBSONMaxKey(key)
     case other =>
-       throw new UnsupportedOperationException("Unable to serialize type '%s' (value: '%s'".format(other.getClass))
+      throw new UnsupportedOperationException("Unable to serialize type '%s' (value: '%s'".format(other.getClass))
   }
 
   /**
-   * a BSON Min Key, special semantic for sharding
-   *
-   *  min_key ::= "\xFF" e_name
-   *
-   * Special type which compares lower than all other possible BSON element values.
-   */
+    * a BSON Min Key, special semantic for sharding
+    *
+    * min_key ::= "\xFF" e_name
+    *
+    * Special type which compares lower than all other possible BSON element values.
+    */
   def composeBSONMinKey(key: String)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONMinKeyType.typeCode)
@@ -305,12 +303,12 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * a BSON Max Key, special semantic for sharding
-   *
-   *  max_key ::= "\x7F" e_name
-   *
-   * Special type which compares higher than all other possible BSON element values.
-   */
+    * a BSON Max Key, special semantic for sharding
+    *
+    * max_key ::= "\x7F" e_name
+    *
+    * Special type which compares higher than all other possible BSON element values.
+    */
   def composeBSONMaxKey(key: String)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONMaxKeyType.typeCode)
@@ -350,14 +348,14 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Timestamp, special internal type not to be confused with DateTime
-   *
-   *  timestamp ::= \"x11" e_name int64
-   *
-   *  Special internal type used by MongoDB replication and sharding.
-   *  First 4 bytes are an increment, second 4 are a timestamp.
-   *  Setting the timestamp to 0 has special semantics.
-   */
+    * A BSON Timestamp, special internal type not to be confused with DateTime
+    *
+    * timestamp ::= \"x11" e_name int64
+    *
+    * Special internal type used by MongoDB replication and sharding.
+    * First 4 bytes are an increment, second 4 are a timestamp.
+    * Setting the timestamp to 0 has special semantics.
+    */
   def composeBSONTimestamp(key: String, time: Int, increment: Int)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONTimestampType.typeCode)
@@ -371,11 +369,11 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Representation of a Int32
-   *
-   *    int32 ::= "\x10" e_name int32
-   *
-   */
+    * A BSON Representation of a Int32
+    *
+    * int32 ::= "\x10" e_name int32
+    *
+    */
   def composeBSONInt32(key: String, value: Int)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONInt32Type.typeCode)
@@ -388,11 +386,11 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Representation of a Int64
-   *
-   *    int64 ::= "\x12" e_name int64
-   *
-   */
+    * A BSON Representation of a Int64
+    *
+    * int64 ::= "\x12" e_name int64
+    *
+    */
   def composeBSONInt64(key: String, value: Long)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONInt64Type.typeCode)
@@ -405,21 +403,21 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Representation of a Regular Expression
-   *
-   *    regex ::= "\x0B" e_name cstring cstring
-   *
-   * The first cstring is the regex pattern, the second is the regex options string.
-   * Options are identified by characters, which must be stored in alphabetical order.
-   *
-   *  Valid options are:
-   *    'i' for case insensitive matching,
-   *    'm' for multiline matching,
-   *    'x' for verbose mode,
-   *    'l' to make \w, \W, etc. locale dependent,
-   *    's' for dotall mode ('.' matches everything),
-   *    and 'u' to make \w, \W, etc. match unicode.
-   */
+    * A BSON Representation of a Regular Expression
+    *
+    * regex ::= "\x0B" e_name cstring cstring
+    *
+    * The first cstring is the regex pattern, the second is the regex options string.
+    * Options are identified by characters, which must be stored in alphabetical order.
+    *
+    * Valid options are:
+    * 'i' for case insensitive matching,
+    * 'm' for multiline matching,
+    * 'x' for verbose mode,
+    * 'l' to make \w, \W, etc. locale dependent,
+    * 's' for dotall mode ('.' matches everything),
+    * and 'u' to make \w, \W, etc. match unicode.
+    */
   protected def composeBSONRegex(key: String, pattern: String, flags: String)(implicit b: ByteStringBuilder): Int = {
     // todo - validate flags stays within bounds of MongoDB supported values
     // type code
@@ -435,11 +433,11 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Representation of a UTC DateTime (# of UTC seconds since Unix Epoch)
-   *
-   *    utc_datetime ::= "\x09" e_name int64
-   *
-   */
+    * A BSON Representation of a UTC DateTime (# of UTC seconds since Unix Epoch)
+    *
+    * utc_datetime ::= "\x09" e_name int64
+    *
+    */
   protected def composeBSONDateTime(key: String, value: Long)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONDateTimeType.typeCode)
@@ -451,11 +449,11 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Representation of a Boolean
-   *
-   *    boolean ::= "\x08" e_name ("\x00" for true | "\x01" for false)
-   *
-   */
+    * A BSON Representation of a Boolean
+    *
+    * boolean ::= "\x08" e_name ("\x00" for true | "\x01" for false)
+    *
+    */
   protected def composeBSONBoolean(key: String, value: Boolean)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONBooleanType.typeCode)
@@ -467,12 +465,12 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   *  A BSON representation of an ObjectID
-   *
-   *    object_id ::= "\x07" e_name (byte*12)
-   *
-   *  Obviously, ObjectIDs are serialized as 12 bytes
-   */
+    * A BSON representation of an ObjectID
+    *
+    * object_id ::= "\x07" e_name (byte*12)
+    *
+    * Obviously, ObjectIDs are serialized as 12 bytes
+    */
   protected def composeBSONObjectID(key: String, value: ObjectID)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONObjectIDType.typeCode)
@@ -484,22 +482,22 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Binary container represents several tyes of Bytes
-   *
-   *    binary ::= "\x05" e_name int32 subtype (byte*)
-   *
-   *  Where subtype is one of:
-   *
-   *    \x00 -> "Generic"/"General Purpose" binary
-   *    \x01 -> A serialized function
-   *    \x02 -> Old Binary - a former, now deprecated style in MongoDB
-   *    \x03 -> Old UUID - some drivers used to serialize UUIDs incorrectly, this marks those.
-   *    \x04 -> UUID - where the byte order is "correct"
-   *    \x05 -> MD5 - MD5 hash
-   *    \x80 -> User Defined Binary Data.
-   *
-   * At the point of this code all decomposing (like UUID -> bytes) should already be done.
-   */
+    * A BSON Binary container represents several tyes of Bytes
+    *
+    * binary ::= "\x05" e_name int32 subtype (byte*)
+    *
+    * Where subtype is one of:
+    *
+    * \x00 -> "Generic"/"General Purpose" binary
+    * \x01 -> A serialized function
+    * \x02 -> Old Binary - a former, now deprecated style in MongoDB
+    * \x03 -> Old UUID - some drivers used to serialize UUIDs incorrectly, this marks those.
+    * \x04 -> UUID - where the byte order is "correct"
+    * \x05 -> MD5 - MD5 hash
+    * \x80 -> User Defined Binary Data.
+    *
+    * At the point of this code all decomposing (like UUID -> bytes) should already be done.
+    */
   protected def composeBSONBinary(key: String, value: Array[Byte], subType: Byte)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONBinaryType.typeCode)
@@ -530,10 +528,10 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Double is a 64-bit IEEE 754 floating point number.
-   *
-   *    double_element ::= "\x01" e_name double
-   */
+    * A BSON Double is a 64-bit IEEE 754 floating point number.
+    *
+    * double_element ::= "\x01" e_name double
+    */
   protected def composeBSONDouble(key: String, value: Double)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONDoubleType.typeCode)
@@ -546,11 +544,11 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * A BSON Symbol - same as String just diff. type; for immutable stuff.
-   * String is encoded in UTF8 (not the cStrings sometimes used)
-   *
-   *    string_element ::= "\x0E" e_name string
-   */
+    * A BSON Symbol - same as String just diff. type; for immutable stuff.
+    * String is encoded in UTF8 (not the cStrings sometimes used)
+    *
+    * string_element ::= "\x0E" e_name string
+    */
   protected def composeBSONSymbol(key: String, value: String)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONSymbolType.typeCode)
@@ -561,11 +559,12 @@ trait BSONComposer[T] extends StrictLogging {
     len += composeUTF8StringValue(value)
     len
   }
+
   /**
-   * A BSON String is encoded in UTF8 (not the cStrings sometimes used)
-   *
-   *    string_element ::= "\x02" e_name string
-   */
+    * A BSON String is encoded in UTF8 (not the cStrings sometimes used)
+    *
+    * string_element ::= "\x02" e_name string
+    */
   protected def composeBSONString(key: String, value: String)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONStringType.typeCode)
@@ -579,39 +578,39 @@ trait BSONComposer[T] extends StrictLogging {
 
 
   /**
-   * Write the BSON Bytes of a String as a BSON CString
-   * An example of what happens when stupidity overwhelms API Design ... because it's lazier to write without a length header
-   *
-   *  cString ::= (byte*) "\x00"
-   *
-   * Zero or more modified UTF-8 encoded characters followed by '\x00'. The (byte*) MUST NOT contain '\x00', hence it is not full UTF-8.
-   */
+    * Write the BSON Bytes of a String as a BSON CString
+    * An example of what happens when stupidity overwhelms API Design ... because it's lazier to write without a length header
+    *
+    * cString ::= (byte*) "\x00"
+    *
+    * Zero or more modified UTF-8 encoded characters followed by '\x00'. The (byte*) MUST NOT contain '\x00', hence it is not full UTF-8.
+    */
   def composeCStringValue(value: String)(implicit b: ByteStringBuilder): Int = {
     require(!value.contains(0x0.toByte), "C String values for BSON may not contain 0x0 bytes.")
     composeUTF8StringValue(value, true)
   }
 
   /**
-   * Write the BSON Bytes of a String as UTF8
-   *
-   * From the BSON Spec, a UTF8 String is:
-   *
-   *    string ::= int32 (byte*) "\x00"
-   *
-   *  int32 is the number of bytes in the (byte*) [+ 1 for the trailing \x00].
-   *  (byte*) is zero or more UTF-8 encoded characters.
-   *  \x00 trailing again, just for fun because it serves no help parsing.
-   *
-   * @param value The String to write as a BSON UTF8 String
-   * @param b a ByteStringBuilder to attach the UTF8 String to.
-   *
-   *
-   * I looked into other UTF8 implementations, but I am basing this on the
-   * Mongo Java Driver which I suspect is encoding codepoints differently due to BSON oddities
-   * TODO - Make me more bleeding efficient.
-   * TODO - Test the fuck out of me (fuzzing)
-   *
-   */
+    * Write the BSON Bytes of a String as UTF8
+    *
+    * From the BSON Spec, a UTF8 String is:
+    *
+    * string ::= int32 (byte*) "\x00"
+    *
+    * int32 is the number of bytes in the (byte*) [+ 1 for the trailing \x00].
+    * (byte*) is zero or more UTF-8 encoded characters.
+    * \x00 trailing again, just for fun because it serves no help parsing.
+    *
+    * @param value The String to write as a BSON UTF8 String
+    * @param b a ByteStringBuilder to attach the UTF8 String to.
+    *
+    *
+    *          I looked into other UTF8 implementations, but I am basing this on the
+    *          Mongo Java Driver which I suspect is encoding codepoints differently due to BSON oddities
+    *          TODO - Make me more bleeding efficient.
+    *          TODO - Test the fuck out of me (fuzzing)
+    *
+    */
   protected def composeUTF8StringValue(value: String, asCString: Boolean = false)(implicit b: ByteStringBuilder): Int = {
     // todo - confirm we don't exceed mongodb's/bson's maximum string length
     val len = utf8Length(value)
@@ -651,12 +650,12 @@ trait BSONComposer[T] extends StrictLogging {
   }
 
   /**
-   * Calculates the length of a UTF8 String.
-   *
-   * // todo - i did basic tests on this, compared to hadoop impl but not against larger characters worth 2 or 3
-   * @param value The String to write
-   * @return An Int32 representing the length.
-   */
+    * Calculates the length of a UTF8 String.
+    *
+    * // todo - i did basic tests on this, compared to hadoop impl but not against larger characters worth 2 or 3
+    * @param value The String to write
+    * @return An Int32 representing the length.
+    */
   def utf8Length(value: String): Int = {
     @tailrec
     def calc(s: String, len: Int): Int = {
@@ -671,8 +670,8 @@ trait BSONComposer[T] extends StrictLogging {
 }
 
 /**
- * Default no frills BSONDocumentComposer
- */
+  * Default no frills BSONDocumentComposer
+  */
 object GenericBSONDocumentComposer extends BSONComposer[BSONDocument] {
   def primitives = Map.empty[Class[_], BSONPrimitive]
 

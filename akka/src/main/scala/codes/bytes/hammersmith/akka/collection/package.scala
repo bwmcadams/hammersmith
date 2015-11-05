@@ -25,11 +25,11 @@ package object collection {
     }
 
     /**
-     * Checks for an ID and generates one.
-     * Not all implementers will need this, but it gets invoked nonetheless
-     * as a signal to BSONDocument, etc implementations to verify an id is there
-     * and generate one if needed.
-     */
+      * Checks for an ID and generates one.
+      * Not all implementers will need this, but it gets invoked nonetheless
+      * as a signal to BSONDocument, etc implementations to verify an id is there
+      * and generate one if needed.
+      */
     def checkID(doc: T): T = {
       doc.get("_id") match {
         case Some(oid: ObjectID) ⇒ {
@@ -54,32 +54,32 @@ package object collection {
     def _id(doc: T): Option[Any] = doc.get("_id")
 
     /**
-     * Provides an iterator over all of the entries in the document
-     * this is crucial for composition (serialization) to work effectively
-     * if you have a custom object.
-     *
-     * @param doc
-     * @return
-     */
+      * Provides an iterator over all of the entries in the document
+      * this is crucial for composition (serialization) to work effectively
+      * if you have a custom object.
+      *
+      * @param doc
+      * @return
+      */
     def iterator(doc: T) = doc.iterator
 
   }
 
 
   // todo - can we do this with Object instead of inside implicits?
-  implicit object SerializableBSONDocument extends SerializableBSONDocumentLike[BSONDocument]{
+  implicit object SerializableBSONDocument extends SerializableBSONDocumentLike[BSONDocument] {
     val parser = GenericBSONDocumentParser
     val composer = GenericBSONDocumentComposer
   }
 
   //implicit object SerializableBSONList extends SerializableBSONDocumentLike[BSONList]
 
-  implicit object SerializableImmutableDocument extends SerializableBSONDocumentLike[codes.bytes.hammersmith.collection.immutable.Document]{
+  implicit object SerializableImmutableDocument extends SerializableBSONDocumentLike[codes.bytes.hammersmith.collection.immutable.Document] {
     val parser = ImmutableBSONDocumentParser
     val composer = ImmutableBSONDocumentComposer
   }
 
-  implicit object SerializableImmutableOrderedDocument extends SerializableBSONDocumentLike[codes.bytes.hammersmith.collection.immutable.OrderedDocument]{
+  implicit object SerializableImmutableOrderedDocument extends SerializableBSONDocumentLike[codes.bytes.hammersmith.collection.immutable.OrderedDocument] {
     val parser: BSONParser[OrderedDocument] = ImmutableOrderedBSONDocumentParser
     val composer = ImmutableOrderedBSONDocumentComposer
   }

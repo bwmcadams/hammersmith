@@ -12,20 +12,20 @@ import org.specs2.runner.JUnitRunner
 
 class GetMoreMessageSpec extends Specification with ThrownExpectations with StrictLogging {
   /**
-   * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
-   */
+    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
+    */
   implicit val DefaultMaxBSONSize = 1024 * 1024 * 16
 
   def is =
     sequential ^
-    skipAllIf(1 == 1) ^ // temporarily disable
-    "This specification is to test the functionality of the Wire Protocol `GetMoreMessage`" ^
-    p ^
-    "Working with Hammersmith GetMoreMessage implementations should" ^
-    "Allow instantiation of a GetMore" ! testBasicInstantiation ^
-    "Be composed into a BSON bytestream" ! testBasicCompose ^
-    "Be comparable to a message created by the MongoDB Java Driver's BSON routines" ! testEncoding ^
-    endp
+      skipAllIf(1 == 1) ^ // temporarily disable
+      "This specification is to test the functionality of the Wire Protocol `GetMoreMessage`" ^
+      p ^
+      "Working with Hammersmith GetMoreMessage implementations should" ^
+      "Allow instantiation of a GetMore" ! testBasicInstantiation ^
+      "Be composed into a BSON bytestream" ! testBasicCompose ^
+      "Be comparable to a message created by the MongoDB Java Driver's BSON routines" ! testEncoding ^
+      endp
 
 
   def testBasicInstantiation = {

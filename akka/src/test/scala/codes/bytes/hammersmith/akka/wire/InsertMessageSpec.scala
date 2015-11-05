@@ -12,23 +12,23 @@ import org.specs2.runner.JUnitRunner
 
 class InsertMessageSpec extends Specification with ThrownExpectations {
   /**
-   * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
-   */
+    * We don't support mongo versions that used 4mb as their default, so set default maxBSON to 16MB
+    */
   implicit val DefaultMaxBSONSize = 1024 * 1024 * 16
 
   def is =
     sequential ^
-    skipAllIf(1 == 1) ^ // temporarily disable
-    "This specification is to test the functionality of the Wire Protocol `InsertMessage`" ^
-    p ^
-    "Working with Hammersmith Single InsertMessage implementations should" ^
-    "Allow instantiation of a Single InsertMessage" ! testBasicInstantiation ^
-    "Be composed into a BSON bytestream" ! testBasicCompose ^
-    endp ^
-    "Working with Hammersmith Bulk InsertMessage implementations should"  ^
+      skipAllIf(1 == 1) ^ // temporarily disable
+      "This specification is to test the functionality of the Wire Protocol `InsertMessage`" ^
+      p ^
+      "Working with Hammersmith Single InsertMessage implementations should" ^
+      "Allow instantiation of a Single InsertMessage" ! testBasicInstantiation ^
+      "Be composed into a BSON bytestream" ! testBasicCompose ^
+      endp ^
+      "Working with Hammersmith Bulk InsertMessage implementations should" ^
       "Allow instantiation of a Bulk InsertMessage" ! testBasicBulkInstantiation ^
       "Be composed into a BSON bytestream" ! testBasicBulkCompose ^
-    endp
+      endp
 
 
   def testBasicInstantiation = {

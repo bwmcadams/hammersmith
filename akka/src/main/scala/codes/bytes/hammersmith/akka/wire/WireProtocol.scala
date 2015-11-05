@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 
 package codes.bytes.hammersmith.akka.wire
 
@@ -26,16 +26,16 @@ import com.typesafe.scalalogging.StrictLogging
 
 
 /**
- * Wire Protocol related code.
- *
- * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol
- */
+  * Wire Protocol related code.
+  *
+  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol
+  */
 
 /**
- * Request OpCodes for communicating with MongoDB Servers
- *
- * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-RequestOpcodes
- */
+  * Request OpCodes for communicating with MongoDB Servers
+  *
+  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-RequestOpcodes
+  */
 object OpCode extends Enumeration {
   val OpReply = Value(1)
   val OpMsg = Value(1000)
@@ -49,39 +49,39 @@ object OpCode extends Enumeration {
 }
 
 /**
- * Standard Message header for Mongo communication
- *
- * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-StandardMessageHeader
- */
+  * Standard Message header for Mongo communication
+  *
+  * @see http://www.mongodb.org/display/DOCS/Mongo+Wire+Protocol#MongoWireProtocol-StandardMessageHeader
+  */
 case class MessageHeader(
-  /**
-   * Total message size, in bytes
-   * including the 4 bytes to hold this length
-   */
-  messageLength: Int,
-  /**
-   * The client or DB generated identifier which uniquely
-   * identifies this message.
-   *
-   * For client generated messages (OpQuery, OpGetMore), this is
-   * returned in the responseTo field for OpReply messages.
-   *
-   * This should be used to associate responses w/ originating queries.
-   */
-  requestID: Int,
-  /**
-   * For reply messages from the database, this contains the
-   * requestId value from the original OpQuery/OpGetMore messages.
-   *
-   * It should be used to associate responses with the originating query.
-   */
-  responseTo: Int,
-  /**
-   * Request Type
-   * @see OpCode
-   */
-  opCode: Int
-)
+                          /**
+                            * Total message size, in bytes
+                            * including the 4 bytes to hold this length
+                            */
+                          messageLength: Int,
+                          /**
+                            * The client or DB generated identifier which uniquely
+                            * identifies this message.
+                            *
+                            * For client generated messages (OpQuery, OpGetMore), this is
+                            * returned in the responseTo field for OpReply messages.
+                            *
+                            * This should be used to associate responses w/ originating queries.
+                            */
+                          requestID: Int,
+                          /**
+                            * For reply messages from the database, this contains the
+                            * requestId value from the original OpQuery/OpGetMore messages.
+                            *
+                            * It should be used to associate responses with the originating query.
+                            */
+                          responseTo: Int,
+                          /**
+                            * Request Type
+                            * @see OpCode
+                            */
+                          opCode: Int
+                        )
 
 object MongoMessage extends StrictLogging {
 
@@ -90,9 +90,9 @@ object MongoMessage extends StrictLogging {
   val ID = new AtomicInteger(1)
 
   /**
-   * We don't support mongo versions (<1.8) that used 4mb as their default,
-   * so set default maxBSON to 16MB
-   */
+    * We don't support mongo versions (<1.8) that used 4mb as their default,
+    * so set default maxBSON to 16MB
+    */
   val DefaultMaxBSONObjectSize = 1024 * 1024 * 16
 
 
@@ -108,19 +108,19 @@ object MongoMessage extends StrictLogging {
     MongoMessage(header, frame)
   }
 
-  def apply(header: ByteString, frame: ByteString): MongoMessage =  apply(header.iterator, frame.iterator)
+  def apply(header: ByteString, frame: ByteString): MongoMessage = apply(header.iterator, frame.iterator)
 
 
   /**
-   * Extractor method for incoming streams of
-   * MongoDB data.
-   *
-   * Attempts to decode them into a coherent message.
-   *
-   * For the moment can only decode Reply messages
-   * longterm we'll support all messages for testing purposes.
-   *
-   */
+    * Extractor method for incoming streams of
+    * MongoDB data.
+    *
+    * Attempts to decode them into a coherent message.
+    *
+    * For the moment can only decode Reply messages
+    * longterm we'll support all messages for testing purposes.
+    *
+    */
   def apply(header: ByteIterator, frame: ByteIterator): MongoMessage = {
     logger.debug("Attempting to extract a coherent MongoDB Message")
 
@@ -176,9 +176,11 @@ object MongoMessage extends StrictLogging {
 abstract class MongoMessage extends StrictLogging {
 
   implicit val byteOrder = java.nio.ByteOrder.LITTLE_ENDIAN
+
   /* Standard Message Header */
   //val header: MessageHeader
   def opCode: OpCode.Value
+
   lazy val requestID = {
     val _id = MongoMessage.ID.getAndIncrement
     logger.trace(s"Generated Message ID '${_id}'")
@@ -196,10 +198,10 @@ abstract class MongoMessage extends StrictLogging {
   }
 
   /**
-   * Serialize the message header.
-   * @param maxBSON
-   * @return
-   */
+    * Serialize the message header.
+    * @param maxBSON
+    * @return
+    */
   protected def serializeHeader()(implicit maxBSON: Int): ByteString = {
     val b = ByteString.newBuilder
     // There's an additional length header above the BSON length that goes here, handled at higher level
@@ -210,27 +212,32 @@ abstract class MongoMessage extends StrictLogging {
   }
 
   /**
-   * Message specific implementation.
-   *
-   * serializeHeader() writes the header, serializeMessage does a message
-   * specific writeout
-   */
+    * Message specific implementation.
+    *
+    * serializeHeader() writes the header, serializeMessage does a message
+    * specific writeout
+    */
   protected def serializeMessage()(implicit maxBSON: Int): ByteString
 }
 
 /**
- * A message sent from a client to a mongodb server
- */
+  * A message sent from a client to a mongodb server
+  */
 abstract class MongoClientMessage extends MongoMessage
 
 
 /**
- * Any client -> server message which writes
- */
+  * Any client -> server message which writes
+  */
 abstract class MongoClientWriteMessage extends MongoClientMessage {
-  val namespace: String // Full collection name (dbname.collectionname)
-  def ids: Seq[Option[Any]] // All IDs  this message is writing... used for callback fun
+  val namespace: String
+
+  // Full collection name (dbname.collectionname)
+  def ids: Seq[Option[Any]]
+
+  // All IDs  this message is writing... used for callback fun
   def writeConcern: WriteConcern
+
   override def serialize()(implicit maxBSON: Int): ByteString = {
     val msg = super.serialize()
     if (writeConcern.w != 0 || writeConcern.j || writeConcern.fsync || writeConcern.wTimeout != 0) {
@@ -244,7 +251,7 @@ abstract class MongoClientWriteMessage extends MongoClientMessage {
 }
 
 /**
- * A message sent from a mongodb server to a client
- */
+  * A message sent from a mongodb server to a client
+  */
 abstract class MongoServerMessage extends MongoMessage
 

@@ -1,19 +1,19 @@
 /**
- * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
+  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
+  */
 
 package codes.bytes.hammersmith
 package util
@@ -24,13 +24,13 @@ import scala.annotation.tailrec
 import scala.collection.Set
 
 /**
- * Supports breaking down the MongoDB URI Format for connections.
- *
- * TODO - Make me a more scalaey functional codebase.  Mostly eyeball
- * ported from Java.
- *
- * @see http://www.mongodb.org/display/DOCS/Connections
- */
+  * Supports breaking down the MongoDB URI Format for connections.
+  *
+  * TODO - Make me a more scalaey functional codebase.  Mostly eyeball
+  * ported from Java.
+  *
+  * @see http://www.mongodb.org/display/DOCS/Connections
+  */
 object MongoURI extends StrictLogging {
   final val UriPrefix = "mongodb://"
   final val ConnSpec = "http://www.mongodb.org/display/DOCS/Connections"
@@ -52,9 +52,9 @@ object MongoURI extends StrictLogging {
         Some(auth.substring(ai + 1)))
     } else (svr, None, None)
 
-      def _createHost(data: Array[String]) = if (data.length > 1)
-        (data(0), data(1).toInt)
-      else (data(0), 27017)
+    def _createHost(data: Array[String]) = if (data.length > 1)
+      (data(0), data(1).toInt)
+    else (data(0), 27017)
 
     (s.split(",").toSet.map { x: String ⇒ _createHost(x.split(":")) },
       username, password)
@@ -63,6 +63,7 @@ object MongoURI extends StrictLogging {
 }
 
 class MongoURI(uri: String) extends StrictLogging {
+
   import MongoURI._
 
   require(uri.startsWith(UriPrefix),
@@ -70,7 +71,8 @@ class MongoURI(uri: String) extends StrictLogging {
   val _uri = uri.substring(UriPrefix.length)
 
   val idx = _uri.lastIndexOf("/")
-  val (svr, ns, opts) = if (idx < 0) (_uri, None, None) else {
+  val (svr, ns, opts) = if (idx < 0) (_uri, None, None)
+  else {
     val s = _uri.substring(0, idx)
     val n = _uri.substring(idx + 1)
 
@@ -147,19 +149,20 @@ class MongoURI(uri: String) extends StrictLogging {
 }
 
 case class MongoOptions(
-  var slaveOK: Boolean = false, /* Read from secondaries permitted */
-  var safe: Boolean = false, /* getLastError after every update */
-  var w: Int = 0, /* w:n added to getLastError; implies safe=true */
-  var wtimeout: Int = 0, /* MS for getLastError timeouts */
-  var fsync: Boolean = false, /* adds fsync:true to the getLastError cmd */
-  var journal: Boolean = false, /* Sync to journal; implies safe=true */
-  var connectTimeoutMS: Int = 0, /* How long a conn can take to be opened before timing out */
-  var socketTimeoutMS: Int = 0, /* How long a send or receive on a socket can take before timing out */
-  var socketKeepAlive: Boolean = false,
-  var autoConnectRetry: Boolean = false,
-  var waitQueueTimeout: Int = 1000 * 60 * 2,
-  var waitQueueMultiple: Int = 5,
-  var maxPoolSize: Int = 10,
-  var minPoolSize: Int = 1)
+                         var slaveOK: Boolean = false, /* Read from secondaries permitted */
+                         var safe: Boolean = false, /* getLastError after every update */
+                         var w: Int = 0, /* w:n added to getLastError; implies safe=true */
+                         var wtimeout: Int = 0, /* MS for getLastError timeouts */
+                         var fsync: Boolean = false, /* adds fsync:true to the getLastError cmd */
+                         var journal: Boolean = false, /* Sync to journal; implies safe=true */
+                         var connectTimeoutMS: Int = 0, /* How long a conn can take to be opened before timing out */
+                         var socketTimeoutMS: Int = 0, /* How long a send or receive on a socket can take before timing out */
+                         var socketKeepAlive: Boolean = false,
+                         var autoConnectRetry: Boolean = false,
+                         var waitQueueTimeout: Int = 1000 * 60 * 2,
+                         var waitQueueMultiple: Int = 5,
+                         var maxPoolSize: Int = 10,
+                         var minPoolSize: Int = 1
+                       )
 
 // vim: set ts=2 sw=2 sts=2 et:

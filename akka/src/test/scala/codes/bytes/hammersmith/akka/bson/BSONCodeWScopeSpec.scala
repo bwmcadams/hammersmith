@@ -10,7 +10,7 @@ class BSONCodeWScopeSpec extends Specification with BSONTestData with StrictLogg
 
   def is =
     skipAllIf(1 == 1) ^ // temporarily disable
-    sequential ^
+      sequential ^
       "This specification tests the intermittently broken and WTF code of Scoped JS Code types in MongoDB" ^
       p ^
       "scoped code, code" ! hasScopedCode_Code ^

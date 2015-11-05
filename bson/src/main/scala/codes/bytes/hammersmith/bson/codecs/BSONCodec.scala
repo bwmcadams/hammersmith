@@ -54,8 +54,7 @@ object BSONCodec extends StrictLogging {
       */
     val bsonDocument: Codec[BSONRawDocument] = lazily {
       vector(bsonCodec).xmap(
-        { fields => BSONRawDocument(fields) },
-        { doc => doc.primitiveValue }
+        { fields => BSONRawDocument(fields) }, { doc => doc.primitiveValue }
       )
     }
 
@@ -74,8 +73,7 @@ object BSONCodec extends StrictLogging {
       */
     val bsonArray: Codec[BSONRawArray] = lazily {
       vector(bsonCodec).xmap(
-        { entries => BSONRawArray.fromEntries(entries) },
-        { arr => arr.primitiveValue }
+        { entries => BSONRawArray.fromEntries(entries) }, { arr => arr.primitiveValue }
       )
     }
 
@@ -150,10 +148,10 @@ object BSONCodec extends StrictLogging {
       *
       * - Timestamp is a 4 byte signed int32, encoded as Big Endian
       * - “Process Unique” is 2 sections
-      *   + Machine Identifier is an int32 composed of 3 Low Order (Per Spec: Little Endian Bytes)
-      *   + Process Identifier is a short (composed of 2 Low Order (Per Spec: Little Endian Bytes)
-      *   % The Java Driver seems to ignore this and stores process-unique in BE.
-      *   % Other drivers like Python seem to ignore spec, too.
+      * + Machine Identifier is an int32 composed of 3 Low Order (Per Spec: Little Endian Bytes)
+      * + Process Identifier is a short (composed of 2 Low Order (Per Spec: Little Endian Bytes)
+      * % The Java Driver seems to ignore this and stores process-unique in BE.
+      * % Other drivers like Python seem to ignore spec, too.
       * - Counter / Increment is a 3 byte counter to prevent races against tsp/mid/pid
       *
       * @note There's no value I know of in exposing the actual pieces of an ObjectID in user code... so we
@@ -176,8 +174,7 @@ object BSONCodec extends StrictLogging {
 
     // TODO - JSON spec says flags must be stored in alphabet order
     val bsonRegex: Codec[BSONRegex] = (cstring ~ cstring).xmap[BSONRegex](
-      { case (pattern, options) => BSONRegex(pattern, options) },
-      { case BSONRegex(pattern, options) => (pattern, options) }
+      { case (pattern, options) => BSONRegex(pattern, options) }, { case BSONRegex(pattern, options) => (pattern, options) }
     )
 
     val bsonDBPointer: Codec[BSONDBPointer] = (utf8 :: bsonObjectID).as[BSONDBPointer]
@@ -186,8 +183,7 @@ object BSONCodec extends StrictLogging {
 
     // Best to let the AST decide what it is , be it a Scala Symbol or what.
     val bsonSymbol: Codec[BSONSymbol] = (utf8).xmap[BSONSymbol](
-      { str => BSONSymbol(str) },
-      { case BSONSymbol(str) => str }
+      { str => BSONSymbol(str) }, { case BSONSymbol(str) => str }
     )
 
     val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocument).as[BSONScopedJSCode]
@@ -232,11 +228,11 @@ object BSONCodec extends StrictLogging {
 }
 
 /**
- * Old BSON UUIDs are little endian, new ones are big endian, though overall endianness is little in BSON
- *
- * TODO: At AST level, make sure we convert all Binary Old UUIDs to new standard Binary UUIDs
- */
-object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID]{
+  * Old BSON UUIDs are little endian, new ones are big endian, though overall endianness is little in BSON
+  *
+  * TODO: At AST level, make sure we convert all Binary Old UUIDs to new standard Binary UUIDs
+  */
+object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID] {
 
   protected val mkUUID: (Long, Long) => BSONBinaryOldUUID = BSONBinaryOldUUID(_, _)
 
@@ -251,7 +247,7 @@ object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID]{
   override def toString = "uuid"
 }
 
-object BSONNewUUIDCodec extends Codec[BSONBinaryUUID]{
+object BSONNewUUIDCodec extends Codec[BSONBinaryUUID] {
 
   protected val mkUUID: (Long, Long) => BSONBinaryUUID = BSONBinaryUUID(_, _)
 

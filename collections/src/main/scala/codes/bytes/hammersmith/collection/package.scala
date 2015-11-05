@@ -4,6 +4,7 @@ import codes.bytes.hammersmith.bson._
 //import codes.bytes.hammersmith.bson.types.{BSONBinary, BSONCode, BSONCodeWScope, BSONTimestamp}
 
 package object collection {
+
   abstract class ValidBSONType[T]
 
   // todo - refactor types for Hammersmith's
@@ -19,15 +20,16 @@ package object collection {
   }*/
 
   /**
-   * Nice trick from Miles Sabin using ambiguity in implicit resolution to disallow Nothing
-   */
-  sealed trait NotNothing[A]{
+    * Nice trick from Miles Sabin using ambiguity in implicit resolution to disallow Nothing
+    */
+  sealed trait NotNothing[A] {
     type B
   }
 
   object NotNothing {
-    implicit val nothing = new NotNothing[Nothing]{ type B = Any }
-    implicit def notNothing[A] = new NotNothing[A]{ type B = A }
+    implicit val nothing = new NotNothing[Nothing] {type B = Any}
+
+    implicit def notNothing[A] = new NotNothing[A] {type B = A}
   }
 
 }
