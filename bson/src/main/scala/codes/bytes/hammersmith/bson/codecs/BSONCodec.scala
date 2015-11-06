@@ -236,6 +236,7 @@ object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID] {
   override def encode(u: BSONBinaryOldUUID): Attempt[BitVector] =
     Codec.encodeBoth(int64, int64)(u.leastSignificant, u.mostSignificant)
 
+  // todo - decoding in right order/endianness?
   override def decode(bits: BitVector) =
     Codec.decodeBothCombine(int64, int64)(bits)(mkUUID)
 
@@ -251,6 +252,7 @@ object BSONNewUUIDCodec extends Codec[BSONBinaryUUID] {
   override def encode(u: BSONBinaryUUID): Attempt[BitVector] =
     Codec.encodeBoth(int64, int64)(u.mostSignificant, u.leastSignificant)
 
+  // todo - decoding in right order/endianness?
   override def decode(bits: BitVector) =
     Codec.decodeBothCombine(int64, int64)(bits)(mkUUID)
 
