@@ -173,18 +173,13 @@ object BSONCodec extends StrictLogging {
     val bsonUTCDateTime: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
 
     // TODO - BSON spec says flags must be stored in alphabet order
-    val bsonRegex: Codec[BSONRegex] = (cstring ~ cstring).xmap[BSONRegex](
-      { case (pattern, options) => BSONRegex(pattern, options) }, { case BSONRegex(pattern, options) => (pattern, options) }
-    )
+    val bsonRegex: Codec[BSONRegex] = (cstring :: cstring).as[BSONRegex]
 
     val bsonDBPointer: Codec[BSONDBPointer] = (utf8 :: bsonObjectID).as[BSONDBPointer]
 
     val bsonJSCode: Codec[BSONJSCode] = (utf8).as[BSONJSCode]
 
-    // Best to let the AST decide what it is , be it a Scala Symbol or what.
-    val bsonSymbol: Codec[BSONSymbol] = (utf8).xmap[BSONSymbol](
-      { str => BSONSymbol(str) }, { case BSONSymbol(str) => str }
-    )
+    val bsonSymbol: Codec[BSONSymbol] = (utf8).as[BSONSymbol]
 
     val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocument).as[BSONScopedJSCode]
 
