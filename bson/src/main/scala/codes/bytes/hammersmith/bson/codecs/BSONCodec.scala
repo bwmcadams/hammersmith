@@ -9,7 +9,7 @@ import scodec.{Attempt, Codec}
 import spire.implicits._
 import spire.math._ // provides infix operators, instances and conversions
 
-// TODO - Check all our endianness corner cases becasue BSON is Crazytown Bananapants with endian consistency.
+// TODO - Check all our endianness corner cases because BSON is Crazytown Bananapants with endian consistency.
 // TODO - Finish ScalaDoc
 object BSONCodec extends StrictLogging {
 
@@ -172,7 +172,7 @@ object BSONCodec extends StrictLogging {
 
     val bsonUTCDateTime: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
 
-    // TODO - JSON spec says flags must be stored in alphabet order
+    // TODO - BSON spec says flags must be stored in alphabet order
     val bsonRegex: Codec[BSONRegex] = (cstring ~ cstring).xmap[BSONRegex](
       { case (pattern, options) => BSONRegex(pattern, options) }, { case BSONRegex(pattern, options) => (pattern, options) }
     )
@@ -210,7 +210,7 @@ object BSONCodec extends StrictLogging {
       )).
       // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
       typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
-      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID). // todo make me not suck
+      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID).
       typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
       typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
       typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
@@ -220,6 +220,8 @@ object BSONCodec extends StrictLogging {
       typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
       typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
       typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
+      typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
+      typecase(BSONLong.typeCode, cstring ~ bsonLong).
       typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
       typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))
 
