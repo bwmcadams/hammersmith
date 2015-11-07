@@ -2,7 +2,7 @@ import sbt._
 
 object Version {
   val akka = "2.4.0"
-  val mongoJava = "2.9.3"
+  val mongoJava = "3.1.0"
   // only used for testing
   val junit = "4.7"
   val specs2 = "2.3.13"

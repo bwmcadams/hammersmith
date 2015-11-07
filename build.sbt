@@ -50,7 +50,8 @@ lazy val bson = (project in file("bson")).
     libraryDependencies ++= Seq(
       scodecCore,
       scodecBits,
-      scodecSpire
+      scodecSpire,
+      mongoJava // for testing cross compatibility and performance
     )
   )
 
