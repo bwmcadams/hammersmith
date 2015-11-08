@@ -21,9 +21,11 @@ import com.typesafe.scalalogging.StrictLogging
 import scodec.bits._
 import scodec.codecs._
 import scodec.interop.spire._
-import scodec.{Attempt, Codec}
+import scodec.{CodecTransformation, Attempt, Codec}
 import spire.implicits._
-import spire.math._ // provides infix operators, instances and conversions
+import spire.math._
+
+// provides infix operators, instances and conversions
 
 // TODO - Check all our endianness corner cases because BSON is Crazytown Bananapants with endian consistency.
 // TODO - Finish ScalaDoc
@@ -33,9 +35,58 @@ object BSONCodec extends StrictLogging {
 
   val MaxBSONSize = 16 * 1024 * 1024
 
-  val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize - 1))
+  val Nul = constant(hex"00")
 
-  implicit val bsonCodec: Codec[(String, BSONType)] = {
+  val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize))
+
+
+  /**
+    * BSON Document
+    *
+    * This is, fundamentally, the core type of BSON. But BSON Docs can contain docs as fields;
+    * note we recurse against the parent codec.
+    *
+    * @group bsonTypeCodec
+    * @see http://bsonspec.org
+    */
+  implicit lazy val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
+    logToStdOut(
+      variableSizeBytes(bsonSizeHeader,
+        (vector(bsonFieldCodec)).xmap(
+          { fields ⇒ BSONRawDocument(fields.filterNot(_._1 == "$EOD" )) },
+          { doc ⇒ doc.primitiveValue } // todo - ensure we are writing 0x00 to end
+        )
+      , 4)
+    , "% ")
+  }
+
+
+  /**
+    * BSON Array
+    *
+    * Technically a standard BSON Document with integer keys
+    * - indexed from 0
+    * - sequential
+    *
+    * TODO: Test me... all keys should be ints
+    *
+    * @group bsonTypeCodec
+    * @see http://bsonspec.org
+    */
+  implicit lazy val bsonArrayCodec: Codec[BSONRawArray] = lazily {
+    logToStdOut(
+      variableSizeBytes(bsonSizeHeader, {
+        (vector(bsonFieldCodec)).xmap(
+          { fields ⇒ BSONRawArray.fromEntries(fields.filterNot(_._1 == "$EOD" )) },
+          { arr ⇒ arr.primitiveValue }
+        )
+      }, 4)
+    , "@ ")
+  }
+
+
+  implicit val bsonFieldCodec: Codec[(String, BSONType)] = {
+
 
     /**
       * BSON Double
@@ -59,39 +110,6 @@ object BSONCodec extends StrictLogging {
       */
     val bsonString: Codec[BSONString] = utf8_32L.as[BSONString]
 
-    /**
-      * BSON Document
-      *
-      * This is, fundamentally, the core type of BSON. But BSON Docs can contain docs as fields;
-      * note we recurse against the parent codec.
-      *
-      * @group bsonTypeCodec
-      * @see http://bsonspec.org
-      */
-    val bsonDocument: Codec[BSONRawDocument] = lazily {
-      vector(bsonCodec).xmap(
-        { fields => BSONRawDocument(fields) }, { doc => doc.primitiveValue }
-      )
-    }
-
-
-    /**
-      * BSON Array
-      *
-      * Technically a standard BSON Document with integer keys
-      * - indexed from 0
-      * - sequential
-      *
-      * TODO: Test me... all keys should be ints
-      *
-      * @group bsonTypeCodec
-      * @see http://bsonspec.org
-      */
-    val bsonArray: Codec[BSONRawArray] = lazily {
-      vector(bsonCodec).xmap(
-        { entries => BSONRawArray.fromEntries(entries) }, { arr => arr.primitiveValue }
-      )
-    }
 
     /**
       * BSON Binary Subtype for “Generic” binary.
@@ -123,28 +141,28 @@ object BSONCodec extends StrictLogging {
       */
     val bsonBinary: Codec[BSONBinary] = lazily {
       // determine bson subtype
-      discriminated[BSONBinary].by(uint8L).
-        typecase(BSONBinaryGeneric.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryGeneric, 4)
-        ).
-        typecase(BSONBinaryFunction.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryFunction, 4)
-        ).
-        typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
-          variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOld, 4))
-        ).
-        typecase(BSONBinaryOldUUID.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUID, 4)
-        ).
-        typecase(BSONBinaryUUID.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryUUID, 4)
-        ).
-        typecase(BSONBinaryMD5.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryMD5, 4)
-        ).
-        typecase(BSONBinaryUserDefined.subTypeCode,
-          variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefined, 4)
-        )
+        discriminated[BSONBinary].by(uint8L).
+          typecase(BSONBinaryGeneric.subTypeCode,
+            variableSizeBytes(bsonSizeHeader, bsonBinaryGeneric, 4)
+          ).
+          typecase(BSONBinaryFunction.subTypeCode,
+            variableSizeBytes(bsonSizeHeader, bsonBinaryFunction, 4)
+          ).
+          typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
+            variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOld, 4))
+          ).
+          typecase(BSONBinaryOldUUID.subTypeCode,
+            variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUID, 4)
+          ).
+          typecase(BSONBinaryUUID.subTypeCode,
+            variableSizeBytes(bsonSizeHeader, bsonBinaryUUID, 4)
+          ).
+          typecase(BSONBinaryMD5.subTypeCode,
+            variableSizeBytes(bsonSizeHeader, bsonBinaryMD5, 4)
+          ).
+          typecase(BSONBinaryUserDefined.subTypeCode,
+            variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefined, 4)
+          )
     }
 
     /**
@@ -197,7 +215,7 @@ object BSONCodec extends StrictLogging {
 
     val bsonSymbol: Codec[BSONSymbol] = (utf8).as[BSONSymbol]
 
-    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocument).as[BSONScopedJSCode]
+    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocumentCodec).as[BSONScopedJSCode]
 
     val bsonInteger: Codec[BSONInteger] = (int32).as[BSONInteger]
 
@@ -211,33 +229,43 @@ object BSONCodec extends StrictLogging {
       * @see http://bsonspec.org
       * @note Defined in the order they are in the BSON Spec , which is why the groupings are slightly odd
       */
-    discriminated[(String, BSONType)].by(uint8L).
-      typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
-      typecase(BSONString.typeCode, cstring ~ bsonString).
-      typecase(BSONRawDocument.typeCode, cstring ~ bsonDocument).
-      typecase(BSONRawArray.typeCode, cstring ~ bsonArray).
-      typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
-        bsonSizeHeader, bsonBinary
-      )).
-      // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
-      typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
-      typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID).
-      typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
-      typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
-      typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
-      typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
-      typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
-      typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
-      typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
-      typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
-      typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
-      typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
-      typecase(BSONLong.typeCode, cstring ~ bsonLong).
-      typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
-      typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))
-
+    lazily {
+      logToStdOut(
+        discriminated[(String, BSONType)].
+          by(uint8L).
+          typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
+          typecase(BSONString.typeCode, cstring ~ bsonString).
+          typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
+          typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
+          typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
+            bsonSizeHeader, bsonBinary
+          )).
+          // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
+          typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
+          typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID).
+          typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
+          typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
+          typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
+          typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
+          typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
+          typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
+          typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
+          typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
+          typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
+          typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
+          typecase(BSONLong.typeCode, cstring ~ bsonLong).
+          typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
+          typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey)).
+          typecase(BSONEndOfDocument.typeCode, provide("$EOD") ~ provide(BSONEndOfDocument))
+      , "\t #")
+    }
   }
 
+  //def encode(d: BSONRawDocument) = bsonCodec.
+  // TODO: Return to attempt and drop option
+  def decode(m: BitVector): Option[BSONRawDocument] = bsonDocumentCodec.decode(m).map { dr ⇒
+    dr.value
+  }.toOption
 }
 
 /**

@@ -13,6 +13,8 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     scalaLogging,
     specs2,
+    scalaTest,
+    scalaCheck,
     logback,
     // used for saner logback config because fuck XML. Used for test config only.
     groovy
@@ -51,7 +53,7 @@ lazy val bson = (project in file("bson")).
       scodecCore,
       scodecBits,
       scodecSpire,
-      mongoJava // for testing cross compatibility and performance
+      mongoJavaLatestTest // for testing cross compatibility and performance
     )
   )
 
@@ -94,7 +96,7 @@ lazy val akka = (project in file("akka")).
     libraryDependencies ++= Seq(
       akkaActors,
       akkaTestkit,
-      mongoJava
+      mongoJavaLegacy
     )
   ).
   dependsOn(core)

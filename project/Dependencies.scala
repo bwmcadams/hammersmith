@@ -2,7 +2,8 @@ import sbt._
 
 object Version {
   val akka = "2.4.0"
-  val mongoJava = "3.1.0"
+  val mongoJavaLatest = "3.1.0"
+  val mongoJavaLegacy = "2.9.3"
   // only used for testing
   val junit = "4.7"
   val specs2 = "2.3.13"
@@ -39,8 +40,13 @@ object Libraries {
   // Testing Deps
   val specs2 = "org.specs2" %% "specs2" % Version.specs2 % "test"
   val junit = "junit" % "junit" % Version.junit % "test"
-  val mongoJava = "org.mongodb" % "mongo-java-driver" % Version.mongoJava % "test->default"
+  val mongoJavaLatest = "org.mongodb" % "mongo-java-driver" % Version.mongoJavaLatest
+  val mongoJavaLatestTest = "org.mongodb" % "mongo-java-driver" % Version.mongoJavaLatest % "test->default"
+  val mongoJavaLegacy = "org.mongodb" % "mongo-java-driver" % Version.mongoJavaLegacy
+  val mongoJavaLegacyTest = "org.mongodb" % "mongo-java-driver" % Version.mongoJavaLegacy % "test->default"
   val scalaTest = "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+  val scalaCheck =  "org.scalacheck" %% "scalacheck" % "1.12.5" % "test"
+
 
   // Akka
   val akkaActors = "com.typesafe.akka" %% "akka-actor" % Version.akka

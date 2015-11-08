@@ -43,8 +43,16 @@ sealed trait BSONType {
   // todo - the type class based support for working with converting to/from primitives flexibly
 }
 
+
 object BSONType {}
 
+
+case object BSONEndOfDocument extends BSONType with BSONTypeCompanion {
+  val typeCode: Byte = 0x00
+  override type Primitive = Unit
+
+  override def primitiveValue: BSONEndOfDocument.Primitive = ()
+}
 
 object BSONDouble extends BSONTypeCompanion {
   val typeCode: Byte = 0x01
@@ -69,6 +77,8 @@ case class BSONString(str: String) extends BSONType {
 
 object BSONRawDocument extends BSONTypeCompanion {
   val typeCode: Byte = 0x03
+
+
 }
 
 // I don't see forcibly converting it into a map as having any value, given how the primitives are deconstructed
@@ -76,6 +86,7 @@ case class BSONRawDocument(entries: Vector[(String, BSONType)]) extends BSONType
   type Primitive = Vector[(String, BSONType)]
 
   def primitiveValue = entries
+
 }
 
 object BSONRawArray extends BSONTypeCompanion with StrictLogging {
@@ -102,7 +113,7 @@ case class BSONRawArray(entries: Vector[BSONType]) extends BSONType {
   // BSON Arrays are really docs with integer keys, but indexes (keys) are represented as strings...
   type Primitive = Vector[(String, BSONType)]
 
-  def primitiveValue = entries.zipWithIndex.map { x =>
+  def primitiveValue: Vector[(String, BSONType)] = entries.zipWithIndex.map { x =>
     x._2.toString -> x._1
   }
 }
