@@ -105,6 +105,10 @@ object BSONCodec extends StrictLogging {
       * - Little Endian encoded
       * - UTF8 with int32 length header
       *
+      * TODO: From BSONSpec:
+      * "Zero or more modified UTF-8 encoded characters followed by '\x00'.
+      *  The (byte*) MUST NOT contain '\x00', hence it is not full UTF-8."
+      *
       * @group bsonTypeCodec
       * @see http://bsonspec.org
       */
