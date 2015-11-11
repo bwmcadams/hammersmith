@@ -21,7 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import scodec.bits._
 import scodec.codecs._
 import scodec.interop.spire._
-import scodec.{CodecTransformation, Attempt, Codec}
+import scodec._
 import spire.implicits._
 import spire.math._
 
@@ -35,57 +35,28 @@ object BSONCodec extends StrictLogging {
 
   val MaxBSONSize = 16 * 1024 * 1024
 
+  val BSONPaddingBytes = 4
+  val BSONPaddingBits = BSONPaddingBytes * 8
+
   val Nul = constant(hex"00")
 
-  val bsonSizeHeader = int32L.bounded(Interval(4, MaxBSONSize))
+  val bsonSizeBytesHeaderCodec = int32L.bounded(Interval(4, MaxBSONSize))
 
+  // in Bits, since that's what we typically need.
+  // TODO: Make sure this encodes properly!
+  // TODO: Make less hacky
+  val bsonSizeBitsHeaderCodec = int32L.bounded(Interval(4, MaxBSONSize)).xmap[Long](
+    { i ⇒ i.toLong * 8 },
+    { l ⇒ (l / 8).toInt }
+  )
 
-  /**
-    * BSON Document
-    *
-    * This is, fundamentally, the core type of BSON. But BSON Docs can contain docs as fields;
-    * note we recurse against the parent codec.
-    *
-    * @group bsonTypeCodec
-    * @see http://bsonspec.org
-    */
-  implicit lazy val bsonDocumentCodec: Codec[BSONRawDocument] = lazily {
-    logToStdOut(
-      variableSizeBytes(bsonSizeHeader,
-        (vector(bsonFieldCodec)).xmap(
-          { fields ⇒ BSONRawDocument(fields.filterNot(_._1 == "$EOD" )) },
-          { doc ⇒ doc.primitiveValue } // todo - ensure we are writing 0x00 to end
-        )
-      , 4)
-    , "% ")
-  }
+  implicit val bsonDocumentCodec: Codec[BSONRawDocument] =
+    new BSONDocumentCodec(bsonFieldCodec)
 
+  implicit lazy val bsonArrayCodec: Codec[BSONRawArray] =
+    new BSONArrayCodec(bsonFieldCodec)
 
-  /**
-    * BSON Array
-    *
-    * Technically a standard BSON Document with integer keys
-    * - indexed from 0
-    * - sequential
-    *
-    * TODO: Test me... all keys should be ints
-    *
-    * @group bsonTypeCodec
-    * @see http://bsonspec.org
-    */
-  implicit lazy val bsonArrayCodec: Codec[BSONRawArray] = lazily {
-    logToStdOut(
-      variableSizeBytes(bsonSizeHeader, {
-        (vector(bsonFieldCodec)).xmap(
-          { fields ⇒ BSONRawArray.fromEntries(fields.filterNot(_._1 == "$EOD" )) },
-          { arr ⇒ arr.primitiveValue }
-        )
-      }, 4)
-    , "@ ")
-  }
-
-
-  implicit val bsonFieldCodec: Codec[(String, BSONType)] = {
+  implicit lazy val bsonFieldCodec: Codec[(String, BSONType)] = lazily {
 
 
     /**
@@ -147,25 +118,25 @@ object BSONCodec extends StrictLogging {
       // determine bson subtype
         discriminated[BSONBinary].by(uint8L).
           typecase(BSONBinaryGeneric.subTypeCode,
-            variableSizeBytes(bsonSizeHeader, bsonBinaryGeneric, 4)
+            variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryGeneric, 4)
           ).
           typecase(BSONBinaryFunction.subTypeCode,
-            variableSizeBytes(bsonSizeHeader, bsonBinaryFunction, 4)
+            variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryFunction, 4)
           ).
           typecase(BSONBinaryOld.subTypeCode, // old binary had a double size for some reason
-            variableSizeBytes(bsonSizeHeader, variableSizeBytes(bsonSizeHeader, bsonBinaryOld, 4))
+            variableSizeBytes(bsonSizeBytesHeaderCodec, variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryOld, 4))
           ).
           typecase(BSONBinaryOldUUID.subTypeCode,
-            variableSizeBytes(bsonSizeHeader, bsonBinaryOldUUID, 4)
+            variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryOldUUID, 4)
           ).
           typecase(BSONBinaryUUID.subTypeCode,
-            variableSizeBytes(bsonSizeHeader, bsonBinaryUUID, 4)
+            variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryUUID, 4)
           ).
           typecase(BSONBinaryMD5.subTypeCode,
-            variableSizeBytes(bsonSizeHeader, bsonBinaryMD5, 4)
+            variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryMD5, 4)
           ).
           typecase(BSONBinaryUserDefined.subTypeCode,
-            variableSizeBytes(bsonSizeHeader, bsonBinaryUserDefined, 4)
+            variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinaryUserDefined, 4)
           )
     }
 
@@ -242,7 +213,7 @@ object BSONCodec extends StrictLogging {
           typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
           typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
           typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
-            bsonSizeHeader, bsonBinary
+            bsonSizeBytesHeaderCodec, bsonBinary
           )).
           // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
           typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
@@ -259,8 +230,8 @@ object BSONCodec extends StrictLogging {
           typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
           typecase(BSONLong.typeCode, cstring ~ bsonLong).
           typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
-          typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey)).
-          typecase(BSONEndOfDocument.typeCode, provide("$EOD") ~ provide(BSONEndOfDocument))
+          typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))/*.
+          typecase(BSONEndOfDocument.typeCode, provide("$EOD") ~ provide(BSONEndOfDocument))*/
       , "\t #")
     }
   }
@@ -309,3 +280,106 @@ object BSONNewUUIDCodec extends Codec[BSONBinaryUUID] {
   override def toString = "uuid"
 }
 
+/**
+  * BSON Document
+  *
+  * This is, fundamentally, the core type of BSON. But BSON Docs can contain docs as fields;
+  * note we recurse against the parent codec.
+  *
+  * ____Implementation Note____
+  * OK so here's the deal. Each outer or embedded doc/array is:
+  * - an int32 containing # of bytes in doc, this includes itself (pad 4)
+  * - a series of "elements" (vector), decoded by bsonFieldCodec. Element made up of:
+  *   + single byte "type code"
+  *   + a cstring
+  *   + a type specific data block
+  *   ~ There is *NO* defined boundary to say "this field is $x long"
+  * - a 0x00 (NUL) terminator
+  *
+  * we have to be careful about how we decode so that we do embedded docs/arrays right.
+  * Outer docs in my experience have been easier to handle.
+  * My preference would be to scan ahead, check for NUL... but this is highly inefficient
+  * in most high performance network layers. I think we can simply define the codec as
+  * a vector of (expected bytes - 1 byte [nul]).
+  * Sadly, the existing vector / vectorOfN / etc can't handle safely so we've whipped one up ourselves.
+  * Also need to make sure we encode the NUL at the end too.
+  *
+  * @group bsonTypeCodec
+  * @see http://bsonspec.org
+  *
+  * @param fieldCodec A Codec capable of decoding/encoding pairs of field name & bson type
+  *
+  * todo - abstract / share code between Document and Array
+  *
+  */
+final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Codec[BSONRawDocument] {
+
+  import BSONCodec._
+
+  val SizePaddingBits: Long = 4 * 8
+
+  private val decoder = bsonSizeBitsHeaderCodec.flatMap { sz ⇒
+    fixedSizeBits(sz - SizePaddingBits - 1, fieldCodec) <~ Nul
+  }
+
+  // sizeBound is in Bits...
+  def sizeBound = bsonSizeBitsHeaderCodec.sizeBound.atLeast
+
+  // todo - make sure we're sticking in the Nul *AND* the proper length
+  def encode(bsonDoc: BSONRawDocument) =
+    Encoder.encodeSeq(fieldCodec <~ Nul)(bsonDoc.entries)
+
+  def decode(buffer: BitVector) = {
+    // todo - make less... more... uncomplicated?
+    Decoder.decodeCollect[Vector, (String, BSONType)](decoder, None)(buffer).map { result ⇒
+      result.map { fields ⇒
+        BSONRawDocument(fields)
+      }
+    }
+  }
+
+  override def toString = s"bsonDocument($fieldCodec)"
+
+}
+
+/**
+  * BSON Array
+  *
+  * Technically a standard BSON Document with integer keys
+  * - indexed from 0
+  * - sequential
+  *
+  * TODO: Test me... all keys should be ints
+  *
+  * @group bsonTypeCodec
+  * @see http://bsonspec.org
+  */
+final class BSONArrayCodec(fieldCodec: Codec[(String, BSONType)]) extends Codec[BSONRawArray] {
+
+  import BSONCodec._
+
+  val SizePaddingBits: Long = 4 * 8
+
+  private val decoder = bsonSizeBitsHeaderCodec.flatMap { sz ⇒
+    fixedSizeBits(sz - SizePaddingBits - 1, fieldCodec) <~ Nul
+  }
+
+  // sizeBound is in Bits...
+  def sizeBound = bsonSizeBitsHeaderCodec.sizeBound.atLeast
+
+  // todo - make sure we're sticking in the Nul *AND* the proper length
+  def encode(bsonArray: BSONRawArray) =
+    Encoder.encodeSeq(fieldCodec <~ Nul)(bsonArray.primitiveValue)
+
+  def decode(buffer: BitVector) = {
+    // todo - make less... more... uncomplicated?
+    Decoder.decodeCollect[Vector, (String, BSONType)](decoder, None)(buffer).map { result ⇒
+      result.map { fields ⇒
+        BSONRawArray.fromEntries(fields)
+      }
+    }
+  }
+
+  override def toString = s"bsonDocument($fieldCodec)"
+
+}
