@@ -316,8 +316,17 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
 
   def decode(buffer: BitVector) = {
     // todo - make less... more... uncomplicated?
-    Decoder.decodeCollect[Vector, (String, BSONType)](decoder, None)(buffer).map { result ⇒
-      result.map { fields ⇒
+    val result = Decoder.decodeCollect[Vector, (String, BSONType)](decoder, Some(MaxBSONSize))(buffer)
+    result match {
+      case Attempt.Successful(success) ⇒
+        println(s"*** Succesful decode: $success")
+        val value = success.value
+        println(s"*** Success value: $value")
+      case Attempt.Failure(err) ⇒
+        println(s"!!! Error decoding: $err")
+    }
+    result.map { r ⇒
+      r.map { fields ⇒
         BSONRawDocument(fields)
       }
     }
