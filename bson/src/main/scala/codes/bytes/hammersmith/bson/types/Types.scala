@@ -465,6 +465,8 @@ case object BSONMaxKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
   def primitiveValue = None
 }
 
+
+
 // Currently no dereferencing support, etc. (not a fan anyway)
 // not a BSON builtin type...
 final case class DBRef(namespace: String, oid: ObjectID)

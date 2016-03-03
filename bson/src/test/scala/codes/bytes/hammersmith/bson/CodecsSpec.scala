@@ -22,14 +22,14 @@ import codes.bytes.hammersmith.bson.types._
 import com.mongodb.{BasicDBObject, DBObject, MongoClient}
 import com.mongodb.connection.ByteBufferBsonOutput
 import org.bson.{BsonDocumentWriter, BasicBSONEncoder, Document}
-import org.scalatest.{MustMatchers, WordSpec}
+import org.scalatest.{OptionValues, MustMatchers, WordSpec}
 import scodec.Codec
 import scodec.bits.BitVector
 import scala.collection.JavaConversions._
 import org.scalatest.OptionValues._
 
 
-class CodecsSpec extends WordSpec with MustMatchers {
+class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
   import codes.bytes.hammersmith.bson.util._
 
   "The AST Based BSON Codec" should {
@@ -42,15 +42,16 @@ class CodecsSpec extends WordSpec with MustMatchers {
       val inBits = BitVector(inBytes)
       val outDoc = BSONCodec.decode(inBits)
 
+      println(outDoc)
       outDoc must be ('defined)
 
       val map = Map(outDoc.value.entries: _*)
 
       map must ( contain.key("foo") and contain.key("x") and contain.key("pi") )
 
-      map.get("foo") must equal (BSONString("bar"))
-      map.get("x") must equal (BSONInteger(5))
-      map.get("pi") must equal (BSONDouble(3.14))
+      map.get("foo").value mustBe BSONString("bar")
+      map.get("x").value mustBe BSONInteger(5)
+      map.get("pi").value mustBe BSONDouble(3.14)
     }
   }
   // todo make sure we use DBObject *AND* org.bson.Document in perf tests

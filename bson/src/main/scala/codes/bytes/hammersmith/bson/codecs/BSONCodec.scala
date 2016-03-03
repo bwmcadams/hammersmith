@@ -173,6 +173,7 @@ object BSONCodec extends StrictLogging {
         typecase(BSONBooleanFalse.subTypeCode, provide(BSONBooleanFalse))
     }
 
+    // TODO Changed in version 2.0: BSON Date type is signed. [2] Negative values represent dates before 1970.
     val bsonUTCDateTime: Codec[BSONUTCDateTime] = int64L.as[BSONUTCDateTime]
 
     // TODO - BSON spec says flags must be stored in alphabet order
@@ -223,7 +224,8 @@ object BSONCodec extends StrictLogging {
         typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
         typecase(BSONLong.typeCode, cstring ~ bsonLong).
         typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
-        typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))
+        typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey)).
+        typecase(BSONEndOfDocument.typeCode, cstring ~ provide(BSONEndOfDocument))
   , "#\t ")}
 
   //def encode(d: BSONRawDocument) = bsonCodec.
@@ -305,7 +307,7 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
 
   import BSONCodec._
 
-  private val decoder = variableSizeBytes(bsonSizeBytesHeaderCodec, fieldCodec, 4)
+  private val decoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 4)
 
   // sizeBound is in Bits...
   def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
@@ -315,21 +317,12 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
     Encoder.encodeSeq(fieldCodec <~ Nul)(bsonDoc.entries)
 
   def decode(buffer: BitVector) = {
-    val result = Decoder.decodeCollect[Vector, (String, BSONType)](decoder, Some(MaxBSONSize))(buffer)
-    result match {
-      case Attempt.Successful(success) ⇒
-        println(s"*** Succesful decode: $success")
-        val value = success.value
-        println(s"*** Success value: $value")
-      case Attempt.Failure(err) ⇒
-        println(s"!!! Error decoding: $err")
+    decoder.decode(buffer).map { r ⇒
+      DecodeResult(BSONRawDocument(
+        r.value.filterNot { case (k, v) ⇒ v == BSONEndOfDocument}),
+        r.remainder
+      )
     }
-    result.map { r ⇒
-      r.map { fields ⇒
-        BSONRawDocument(fields)
-      }
-    }
-
   }
 
   override def toString = s"bsonDocument($fieldCodec)"
