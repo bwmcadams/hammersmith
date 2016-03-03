@@ -58,7 +58,7 @@ object BSONDouble extends BSONTypeCompanion {
   val typeCode: Byte = 0x01
 }
 
-case class BSONDouble(dbl: Double) extends BSONType {
+final case class BSONDouble(dbl: Double) extends BSONType {
   type Primitive = Double
 
   def primitiveValue = dbl
@@ -69,7 +69,7 @@ object BSONString extends BSONTypeCompanion {
 }
 
 // UTF8 string
-case class BSONString(str: String) extends BSONType {
+final case class BSONString(str: String) extends BSONType {
   type Primitive = String
 
   def primitiveValue = str
@@ -82,7 +82,7 @@ object BSONRawDocument extends BSONTypeCompanion {
 }
 
 // I don't see forcibly converting it into a map as having any value, given how the primitives are deconstructed
-case class BSONRawDocument(entries: Vector[(String, BSONType)]) extends BSONType {
+final case class BSONRawDocument(entries: Vector[(String, BSONType)]) extends BSONType {
   type Primitive = Vector[(String, BSONType)]
 
   def primitiveValue = entries
@@ -109,7 +109,7 @@ object BSONRawArray extends BSONTypeCompanion with StrictLogging {
   }
 }
 
-case class BSONRawArray(entries: Vector[BSONType]) extends BSONType {
+final case class BSONRawArray(entries: Vector[BSONType]) extends BSONType {
   // BSON Arrays are really docs with integer keys, but indexes (keys) are represented as strings...
   type Primitive = Vector[(String, BSONType)]
 
@@ -149,7 +149,7 @@ object BSONBinaryGeneric extends BSONBinaryTypeCompanion {
 /** Technically anything that ISN'T A user Defined (0x80+) would fit in generic...
   * TODO - Sort it out.
   */
-case class BSONBinaryGeneric(bytes: ByteVector) extends BSONBinary {
+final case class BSONBinaryGeneric(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
 
   def primitiveValue = bytes
@@ -165,7 +165,7 @@ object BSONBinaryFunction extends BSONBinaryTypeCompanion {
 }
 
 // note sure why anyone would need a binary function storage but the JS stuff Mongo has always supported is f-ing weird
-case class BSONBinaryFunction(bytes: ByteVector) extends BSONBinary {
+final case class BSONBinaryFunction(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
   val primitiveValue = bytes
 }
@@ -180,7 +180,7 @@ object BSONBinaryOld extends BSONBinaryTypeCompanion {
   def apply(bytes: Array[Byte]): BSONBinaryOld = apply(ByteVector(bytes))
 }
 
-case class BSONBinaryOld(bytes: ByteVector) extends BSONBinary {
+final case class BSONBinaryOld(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
   val primitiveValue = bytes
 }
@@ -218,7 +218,7 @@ object BSONBinaryMD5 extends BSONBinaryTypeCompanion {
 }
 
 // todo - should these use BitVectors from SCodec instead?
-case class BSONBinaryMD5(bytes: ByteVector) extends BSONBinary {
+final case class BSONBinaryMD5(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
 
   def primitiveValue = bytes
@@ -234,7 +234,7 @@ object BSONBinaryUserDefined extends BSONBinaryTypeCompanion {
   def apply(bytes: Array[Byte]): BSONBinaryUserDefined = apply(ByteVector(bytes))
 }
 
-case class BSONBinaryUserDefined(bytes: ByteVector) extends BSONBinary {
+final case class BSONBinaryUserDefined(bytes: ByteVector) extends BSONBinary {
   type Primitive = ByteVector
 
   def primitiveValue = bytes
@@ -286,7 +286,7 @@ case object BSONObjectID extends BSONTypeCompanion {
   * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
   * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
   */
-case class BSONObjectID(bytes: ByteVector) extends BSONType {
+final case class BSONObjectID(bytes: ByteVector) extends BSONType {
   type Primitive = BSONObjectID
 
   val primitiveValue: Primitive = this
@@ -331,7 +331,7 @@ object BSONUTCDateTime extends BSONTypeCompanion {
   val typeCode: Byte = 0x09
 }
 
-case class BSONUTCDateTime(epoch: Long) extends BSONType {
+final case class BSONUTCDateTime(epoch: Long) extends BSONType {
   type Primitive = Long
 
   def primitiveValue = epoch
@@ -353,7 +353,7 @@ object BSONRegex extends BSONTypeCompanion {
   val typeCode: Byte = 0x0B
 }
 
-case class BSONRegex(regex: String, flags: String) extends BSONType {
+final case class BSONRegex(regex: String, flags: String) extends BSONType {
   type Primitive = (String, String)
 
   // todo - verify valid flags both in and out
@@ -370,7 +370,7 @@ object BSONDBPointer extends BSONTypeCompanion {
 
 // TODO - This is probably not a good marker as we'll have to reference it in our code. Find userspace ref deprecate.
 //@deprecated("DBPointers have long been deprecated in BSON/MongoDB. Please use DBRefs instead.")
-case class BSONDBPointer(ns: String, id: BSONObjectID) extends BSONType {
+final case class BSONDBPointer(ns: String, id: BSONObjectID) extends BSONType {
   type Primitive = (String, BSONObjectID)
 
   def primitiveValue: Primitive = (ns, id)
@@ -384,7 +384,7 @@ object BSONJSCode extends BSONJSCodeBlockCompanion {
   val typeCode: Byte = 0x0D
 }
 
-case class BSONJSCode(code: String) extends BSONJSCodeBlock {
+final case class BSONJSCode(code: String) extends BSONJSCodeBlock {
   type Primitive = String
 
   def primitiveValue = code
@@ -395,7 +395,7 @@ object BSONSymbol extends BSONTypeCompanion {
   val typeCode: Byte = 0x0E
 }
 
-case class BSONSymbol(strValue: String) extends BSONType {
+final case class BSONSymbol(strValue: String) extends BSONType {
   type Primitive = Symbol
 
   def primitiveValue = Symbol(strValue)
@@ -406,7 +406,7 @@ object BSONScopedJSCode extends BSONJSCodeBlockCompanion {
   val typeCode: Byte = 0x0F
 }
 
-case class BSONScopedJSCode(code: String, scope: BSONRawDocument) extends BSONJSCodeBlock {
+final case class BSONScopedJSCode(code: String, scope: BSONRawDocument) extends BSONJSCodeBlock {
   type Primitive = String
 
   def primitiveValue = code
@@ -416,7 +416,7 @@ object BSONInteger extends BSONTypeCompanion {
   val typeCode: Byte = 0x10
 }
 
-case class BSONInteger(int: Int) extends BSONType {
+final case class BSONInteger(int: Int) extends BSONType {
   type Primitive = Int
 
   def primitiveValue = int
@@ -429,7 +429,7 @@ object BSONTimestamp extends BSONTypeCompanion {
   val typeCode = 0x11.toByte
 }
 
-case class BSONTimestamp(increment: Int, time: Int) extends BSONType {
+final case class BSONTimestamp(increment: Int, time: Int) extends BSONType {
   type Primitive = (Int, Int)
 
   def primitiveValue = (increment, time)
@@ -439,7 +439,7 @@ object BSONLong extends BSONTypeCompanion {
   val typeCode: Byte = 0x12
 }
 
-case class BSONLong(long: Long) extends BSONType {
+final case class BSONLong(long: Long) extends BSONType {
   type Primitive = Long
 
   def primitiveValue = long
