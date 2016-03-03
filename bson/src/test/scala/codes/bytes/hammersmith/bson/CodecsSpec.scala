@@ -56,9 +56,9 @@ class CodecsSpec extends WordSpec with MustMatchers {
   // todo make sure we use DBObject *AND* org.bson.Document in perf tests
   def testDBObject(): Array[Byte] = {
     val doc = new BasicDBObject().
-      append("foo", "bar").
+      append("pi", 3.14).
       append("x", 5).
-      append("pi", 3.14)
+      append("foo", "bar")
     val enc = new BasicBSONEncoder()
     val bytes = enc.encode(doc)
     println("DBObject Bytes: " + hexValue(bytes))

@@ -78,7 +78,7 @@ object BSONCodec extends StrictLogging {
       * @see http://bsonspec.org
       */
     val bsonString: Codec[BSONString] =
-      variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString]
+      logToStdOut(variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString], "~~~~ STRING DECODE: ")
 
 
     /**
@@ -186,7 +186,7 @@ object BSONCodec extends StrictLogging {
 
     val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocumentCodec).as[BSONScopedJSCode]
 
-    val bsonInteger: Codec[BSONInteger] = (int32).as[BSONInteger]
+    val bsonInteger: Codec[BSONInteger] = (int32L).as[BSONInteger]
 
     val bsonLong: Codec[BSONLong] = (int64L).as[BSONLong]
 
@@ -315,7 +315,6 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
     Encoder.encodeSeq(fieldCodec <~ Nul)(bsonDoc.entries)
 
   def decode(buffer: BitVector) = {
-    // todo - make less... more... uncomplicated?
     val result = Decoder.decodeCollect[Vector, (String, BSONType)](decoder, Some(MaxBSONSize))(buffer)
     result match {
       case Attempt.Successful(success) ⇒
@@ -330,6 +329,7 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
         BSONRawDocument(fields)
       }
     }
+
   }
 
   override def toString = s"bsonDocument($fieldCodec)"
