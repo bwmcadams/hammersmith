@@ -21,7 +21,6 @@ import com.typesafe.scalalogging.StrictLogging
 
 class DBList protected[collection](protected[immutable] val underlying: scala.collection.mutable.Buffer[Any]) extends codes.bytes.hammersmith.collection.BSONList
                                                                                                                       with scala.collection.immutable.Seq[Any] {
-
   def apply(v1: Int): Any = underlying.apply(v1)
 
   def iterator: Iterator[Any] = underlying.iterator

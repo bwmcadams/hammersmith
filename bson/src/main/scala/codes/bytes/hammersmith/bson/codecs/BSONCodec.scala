@@ -16,6 +16,8 @@
   */
 package codes.bytes.hammersmith.bson.codecs
 
+import java.nio.charset.Charset
+
 import codes.bytes.hammersmith.bson.types._
 import com.typesafe.scalalogging.StrictLogging
 import scodec.bits._
@@ -40,15 +42,8 @@ object BSONCodec extends StrictLogging {
 
   val Nul = constant(hex"00")
 
-  val bsonSizeBytesHeaderCodec = int32L.bounded(Interval(4, MaxBSONSize))
+  val bsonSizeBytesHeaderCodec = logToStdOut( int32L.bounded(Interval(4, MaxBSONSize)), "!!! HEADER: " )
 
-  // in Bits, since that's what we typically need.
-  // TODO: Make sure this encodes properly!
-  // TODO: Make less hacky
-  val bsonSizeBitsHeaderCodec = int32L.bounded(Interval(4, MaxBSONSize)).xmap[Long](
-    { i ⇒ i.toLong * 8 },
-    { l ⇒ (l / 8).toInt }
-  )
 
   implicit val bsonDocumentCodec: Codec[BSONRawDocument] =
     new BSONDocumentCodec(bsonFieldCodec)
@@ -57,7 +52,6 @@ object BSONCodec extends StrictLogging {
     new BSONArrayCodec(bsonFieldCodec)
 
   implicit lazy val bsonFieldCodec: Codec[(String, BSONType)] = lazily {
-
 
     /**
       * BSON Double
@@ -83,7 +77,8 @@ object BSONCodec extends StrictLogging {
       * @group bsonTypeCodec
       * @see http://bsonspec.org
       */
-    val bsonString: Codec[BSONString] = utf8_32L.as[BSONString]
+    val bsonString: Codec[BSONString] =
+      variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString]
 
 
     /**
@@ -165,7 +160,6 @@ object BSONCodec extends StrictLogging {
       *
       * @note There's no value I know of in exposing the actual pieces of an ObjectID in user code... so we
       *       read & write as the raw binary value. Generation of new OIDs will hide those pieces too.
-      *
       * @see https://docs.mongodb.org/manual/reference/object-id/
       * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
       * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
@@ -204,37 +198,33 @@ object BSONCodec extends StrictLogging {
       * @see http://bsonspec.org
       * @note Defined in the order they are in the BSON Spec , which is why the groupings are slightly odd
       */
-    lazily {
-      logToStdOut(
-        discriminated[(String, BSONType)].
-          by(uint8L).
-          typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
-          typecase(BSONString.typeCode, cstring ~ bsonString).
-          typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
-          typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
-          typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
-            bsonSizeBytesHeaderCodec, bsonBinary
-          )).
-          // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
-          typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
-          typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID).
-          typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
-          typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
-          typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
-          typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
-          typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
-          typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
-          typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
-          typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
-          typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
-          typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
-          typecase(BSONLong.typeCode, cstring ~ bsonLong).
-          typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
-          typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))/*.
-          typecase(BSONEndOfDocument.typeCode, provide("$EOD") ~ provide(BSONEndOfDocument))*/
-      , "\t #")
-    }
-  }
+    logToStdOut(
+      discriminated[(String, BSONType)].
+        by(uint8L).
+        typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
+        typecase(BSONString.typeCode, cstring ~ bsonString).
+        typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
+        typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
+        typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
+          bsonSizeBytesHeaderCodec, bsonBinary
+        )).
+        // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
+        typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
+        typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID).
+        typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
+        typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
+        typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
+        typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
+        typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
+        typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
+        typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
+        typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
+        typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
+        typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
+        typecase(BSONLong.typeCode, cstring ~ bsonLong).
+        typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
+        typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey))
+  , "#\t ")}
 
   //def encode(d: BSONRawDocument) = bsonCodec.
   // TODO: Return to attempt and drop option
@@ -306,7 +296,6 @@ object BSONNewUUIDCodec extends Codec[BSONBinaryUUID] {
   *
   * @group bsonTypeCodec
   * @see http://bsonspec.org
-  *
   * @param fieldCodec A Codec capable of decoding/encoding pairs of field name & bson type
   *
   * todo - abstract / share code between Document and Array
@@ -316,14 +305,10 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
 
   import BSONCodec._
 
-  val SizePaddingBits: Long = 4 * 8
-
-  private val decoder = bsonSizeBitsHeaderCodec.flatMap { sz ⇒
-    fixedSizeBits(sz - SizePaddingBits - 1, fieldCodec) <~ Nul
-  }
+  private val decoder = variableSizeBytes(bsonSizeBytesHeaderCodec, fieldCodec, 4)
 
   // sizeBound is in Bits...
-  def sizeBound = bsonSizeBitsHeaderCodec.sizeBound.atLeast
+  def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
 
   // todo - make sure we're sticking in the Nul *AND* the proper length
   def encode(bsonDoc: BSONRawDocument) =
@@ -358,14 +343,12 @@ final class BSONArrayCodec(fieldCodec: Codec[(String, BSONType)]) extends Codec[
 
   import BSONCodec._
 
-  val SizePaddingBits: Long = 4 * 8
-
-  private val decoder = bsonSizeBitsHeaderCodec.flatMap { sz ⇒
-    fixedSizeBits(sz - SizePaddingBits - 1, fieldCodec) <~ Nul
+  private val decoder = bsonSizeBytesHeaderCodec.flatMap { sz ⇒
+    fixedSizeBytes(sz - 4 - 1, fieldCodec) <~ Nul
   }
 
   // sizeBound is in Bits...
-  def sizeBound = bsonSizeBitsHeaderCodec.sizeBound.atLeast
+  def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
 
   // todo - make sure we're sticking in the Nul *AND* the proper length
   def encode(bsonArray: BSONRawArray) =
