@@ -450,7 +450,7 @@ sealed trait BSONKeyBoundaryCompanion extends BSONTypeCompanion
 sealed trait BSONKeyBoundary extends BSONType
 
 case object BSONMinKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
-  val typeCode: Byte = 0xFF.toByte
+  val typeCode: Byte = 0xFF.toByte // won't encode properly so don't use this!!!!
   // TODO - we need a sane representation of this type as a primitive
   type Primitive = None.type
 

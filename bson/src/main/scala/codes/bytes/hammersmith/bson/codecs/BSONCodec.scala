@@ -203,30 +203,30 @@ object BSONCodec extends StrictLogging {
     logToStdOut(
       discriminated[(String, BSONType)].
         by(uint8L).
-        typecase(BSONDouble.typeCode, cstring ~ bsonDouble).
-        typecase(BSONString.typeCode, cstring ~ bsonString).
-        typecase(BSONRawDocument.typeCode, cstring ~ bsonDocumentCodec).
-        typecase(BSONRawArray.typeCode, cstring ~ bsonArrayCodec).
-        typecase(BSONBinary.typeCode, cstring ~ variableSizeBytes(
+        subcaseO(BSONDouble.typeCode) { case (nme, fld: BSONDouble) ⇒ Some(nme → fld); case _ => None } (cstring ~ bsonDouble).
+        subcaseO(BSONString.typeCode) { case (nme, fld: BSONString) => Some(nme -> fld); case _ => None } (cstring ~ bsonString).
+        subcaseO(BSONRawDocument.typeCode) { case (nme, fld: BSONRawDocument) => Some(nme -> fld); case _ => None } (cstring ~ bsonDocumentCodec).
+        subcaseO(BSONRawArray.typeCode) { case (nme, fld: BSONRawArray) => Some(nme -> fld); case _ => None } (cstring ~ bsonArrayCodec).
+        subcaseO(BSONBinary.typeCode) { case (nme, fld: BSONBinary) => Some(nme -> fld); case _ => None } (cstring ~ variableSizeBytes(
           bsonSizeBytesHeaderCodec, bsonBinary
         )).
         // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
-        typecase(BSONUndefined.typeCode, cstring ~ provide(BSONUndefined)).
-        typecase(BSONObjectID.typeCode, cstring ~ bsonObjectID).
-        typecase(BSONBoolean.typeCode, cstring ~ bsonBoolean).
-        typecase(BSONUTCDateTime.typeCode, cstring ~ bsonUTCDateTime).
-        typecase(BSONNull.typeCode, cstring ~ provide(BSONNull)).
-        typecase(BSONRegex.typeCode, cstring ~ bsonRegex).
-        typecase(BSONDBPointer.typeCode, cstring ~ bsonDBPointer).
-        typecase(BSONJSCode.typeCode, cstring ~ bsonJSCode).
-        typecase(BSONSymbol.typeCode, cstring ~ bsonSymbol).
-        typecase(BSONScopedJSCode.typeCode, cstring ~ bsonScopedJSCode).
-        typecase(BSONInteger.typeCode, cstring ~ bsonInteger).
-        typecase(BSONTimestamp.typeCode, cstring ~ bsonTimestamp).
-        typecase(BSONLong.typeCode, cstring ~ bsonLong).
-        typecase(BSONMinKey.typeCode, cstring ~ provide(BSONMinKey)).
-        typecase(BSONMaxKey.typeCode, cstring ~ provide(BSONMaxKey)).
-        typecase(BSONEndOfDocument.typeCode, cstring ~ provide(BSONEndOfDocument))
+        subcaseO(BSONUndefined.typeCode) { case (nme, BSONUndefined) => Some(nme -> BSONUndefined); case _ => None } (cstring ~ provide(BSONUndefined)).
+        subcaseO(BSONObjectID.typeCode) { case (nme, fld: BSONObjectID) => Some(nme -> fld); case _ => None } (cstring ~ bsonObjectID).
+        subcaseO(BSONBoolean.typeCode) { case (nme, fld: BSONBoolean) => Some(nme -> fld); case _ => None } (cstring ~ bsonBoolean).
+        subcaseO(BSONUTCDateTime.typeCode) { case (nme, fld: BSONUTCDateTime) => Some(nme -> fld); case _ => None } (cstring ~ bsonUTCDateTime).
+        subcaseO(BSONNull.typeCode) { case (nme, BSONNull) => Some(nme -> BSONNull); case _ => None } (cstring ~ provide(BSONNull)).
+        subcaseO(BSONRegex.typeCode) { case (nme, fld: BSONRegex) => Some(nme -> fld); case _ => None } (cstring ~ bsonRegex).
+        subcaseO(BSONDBPointer.typeCode) { case (nme, fld: BSONDBPointer) => Some(nme -> fld); case _ => None } (cstring ~ bsonDBPointer).
+        subcaseO(BSONJSCode.typeCode) { case (nme, fld: BSONJSCode) => Some(nme -> fld); case _ => None } (cstring ~ bsonJSCode).
+        subcaseO(BSONSymbol.typeCode) { case (nme, fld: BSONSymbol) => Some(nme -> fld); case _ => None } (cstring ~ bsonSymbol).
+        subcaseO(BSONScopedJSCode.typeCode) { case (nme, fld: BSONScopedJSCode) => Some(nme -> fld); case _ => None } (cstring ~ bsonScopedJSCode).
+        subcaseO(BSONInteger.typeCode) { case (nme, fld: BSONInteger) => Some(nme -> fld); case _ => None } (cstring ~ bsonInteger).
+        subcaseO(BSONTimestamp.typeCode) { case (nme, fld: BSONTimestamp) => Some(nme -> fld); case _ => None } (cstring ~ bsonTimestamp).
+        subcaseO(BSONLong.typeCode) { case (nme, fld: BSONLong) => Some(nme -> fld); case _ => None } (cstring ~ bsonLong).
+        subcaseO(255 /* because jvm bytes are signed, 0xff can't be byteified to 255 */) { case (nme, BSONMinKey) => Some(nme -> BSONMinKey); case _ => None } (cstring ~ provide(BSONMinKey)).
+        subcaseO(BSONMaxKey.typeCode) { case (nme, BSONMaxKey) => Some(nme -> BSONMaxKey); case _ => None } (cstring ~ provide(BSONMaxKey)).
+        subcaseO(BSONEndOfDocument.typeCode) { case (nme, BSONEndOfDocument) => Some(nme -> BSONEndOfDocument); case _ => None } (cstring ~ provide(BSONEndOfDocument))
   , "#\t ")}
 
   //def encode(d: BSONRawDocument) = bsonCodec.

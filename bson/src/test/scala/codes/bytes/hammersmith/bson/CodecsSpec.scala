@@ -17,10 +17,13 @@ package codes.bytes.hammersmith.bson
   *
   */
 
+import java.util.regex.Pattern
+
 import codes.bytes.hammersmith.bson.codecs.BSONCodec
 import codes.bytes.hammersmith.bson.types._
 import com.mongodb.{BasicDBObject, DBObject, MongoClient}
 import com.mongodb.connection.ByteBufferBsonOutput
+import org.bson.types.ObjectId
 import org.bson.{BsonDocumentWriter, BasicBSONEncoder, Document}
 import org.scalatest.{OptionValues, MustMatchers, WordSpec}
 import scodec.Codec
@@ -32,13 +35,13 @@ import org.scalatest.OptionValues._
 class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
   import codes.bytes.hammersmith.bson.util._
 
-  "The AST Based BSON Codec" should {
+  "The AST Based BSON Codec" must {
     "Decode a known BSON byte array" in {
       1 mustEqual 1
     }
     "Decode a BSON Document encoded by Mongo's Java Driver" in {
       import BSONCodec.bsonFieldCodec
-      val inBytes = testDBObject()
+      val inBytes = javaBSON
       val inBits = BitVector(inBytes)
       val outDoc = BSONCodec.decode(inBits)
 
@@ -54,27 +57,91 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       map.get("pi").value mustBe BSONDouble(3.14)
     }
   }
-  // todo make sure we use DBObject *AND* org.bson.Document in perf tests
-  def testDBObject(): Array[Byte] = {
-    val doc = new BasicDBObject().
-      append("pi", 3.14).
-      append("x", 5).
-      append("foo", "bar")
-    val enc = new BasicBSONEncoder()
-    val bytes = enc.encode(doc)
-    println("DBObject Bytes: " + hexValue(bytes))
-    bytes
-  }
-  /*
-  val w = new ByteBufferBsonOutput();
-  val doc = new Document().
-    append("foo", "bar").
-    append("x", 5).
-    append("pi", 3.14)
-  val enc = MongoClient.getDefaultCodecRegistry().get(classOf[Document])
-  enc.encode(BSONBi)
-  */
 
+
+  // -- Setup definitions
+
+  lazy val oid = new org.bson.types.ObjectId
+
+  lazy val testOid = new org.bson.types.ObjectId
+
+  lazy val testRefId = new org.bson.types.ObjectId
+
+  lazy val testDoc = {
+    val t = new com.mongodb.BasicDBObject
+    t.put("foo", "bar")
+    t.put("x", new java.lang.Double(5.23))
+    t
+  }
+
+  lazy val testList = {
+    val t = new java.util.ArrayList[String]
+    t.add("foo")
+    t.add("bar")
+    t.add("baz")
+    t.add("x")
+    t.add("y")
+    t.add("z")
+    t
+  }
+
+  lazy val testTsp = new org.bson.types.BSONTimestamp(3600, 42)
+
+  lazy val testDate = new java.util.Date()
+
+  lazy val testRE = Pattern.compile("^test.*regex.*xyz$", Pattern.CASE_INSENSITIVE)
+
+  lazy val testSym = new org.bson.types.Symbol("foobar")
+
+  lazy val testCode = new org.bson.types.Code("var x = 12345")
+
+  lazy val testBin = new org.bson.types.Binary("foobarbaz".getBytes())
+
+  lazy val testUUID = java.util.UUID.randomUUID()
+
+  lazy val testCodeWScope = new org.bson.types.CodeWScope("return x * 500;", testDoc)
+
+  lazy val testStr = "foobarbaz"
+
+
+  lazy val javaBSON = {
+
+    val b = com.mongodb.BasicDBObjectBuilder.start()
+    b.append("_id", oid)
+    b.append("null", null)
+    b.append("max", new org.bson.types.MaxKey())
+    b.append("min", new org.bson.types.MinKey())
+    b.append("booleanTrue", true)
+    b.append("booleanFalse", false)
+    b.append("int1", 1)
+    b.append("int1500", 1500)
+    b.append("int3753", 3753)
+    b.append("tsp", testTsp)
+    b.append("date", testDate)
+    b.append("long5", 5L)
+    b.append("long3254525", 3254525L)
+    b.append("float324_582", 324.582f)
+    b.append("double245_6289", 245.6289)
+    b.append("oid", testOid)
+    // Code wonky
+    b.append("code", testCode)
+    b.append("code_scoped", testCodeWScope)
+    b.append("str", testStr)
+    //b.append("ref", new com.mongodb.DBRef(_db, "testRef", test_ref_id))
+    b.append("object", testDoc)
+    b.append("array", testList)
+    b.append("binary", testBin)
+    b.append("uuid", testUUID)
+    b.append("regex", testRE)
+    // Symbol wonky in java driver
+    b.append("symbol", testSym)
+
+    val doc = b.get()
+
+    val encoder = new org.bson.BasicBSONEncoder
+
+    encoder.encode(doc)
+  }
 }
 
 
