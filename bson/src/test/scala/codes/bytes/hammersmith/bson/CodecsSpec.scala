@@ -124,17 +124,17 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
     b.append("double245_6289", 245.6289)
     b.append("oid", testOid)
     // Code wonky
-    b.append("code", testCode)
-    b.append("code_scoped", testCodeWScope)
+    /*b.append("code", testCode)
+    b.append("code_scoped", testCodeWScope)*/
     b.append("str", testStr)
     //b.append("ref", new com.mongodb.DBRef(_db, "testRef", test_ref_id))
-    b.append("object", testDoc)
+    /*b.append("object", testDoc)
     b.append("array", testList)
     b.append("binary", testBin)
     b.append("uuid", testUUID)
     b.append("regex", testRE)
     // Symbol wonky in java driver
-    b.append("symbol", testSym)
+    b.append("symbol", testSym)*/
 
     val doc = b.get()
 
