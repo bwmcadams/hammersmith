@@ -24,7 +24,7 @@ import codes.bytes.hammersmith.bson.types._
 import com.mongodb.{BasicDBObject, DBObject, MongoClient}
 import com.mongodb.connection.ByteBufferBsonOutput
 import org.bson.types.ObjectId
-import org.bson.{BsonDocumentWriter, BasicBSONEncoder, Document}
+import org.bson.{BasicBSONDecoder, BSONDecoder, BsonDocumentWriter, BasicBSONEncoder, Document}
 import org.scalatest.{OptionValues, MustMatchers, WordSpec}
 import scodec.Codec
 import scodec.bits.BitVector
@@ -55,6 +55,19 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       map.get("foo").value mustBe BSONString("bar")
       map.get("x").value mustBe BSONInteger(5)
       map.get("pi").value mustBe BSONDouble(3.14)
+    }
+    "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
+      import BSONCodec.bsonFieldCodec
+      val inBytes = bsonStringEncode
+      val inBits = BitVector(inBytes)
+      val outDoc = BSONCodec.decode(inBits)
+
+    }
+    "Decode its own documents with the decoder from java" in {
+      val dec = new BasicBSONDecoder()
+      val doc = dec.readObject(javaBSON)
+      println(doc)
+      doc must be ('defined)
     }
   }
 
@@ -128,8 +141,8 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
     b.append("code_scoped", testCodeWScope)*/
     b.append("str", testStr)
     //b.append("ref", new com.mongodb.DBRef(_db, "testRef", test_ref_id))
-    /*b.append("object", testDoc)
-    b.append("array", testList)
+    b.append("object", testDoc)
+    /*b.append("array", testList)
     b.append("binary", testBin)
     b.append("uuid", testUUID)
     b.append("regex", testRE)
@@ -138,6 +151,15 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
 
     val doc = b.get()
 
+    val encoder = new org.bson.BasicBSONEncoder
+
+    encoder.encode(doc)
+  }
+
+  lazy val bsonStringEncode = {
+    val b = com.mongodb.BasicDBObjectBuilder.start()
+    b.append("foo", "Foo Bar Baz")
+    val doc = b.get()
     val encoder = new org.bson.BasicBSONEncoder
 
     encoder.encode(doc)

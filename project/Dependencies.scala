@@ -15,12 +15,12 @@ object Version {
   // used for saner logback config because fuck XML
   val groovy = "2.4.3"
   // the "bits" and pieces of different scodec modules, which are all versioned different
-  val scodecBits = "1.0.10"
-  val scodecCore = "1.8.2"
-  val scodecSpire = "0.2.0"
+  val scodecBits = "1.1.0"
+  val scodecCore = "1.9.0"
+  val scodecSpire = "0.3.0"
   // Add on modules for scodec for compat between other systems
-  val scodecScalaz = "1.1.0"
-  val scodecStream = "0.10.0"
+  val scodecScalaz = "1.2.0"
+  val scodecStream = "0.12.0"
 }
 
 object Libraries {

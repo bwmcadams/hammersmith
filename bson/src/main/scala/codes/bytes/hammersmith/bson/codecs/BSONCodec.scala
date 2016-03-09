@@ -78,7 +78,7 @@ object BSONCodec extends StrictLogging {
       * @see http://bsonspec.org
       */
     val bsonString: Codec[BSONString] =
-      logToStdOut(variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString], "~~~~ STRING DECODE: ")
+      logToStdOut(variableSizeBytes(int32L, string(Charset.forName("UTF-8"))).as[BSONString], "~~~~ STRING DECODE: ")
 
 
     /**
