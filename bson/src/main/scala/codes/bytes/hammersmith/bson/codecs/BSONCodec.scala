@@ -198,6 +198,7 @@ object BSONCodec extends StrictLogging {
       *
       * @see http://bsonspec.org
       * @note Defined in the order they are in the BSON Spec , which is why the groupings are slightly odd
+      * TODO: Migrate to https://gist.github.com/bwmcadams/ed5e3858d9e664a35923
       */
     logToStdOut(
       discriminated[(String, BSONType)].
