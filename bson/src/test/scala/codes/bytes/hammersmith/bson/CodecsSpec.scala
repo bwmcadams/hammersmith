@@ -59,9 +59,10 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       map.get("long5").value mustBe BSONLong(5)
       map.get("float324_582").value mustBe BSONDouble(324.582f)
       map.get("double245_6289").value mustBe BSONDouble(245.6289)
+      map.get("booleanFalse").value mustBe BSONBooleanFalse
+      map.get("booleanTrue").value mustBe BSONBooleanTrue
     }
     "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
-      import BSONCodec.bsonFieldCodec
       val inBytes = bsonStringEncode
       val inBits = BitVector(inBytes)
       val outDoc = BSONCodec.decode(inBits)
@@ -140,18 +141,20 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
     b.append("float324_582", 324.582f)
     b.append("double245_6289", 245.6289)
     b.append("oid", testOid)
-    // Code wonky
+    // TODO: Code wonky
     /*b.append("code", testCode)
     b.append("code_scoped", testCodeWScope)*/
     b.append("str", testStr)
-    //b.append("ref", new com.mongodb.DBRef(_db, "testRef", test_ref_id))
+    //b.append("ref", new com.mongodb.DBRef("testRef", "foo"))
     b.append("object", testDoc)
-    /*b.append("array", testList)
-    b.append("binary", testBin)
-    b.append("uuid", testUUID)
+    b.append("array", testList)
+    // TODO: Fix binary
+    //b.append("binary", testBin)
+    // TODO: Fix UUID
+    //b.append("uuid", testUUID)
     b.append("regex", testRE)
     // Symbol wonky in java driver
-    b.append("symbol", testSym)*/
+    b.append("symbol", testSym)
 
     val doc = b.get()
 

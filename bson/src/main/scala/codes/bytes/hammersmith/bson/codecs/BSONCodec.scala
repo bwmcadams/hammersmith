@@ -77,7 +77,7 @@ object BSONCodec extends StrictLogging {
      * @see http://bsonspec.org
      */
     val bsonString: Codec[BSONString] =
-      logToStdOut(variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString], "~~~~ STRING DECODE: ")
+      variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString]
 
     /**
      * BSON Binary Subtype for “Generic” binary.
@@ -198,85 +198,85 @@ object BSONCodec extends StrictLogging {
           case _ ⇒ None
         } (cstring ~ bsonDouble).
         subcaseO(BSONString.typeCode) {
-          case (nme, fld: BSONString) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONString) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonString).
         subcaseO(BSONRawDocument.typeCode) {
-          case (nme, fld: BSONRawDocument) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONRawDocument) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonDocumentCodec).
         subcaseO(BSONRawArray.typeCode) {
-          case (nme, fld: BSONRawArray) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONRawArray) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonArrayCodec).
         subcaseO(BSONBinary.typeCode) {
-          case (nme, fld: BSONBinary) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONBinary) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ variableSizeBytes(bsonSizeBytesHeaderCodec, bsonBinary)).
         // this is really an asymmetric - we decode for posterity but shouldn't encode at AST Level
         subcaseO(BSONUndefined.typeCode) {
-          case (nme, BSONUndefined) => Some(nme -> BSONUndefined)
-          case _ => None
+          case (nme, BSONUndefined) ⇒ Some(nme → BSONUndefined)
+          case _ ⇒ None
         }(cstring ~ provide(BSONUndefined)).
         subcaseO(BSONObjectID.typeCode) {
-          case (nme, fld: BSONObjectID) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONObjectID) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonObjectID).
         subcaseO(BSONBoolean.typeCode) {
-          case (nme, fld: BSONBoolean) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONBoolean) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonBoolean).
         subcaseO(BSONUTCDateTime.typeCode) {
-          case (nme, fld: BSONUTCDateTime) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONUTCDateTime) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonUTCDateTime).
         subcaseO(BSONNull.typeCode) {
-          case (nme, BSONNull) => Some(nme -> BSONNull)
-          case _ => None
+          case (nme, BSONNull) ⇒ Some(nme → BSONNull)
+          case _ ⇒ None
         }(cstring ~ provide(BSONNull)).
         subcaseO(BSONRegex.typeCode) {
-          case (nme, fld: BSONRegex) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONRegex) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonRegex).
         subcaseO(BSONDBPointer.typeCode) {
-          case (nme, fld: BSONDBPointer) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONDBPointer) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonDBPointer).
         subcaseO(BSONJSCode.typeCode) {
-          case (nme, fld: BSONJSCode) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONJSCode) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonJSCode).
         subcaseO(BSONSymbol.typeCode) {
-          case (nme, fld: BSONSymbol) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONSymbol) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonSymbol).
         subcaseO(BSONScopedJSCode.typeCode) {
-          case (nme, fld: BSONScopedJSCode) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONScopedJSCode) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonScopedJSCode).
         subcaseO(BSONInteger.typeCode) {
-          case (nme, fld: BSONInteger) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONInteger) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonInteger).
         subcaseO(BSONTimestamp.typeCode) {
-          case (nme, fld: BSONTimestamp) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONTimestamp) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonTimestamp).
         subcaseO(BSONLong.typeCode) {
-          case (nme, fld: BSONLong) => Some(nme -> fld)
-          case _ => None
+          case (nme, fld: BSONLong) ⇒ Some(nme → fld)
+          case _ ⇒ None
         }(cstring ~ bsonLong).
         subcaseO(255 /* because jvm bytes are signed, 0xff can't be byteified to 255 */ ) {
-          case (nme, BSONMinKey) => Some(nme -> BSONMinKey)
-          case _ => None
+          case (nme, BSONMinKey) ⇒ Some(nme → BSONMinKey)
+          case _ ⇒ None
         }(cstring ~ provide(BSONMinKey)).
         subcaseO(BSONMaxKey.typeCode) {
-          case (nme, BSONMaxKey) => Some(nme -> BSONMaxKey)
-          case _ => None
+          case (nme, BSONMaxKey) ⇒ Some(nme → BSONMaxKey)
+          case _ ⇒ None
         }(cstring ~ provide(BSONMaxKey)).
         subcaseO(BSONEndOfDocument.typeCode) {
-          case (nme, BSONEndOfDocument) => Some(nme -> BSONEndOfDocument)
-          case _ => None
+          case (nme, BSONEndOfDocument) ⇒ Some(nme → BSONEndOfDocument)
+          case _ ⇒ None
         }(provide("") ~ provide(BSONEndOfDocument)),
       "#\t ")
   }
@@ -295,7 +295,7 @@ object BSONCodec extends StrictLogging {
  */
 object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID] {
 
-  protected val mkUUID: (Long, Long) => BSONBinaryOldUUID = BSONBinaryOldUUID(_, _)
+  protected val mkUUID: (Long, Long) ⇒ BSONBinaryOldUUID = BSONBinaryOldUUID(_, _)
 
   override def encode(u: BSONBinaryOldUUID): Attempt[BitVector] =
     Codec.encodeBoth(int64, int64)(u.leastSignificant, u.mostSignificant)
@@ -311,7 +311,7 @@ object BSONOldUUIDCodec extends Codec[BSONBinaryOldUUID] {
 
 object BSONNewUUIDCodec extends Codec[BSONBinaryUUID] {
 
-  protected val mkUUID: (Long, Long) => BSONBinaryUUID = BSONBinaryUUID(_, _)
+  protected val mkUUID: (Long, Long) ⇒ BSONBinaryUUID = BSONBinaryUUID(_, _)
 
   override def encode(u: BSONBinaryUUID): Attempt[BitVector] =
     Codec.encodeBoth(int64, int64)(u.mostSignificant, u.leastSignificant)

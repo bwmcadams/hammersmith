@@ -312,7 +312,7 @@ object BSONBoolean extends BSONTypeCompanion {
 
 
 case object BSONBooleanTrue extends BSONBooleanCompanion with BSONBoolean {
-  val subTypeCode: Byte = 0x00
+  val subTypeCode: Byte = 0x01
   val booleanValue = true
   type Primitive = Boolean
 
@@ -320,7 +320,7 @@ case object BSONBooleanTrue extends BSONBooleanCompanion with BSONBoolean {
 }
 
 case object BSONBooleanFalse extends BSONBooleanCompanion with BSONBoolean {
-  val subTypeCode: Byte = 0x01
+  val subTypeCode: Byte = 0x00
   val booleanValue = false
   type Primitive = Boolean
 
