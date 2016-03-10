@@ -225,7 +225,7 @@ object BSONCodec extends StrictLogging {
         subcaseO(BSONLong.typeCode) { case (nme, fld: BSONLong) => Some(nme -> fld); case _ => None } (cstring ~ bsonLong).
         subcaseO(255 /* because jvm bytes are signed, 0xff can't be byteified to 255 */) { case (nme, BSONMinKey) => Some(nme -> BSONMinKey); case _ => None } (cstring ~ provide(BSONMinKey)).
         subcaseO(BSONMaxKey.typeCode) { case (nme, BSONMaxKey) => Some(nme -> BSONMaxKey); case _ => None } (cstring ~ provide(BSONMaxKey)).
-        subcaseO(BSONEndOfDocument.typeCode) { case (nme, BSONEndOfDocument) => Some(nme -> BSONEndOfDocument); case _ => None } (cstring ~ provide(BSONEndOfDocument))
+        subcaseO(BSONEndOfDocument.typeCode) { case (nme, BSONEndOfDocument) => Some(nme -> BSONEndOfDocument); case _ => None } (provide("") ~ provide(BSONEndOfDocument))
   , "#\t ")}
 
   //def encode(d: BSONRawDocument) = bsonCodec.

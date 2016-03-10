@@ -62,12 +62,12 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       val inBits = BitVector(inBytes)
       val outDoc = BSONCodec.decode(inBits)
 
+      outDoc must be ('defined)
     }
     "Decode its own documents with the decoder from java" in {
       val dec = new BasicBSONDecoder()
       val doc = dec.readObject(javaBSON)
       println(doc)
-      doc must be ('defined)
     }
   }
 
