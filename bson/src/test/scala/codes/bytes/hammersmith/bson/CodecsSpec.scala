@@ -50,11 +50,15 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
 
       val map = Map(outDoc.value.entries: _*)
 
-      map must ( contain.key("foo") and contain.key("x") and contain.key("pi") )
+      map must ( contain.key("max") and contain.key("min") and contain.key("booleanTrue")
+                 and contain.key("long5") and contain.key("str") and contain.key("tsp")
+                 and contain.key("float324_582") and contain.key("double245_6289")
+                )
 
-      map.get("foo").value mustBe BSONString("bar")
-      map.get("x").value mustBe BSONInteger(5)
-      map.get("pi").value mustBe BSONDouble(3.14)
+      map.get("str").value mustBe BSONString(testStr)
+      map.get("long5").value mustBe BSONLong(5)
+      map.get("float324_582").value mustBe BSONDouble(324.582f)
+      map.get("double245_6289").value mustBe BSONDouble(245.6289)
     }
     "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
       import BSONCodec.bsonFieldCodec
