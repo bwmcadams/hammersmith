@@ -61,6 +61,8 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       map.get("double245_6289").value mustBe BSONDouble(245.6289)
       map.get("booleanFalse").value mustBe BSONBooleanFalse
       map.get("booleanTrue").value mustBe BSONBooleanTrue
+      map.get("array").value mustBe BSONRawArray(Vector(BSONString("foo"), BSONString("bar"),
+        BSONString("baz"), BSONString("x"), BSONString("y"), BSONString("z")))
     }
     "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
       val inBytes = bsonStringEncode
