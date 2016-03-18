@@ -65,6 +65,8 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
         BSONString("baz"), BSONString("x"), BSONString("y"), BSONString("z")))
       map.get("regex").value mustBe BSONRegex("^test.*regex.*xyz$", "im")
       map.get("symbol").value mustBe BSONSymbol("foobar")
+      map.get("date").value mustBe BSONUTCDateTime(testDate.getTime)
+      DefaultBSONMarshaller.DefaultBSONUTCDateTimeDeser.toNative(map.get("date").value.asInstanceOf[BSONUTCDateTime]) mustBe testDate
     }
     "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
       val inBytes = bsonStringEncode

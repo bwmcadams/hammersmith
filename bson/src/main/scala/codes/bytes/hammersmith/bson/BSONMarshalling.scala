@@ -17,9 +17,11 @@
 
 package codes.bytes.hammersmith.bson
 
+import codes.bytes.hammersmith.bson.primitive.MongoTimestamp
 import codes.bytes.hammersmith.bson.types._
 
 import scala.util.matching.Regex
+
 
 sealed trait BSONMarshallingBase[T] {
   type BSONPrimitiveType <: BSONType
@@ -96,6 +98,37 @@ trait BSONRegexDeserializer[T] extends BSONDeserializer[T] {
   type BSONPrimitiveType = BSONRegex
 }
 
+trait BSONStringSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONString
+}
+
+trait BSONStringDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONString
+}
+
+trait BSONSymbolSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONSymbol
+}
+
+trait BSONSymbolDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONSymbol
+}
+
+trait BSONTimestampSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONTimestamp
+}
+
+trait BSONTimestampDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONTimestamp
+}
+
+trait BSONUTCDateTimeSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONUTCDateTime
+}
+
+trait BSONUTCDateTimeDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONUTCDateTime
+}
 
 object DefaultBSONMarshaller {
 
@@ -189,6 +222,41 @@ object DefaultBSONMarshaller {
 
       BSONRegex(native.pattern.pattern, strFlags)
     }
+  }
+
+  implicit object DefaultBSONStringDeser extends BSONStringDeserializer[String] {
+    def toNative(bsonType: BSONString) = bsonType.primitiveValue
+  }
+
+  implicit object DefaultBSONStringSer extends BSONStringSerializer[String] {
+    def toBSONType(native: String) = BSONString(native)
+  }
+
+  implicit object DefaultBSONSymbolDeser extends BSONSymbolDeserializer[Symbol] {
+    def toNative(bsonType: BSONSymbol) = bsonType.primitiveValue
+  }
+
+  implicit object DefaultBSONSymbolSer extends BSONSymbolSerializer[Symbol] {
+    def toBSONType(native: Symbol) = BSONSymbol(native.name)
+  }
+
+  implicit object DefaultBSONTimestampDeser extends BSONTimestampDeserializer[MongoTimestamp] {
+    def toNative(bsonType: BSONTimestamp) =
+      new MongoTimestamp(bsonType.primitiveValue)
+  }
+
+  implicit object DefaultBSONTimestampSer extends BSONTimestampSerializer[MongoTimestamp] {
+    def toBSONType(native: MongoTimestamp) =
+      new BSONTimestamp(native.increment, native.epoch)
+  }
+
+  implicit object DefaultBSONUTCDateTimeDeser extends BSONUTCDateTimeDeserializer[java.util.Date] {
+    def toNative(bsonType: BSONUTCDateTime) =
+      new java.util.Date(bsonType.primitiveValue)
+  }
+
+  implicit object DefaultBSONUTCDateTimeSer extends BSONUTCDateTimeSerializer[java.util.Date] {
+    def toBSONType(native: java.util.Date) = BSONUTCDateTime(native.getTime)
   }
 }
 
