@@ -1,6 +1,6 @@
 import Libraries._
 
-val scalaVer = "2.11.7"
+val scalaVer = "2.11.8"
 
 lazy val commonSettings = Seq(
   organization := "codes.bytes",

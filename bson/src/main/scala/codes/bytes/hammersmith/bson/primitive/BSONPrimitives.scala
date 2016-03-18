@@ -1,64 +1,64 @@
 /**
-  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
-  *
-  * Licensed under the Apache License, Version 2.0 (the "License");
-  * you may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at
-  *
-  * http://www.apache.org/licenses/LICENSE-2.0
-  *
-  * Unless required by applicable law or agreed to in writing, software
-  * distributed under the License is distributed on an "AS IS" BASIS,
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  */
+ * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 
 package codes.bytes.hammersmith.bson.primitive
 
 import codes.bytes.hammersmith.bson.types.BSONBinaryUUID
 
 /**
-  * A Container for BSON Primitive types
-  *
-  */
+ * A Container for BSON Primitive types
+ *
+ */
 sealed trait BSONPrimitive {
   /**
-    * The "Native" type – what we call it in Scala.
-    */
+   * The "Native" type – what we call it in Scala.
+   */
   type Native <: Any
 
   /**
-    * The "container" type for this...
-    * basically the Scala side primitives
-    * represented.
-    * For example, a BSONDateTimePrimitive's Primitive
-    * is a Long , holding the milliseconds
-    *
-    * This is, essentially, the MOST Native type representation
-    * rather than a specific instantiation.
-    */
+   * The "container" type for this...
+   * basically the Scala side primitives
+   * represented.
+   * For example, a BSONDateTimePrimitive's Primitive
+   * is a Long , holding the milliseconds
+   *
+   * This is, essentially, the MOST Native type representation
+   * rather than a specific instantiation.
+   */
   type Primitive <: Any
 
   /**
-    * The type represented by this primitive
-    */
+   * The type represented by this primitive
+   */
   def typeCode: Byte
 
   /**
-    * The bson "container" value, from the Native type
-    *
-    * e.g. Int -> BSON Representation of an Int
-    *
-    */
+   * The bson "container" value, from the Native type
+   *
+   * e.g. Int -> BSON Representation of an Int
+   *
+   */
   def toBSON(native: Native): Primitive
 
   /**
-    * The "Native" type, read from the BSON Primitive
-    *
-    * e.g. BSON Integer -> JVM Int
-    */
+   * The "Native" type, read from the BSON Primitive
+   *
+   * e.g. BSON Integer -> JVM Int
+   */
   def fromBSON(bson: Primitive): Native
 
 }
@@ -128,14 +128,14 @@ trait BSONOldUUIDPrimitive[T] extends BSONBinaryPrimitive {
 }
 
 /**
-  * TODO - MD5 Support. I don't know how on the JVM to deserialize one.
-  * maybe we should discourage anyway, isnt' md5 bad vs sha?
-  */
+ * TODO - MD5 Support. I don't know how on the JVM to deserialize one.
+ * maybe we should discourage anyway, isnt' md5 bad vs sha?
+ */
 
 /**
-  * Use this for your own custom binarys, BSONBinaryPrimitive is
-  * sealed for safety/sanity
-  */
+ * Use this for your own custom binarys, BSONBinaryPrimitive is
+ * sealed for safety/sanity
+ */
 trait BSONCustomBinaryPrimitive[T] extends BSONBinaryPrimitive {
   type Native = T
 }
@@ -163,29 +163,49 @@ trait BSONDateTimePrimitive[T] extends BSONPrimitive {
 trait BSONRegexPrimitive[T] extends BSONPrimitive {
   type Native = T
   val typeCode: Byte = 0x0B
+
+  import java.util.regex.Pattern
+
+  final case class Flag (
+    jvmCode: Int,
+    charCode: Char
+  )
+
+
+  val CanonEq = Flag(Pattern.CANON_EQ, 'c')
+  val UnixLines = Flag(Pattern.UNIX_LINES, 'd')
+  val Global = Flag(256, 'g')
+  val CaseInsensitive = Flag(Pattern.CASE_INSENSITIVE, 'i')
+  val Multiline = Flag(Pattern.MULTILINE, 'm')
+  val DotAll = Flag(Pattern.DOTALL, 's')
+  val Literal = Flag(Pattern.LITERAL, 't')
+  val UnicodeCase = Flag(Pattern.UNICODE_CASE, 'u')
+  val Comments = Flag(Pattern.COMMENTS, 'x')
+  val Flags = List(CanonEq, UnixLines, Global, CaseInsensitive, Multiline, DotAll, Literal, UnicodeCase, Comments)
   /**
-    * [Regular expression]
-    *
-    * The first cstring is the regex pattern,
-    * the second is the regex options string.
-    *
-    * Options are identified by characters,
-    * which must be stored in alphabetical order.
-    *
-    * Valid options are:
-    * 'i' for case insensitive matching,
-    * 'm' for multiline matching,
-    * 'x' for verbose mode,
-    * 'l' to make \w, \W, etc. locale dependent,
-    * 's' for dotall mode ('.' matches everything),
-    * 'u' to make \w, \W, etc. match unicode.
-    */
+   *
+   * [Regular expression]
+   *
+   * The first cstring is the regex pattern,
+   * the second is the regex options string.
+   *
+   * Options are identified by characters,
+   * which must be stored in alphabetical order.
+   *
+   * Valid options are:
+   * 'i' for case insensitive matching,
+   * 'm' for multiline matching,
+   * 'x' for verbose mode,
+   * 'l' to make \w, \W, etc. locale dependent,
+   * 's' for dotall mode ('.' matches everything),
+   * 'u' to make \w, \W, etc. match unicode.
+   */
   type Primitive = (String /* pattern */ , String /* flags */ )
 }
 
 /**
-  * Skipped support for the deprecated DBPointer
-  */
+ * Skipped support for the deprecated DBPointer
+ */
 
 trait BSONJSCodePrimitive[T] extends BSONPrimitive {
   type Native = T

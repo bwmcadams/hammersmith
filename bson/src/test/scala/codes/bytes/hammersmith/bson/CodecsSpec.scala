@@ -63,6 +63,8 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       map.get("booleanTrue").value mustBe BSONBooleanTrue
       map.get("array").value mustBe BSONRawArray(Vector(BSONString("foo"), BSONString("bar"),
         BSONString("baz"), BSONString("x"), BSONString("y"), BSONString("z")))
+      map.get("regex").value mustBe BSONRegex("^test.*regex.*xyz$", "im")
+      map.get("symbol").value mustBe BSONSymbol("foobar")
     }
     "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
       val inBytes = bsonStringEncode
@@ -109,7 +111,7 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
 
   lazy val testDate = new java.util.Date()
 
-  lazy val testRE = Pattern.compile("^test.*regex.*xyz$", Pattern.CASE_INSENSITIVE)
+  lazy val testRE = Pattern.compile("^test.*regex.*xyz$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
 
   lazy val testSym = new org.bson.types.Symbol("foobar")
 

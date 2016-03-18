@@ -63,6 +63,8 @@ object BSONCodec extends StrictLogging {
      */
     val bsonDouble: Codec[BSONDouble] = doubleL.as[BSONDouble]
 
+    val bsonUTF8StringBase = variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1)
+
     /**
      * BSON String
      *
@@ -77,7 +79,8 @@ object BSONCodec extends StrictLogging {
      * @see http://bsonspec.org
      */
     val bsonString: Codec[BSONString] =
-      variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1).as[BSONString]
+      bsonUTF8StringBase.as[BSONString]
+
 
     /**
      * BSON Binary Subtype for “Generic” binary.
@@ -170,13 +173,13 @@ object BSONCodec extends StrictLogging {
     // TODO - BSON spec says flags must be stored in alphabet order
     val bsonRegex: Codec[BSONRegex] = (cstring :: cstring).as[BSONRegex]
 
-    val bsonDBPointer: Codec[BSONDBPointer] = (utf8 :: bsonObjectID).as[BSONDBPointer]
+    val bsonDBPointer: Codec[BSONDBPointer] = (bsonUTF8StringBase :: bsonObjectID).as[BSONDBPointer]
 
-    val bsonJSCode: Codec[BSONJSCode] = (utf8).as[BSONJSCode]
+    val bsonJSCode: Codec[BSONJSCode] = (bsonUTF8StringBase).as[BSONJSCode]
 
-    val bsonSymbol: Codec[BSONSymbol] = (utf8).as[BSONSymbol]
+    val bsonSymbol: Codec[BSONSymbol] = (bsonUTF8StringBase).as[BSONSymbol]
 
-    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (utf8 :: bsonDocumentCodec).as[BSONScopedJSCode]
+    val bsonScopedJSCode: Codec[BSONScopedJSCode] = (bsonUTF8StringBase :: bsonDocumentCodec).as[BSONScopedJSCode]
 
     val bsonInteger: Codec[BSONInteger] = (int32L).as[BSONInteger]
 

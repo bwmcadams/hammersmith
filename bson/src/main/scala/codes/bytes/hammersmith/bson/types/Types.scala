@@ -353,11 +353,11 @@ object BSONRegex extends BSONTypeCompanion {
   val typeCode: Byte = 0x0B
 }
 
-final case class BSONRegex(regex: String, flags: String) extends BSONType {
+final case class BSONRegex(pattern: String, flags: String) extends BSONType {
   type Primitive = (String, String)
 
   // todo - verify valid flags both in and out
-  def primitiveValue: Primitive = (regex, flags)
+  def primitiveValue: Primitive = (pattern, flags)
 
 }
 

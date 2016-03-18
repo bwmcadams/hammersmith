@@ -17,9 +17,11 @@
 
 package codes.bytes.hammersmith.bson
 
-import codes.bytes.hammersmith.bson.types.{BSONBooleanFalse, BSONBooleanTrue, BSONBoolean, BSONType}
+import codes.bytes.hammersmith.bson.types._
 
-trait BSONMarshallingBase[T] {
+import scala.util.matching.Regex
+
+sealed trait BSONMarshallingBase[T] {
   type BSONPrimitiveType <: BSONType
 }
 
@@ -39,6 +41,62 @@ trait BSONBooleanDeserializer[T] extends BSONDeserializer[T] {
   type BSONPrimitiveType = BSONBoolean
 }
 
+trait BSONDoubleSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONDouble
+}
+
+trait BSONDoubleDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONDouble
+}
+
+trait BSONIntegerSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONInteger
+}
+
+trait BSONIntegerDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONInteger
+}
+
+trait BSONLongSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONLong
+}
+
+trait BSONLongDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONLong
+}
+
+sealed trait BSONRegexFlags {
+
+  import java.util.regex.Pattern
+
+  final case class Flag (
+    javaCode: Int,
+    charCode: Char
+  )
+
+
+  val CanonEq = Flag(Pattern.CANON_EQ, 'c')
+  val UnixLines = Flag(Pattern.UNIX_LINES, 'd')
+  val Global = Flag(256, 'g')
+  val CaseInsensitive = Flag(Pattern.CASE_INSENSITIVE, 'i')
+  val Multiline = Flag(Pattern.MULTILINE, 'm')
+  val DotAll = Flag(Pattern.DOTALL, 's')
+  val Literal = Flag(Pattern.LITERAL, 't')
+  val UnicodeCase = Flag(Pattern.UNICODE_CASE, 'u')
+  val Comments = Flag(Pattern.COMMENTS, 'x')
+  val Flags = Vector(CanonEq, UnixLines, Global, CaseInsensitive, Multiline, DotAll, Literal, UnicodeCase, Comments)
+
+}
+
+trait BSONRegexSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONRegex
+}
+
+trait BSONRegexDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONRegex
+}
+
+
 object DefaultBSONMarshaller {
 
   implicit object DefaultBSONBooleanDeser extends BSONBooleanDeserializer[Boolean] {
@@ -46,8 +104,91 @@ object DefaultBSONMarshaller {
   }
 
   implicit object DefaultBSONBooleanSer extends BSONBooleanSerializer[Boolean] {
-    def toBSONType(native: Boolean): BSONBoolean =
+    def toBSONType(native: Boolean) =
       if (native) BSONBooleanTrue else BSONBooleanFalse
+  }
+
+  implicit object DefaultBSONDoubleDeser extends BSONDoubleDeserializer[Double] {
+    def toNative(bsonType: BSONDouble) = bsonType.primitiveValue
+  }
+
+  implicit object DefaultBSONDoubleSer extends BSONDoubleSerializer[Double] {
+    def toBSONType(native: Double) = BSONDouble(native)
+  }
+
+  implicit object DefaultBSONIntegerDeser extends BSONIntegerDeserializer[Integer] {
+    def toNative(bsonType: BSONInteger) = bsonType.primitiveValue
+  }
+
+  implicit object DefaultBSONIntegerSer extends BSONIntegerSerializer[Integer] {
+    def toBSONType(native: Integer) = BSONInteger(native)
+  }
+
+  implicit object DefaultBSONLongDeser extends BSONLongDeserializer[Long] {
+    def toNative(bsonType: BSONLong) = bsonType.primitiveValue
+  }
+
+  implicit object DefaultBSONLongSer extends BSONLongSerializer[Long] {
+    def toBSONType(native: Long) = BSONLong(native)
+  }
+
+  implicit object DefaultBSONRegexDeser extends BSONRegexDeserializer[scala.util.matching.Regex] with BSONRegexFlags {
+    /**
+      * [Regular expression]
+      *
+      * The first cstring is the regex pattern,
+      * the second is the regex options string.
+      *
+      * Options are identified by characters,
+      * which must be stored in alphabetical order.
+      *
+      * Valid options are:
+      * 'i' for case insensitive matching,
+      * 'm' for multiline matching,
+      * 'x' for verbose mode,
+      * 'l' to make \w, \W, etc. locale dependent,
+      * 's' for dotall mode ('.' matches everything),
+      * 'u' to make \w, \W, etc. match unicode.
+      */
+    def toNative(bsonType: BSONRegex) = {
+     "(?%s)%s".format(bsonType.flags, bsonType.pattern).r
+    }
+  }
+
+  implicit object DefaultBSONRegexSer extends BSONRegexSerializer[scala.util.matching.Regex] with BSONRegexFlags {
+    /**
+      * [Regular expression]
+      *
+      * The first cstring is the regex pattern,
+      * the second is the regex options string.
+      *
+      * Options are identified by characters,
+      * which must be stored in alphabetical order.
+      *
+      * Valid options are:
+      * 'i' for case insensitive matching,
+      * 'm' for multiline matching,
+      * 'x' for verbose mode,
+      * 'l' to make \w, \W, etc. locale dependent,
+      * 's' for dotall mode ('.' matches everything),
+      * 'u' to make \w, \W, etc. match unicode.
+      */
+    def toBSONType(native: scala.util.matching.Regex) = {
+      val buf = StringBuilder.newBuilder
+      var _flags = native.pattern.flags
+      for (flag <- Flags) {
+        if ((_flags & flag.javaCode) > 0) {
+          buf += flag.charCode
+          _flags -= flag.javaCode
+        }
+      }
+
+      assume(_flags == 0, "Some RegEx flags were not recognized.")
+
+      val strFlags = buf.result()
+
+      BSONRegex(native.pattern.pattern, strFlags)
+    }
   }
 }
 
