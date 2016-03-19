@@ -19,7 +19,7 @@ package codes.bytes.hammersmith.akka.bson
 import java.nio.ByteOrder
 
 import akka.util.ByteIterator
-import codes.bytes.hammersmith.bson.ObjectID
+import codes.bytes.hammersmith.bson.primitive.MongoObjectID$
 import codes.bytes.hammersmith.bson.types._
 import com.typesafe.scalalogging.StrictLogging
 
@@ -254,14 +254,14 @@ object BSONBinaryType extends BSONType with StrictLogging {
 object BSONObjectIDType extends BSONType {
   val typeCode: Byte = 0x07
 
-  def unapply(frame: ByteIterator): Option[(String, ObjectID)] =
+  def unapply(frame: ByteIterator): Option[(String, MongoObjectID)] =
     if (frame.head == typeCode) {
       // Because MongoDB Loves consistency, OIDs are stored Big Endian
       val name = readCString(frame.drop(1))
       val timestamp = frame.getInt(bigEndian)
       val machineID = frame.getInt(bigEndian)
       val increment = frame.getInt(bigEndian)
-      val oid = ObjectID(timestamp, machineID, increment, isNew = false)
+      val oid = MongoObjectID(timestamp, machineID, increment, isNew = false)
       logger.trace(s"Parsed out an ObjectID in '$name' from BSON '$oid'")
       Some(name, oid)
     } else None
@@ -355,7 +355,7 @@ object BSONDBPointerType extends BSONType {
       val timestamp = frame.getInt
       val machineID = frame.getInt
       val increment = frame.getInt
-      Some((name, DBRef(namespace, ObjectID(timestamp, machineID, increment, isNew = false))))
+      Some((name, DBRef(namespace, MongoObjectID(timestamp, machineID, increment, isNew = false))))
     } else None
 
 }

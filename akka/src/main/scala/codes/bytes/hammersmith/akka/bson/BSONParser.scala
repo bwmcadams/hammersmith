@@ -20,7 +20,8 @@ import java.nio.ByteOrder
 
 import _root_.akka.util.ByteIterator
 import codes.bytes.hammersmith.bson._
-import codes.bytes.hammersmith.bson.types.{BSONBinary, BSONBinaryUUID, BSONUndefined, BSONNull}
+import codes.bytes.hammersmith.bson.primitive.MongoObjectID$
+import codes.bytes.hammersmith.bson.types.{BSONBinary, BSONBinaryUUID, BSONNull, BSONUndefined}
 import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.util.hexValue
@@ -270,7 +271,7 @@ trait BSONParser[T] extends StrictLogging {
     * Field is provided in case you need to respond differently based
     * upon field name; should not be returned back.
     */
-  def parseObjectID(field: String, value: ObjectID): Any = value
+  def parseObjectID(field: String, value: MongoObjectID): Any = value
 
   /**
     * Overridable method for how to handle adding a Binary entry

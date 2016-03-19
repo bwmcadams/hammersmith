@@ -4,6 +4,7 @@ import java.util.regex.Pattern
 
 import codes.bytes.hammersmith.akka.collection.SerializableBSONDocument
 import codes.bytes.hammersmith.bson._
+import codes.bytes.hammersmith.bson.primitive.MongoObjectID$
 import codes.bytes.hammersmith.bson.types._
 import codes.bytes.hammersmith.collection.immutable.{DBList, Document, OrderedDocument}
 import codes.bytes.hammersmith.util._
@@ -15,11 +16,11 @@ trait BSONTestData extends StrictLogging {
 
   def parseBSONWithScala: Document = ImmutableBSONDocumentParser(scalaBSON.iterator)
 
-  lazy val oid = ObjectID()
+  lazy val oid = MongoObjectID()
 
-  lazy val testOID = ObjectID()
+  lazy val testOID = MongoObjectID()
 
-  lazy val testRefID = ObjectID()
+  lazy val testRefID = MongoObjectID()
 
 
   lazy val testDoc = Document("foo" -> "bar", "x" -> 5.23)

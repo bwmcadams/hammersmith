@@ -1,26 +1,27 @@
-/**
-  * Copyright (c) 2011-2015 Brendan McAdams <http://bytes.codes>
-  *
-  * Licensed under the Apache License, Version 2.0 (the "License");
-  * you may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at
-  *
-  * http://www.apache.org/licenses/LICENSE-2.0
-  *
-  * Unless required by applicable law or agreed to in writing, software
-  * distributed under the License is distributed on an "AS IS" BASIS,
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  */
-package codes.bytes.hammersmith.bson
+/*
+ * Copyright (c) 2011-2016 Brendan McAdams <http://bytes.codes>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+package codes.bytes.hammersmith.bson.primitive
 
 import java.net.NetworkInterface
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.StrictLogging
+import scodec.bits.ByteVector
 
 
 /**
@@ -40,14 +41,14 @@ import com.typesafe.scalalogging.StrictLogging
   *      TODO: unapply etc
   *      TODO: Properly support the *OLD* Format as well. See java driver createFromLegacyFormat
   */
-class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
-                       val machineID: Int = ObjectID.generatedMachineID,
-                       val processID: Int = ObjectID.generatedProcessID,
-                       val increment: Int = ObjectID.nextIncrement(),
+class MongoObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
+                       val machineID: Int = MongoObjectID.generatedMachineID,
+                       val processID: Int = MongoObjectID.generatedProcessID,
+                       val increment: Int = MongoObjectID.nextIncrement(),
                        val isNew: Boolean = true
-                      ) extends Ordered[ObjectID] with StrictLogging {
+                      ) extends Ordered[MongoObjectID] with StrictLogging {
 
-  def compare(that: ObjectID): Int = {
+  def compare(that: MongoObjectID): Int = {
     def compareUnsigned(n: Int, o: Int) = {
       val mask = 0xFFFFFFFFL
       val x = n & mask
@@ -79,6 +80,9 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).
     bytes
   }
 
+  def toByteVector: ByteVector =
+    ByteVector(toBytes)
+
   override def toString: String = {
     val bytes = toBytes
 
@@ -94,30 +98,36 @@ class ObjectID private(val timestamp: Int = (System.currentTimeMillis() / 1000).
   }
 }
 
-object ObjectID extends StrictLogging {
+object MongoObjectID extends StrictLogging {
 
-  def apply() = new ObjectID()
+  def apply() = new MongoObjectID()
 
   def apply(timestamp: Int = (System.currentTimeMillis() / 1000).toInt,
             machineID: Int = generatedMachineID,
             increment: Int = nextIncrement(),
             isNew: Boolean = false
            ) =
-    new ObjectID(timestamp, machineID, 0, increment, isNew)
+    new MongoObjectID(timestamp, machineID, 0, increment, isNew)
 
+  def apply(b: ByteVector) = {
+    require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
+    val buf = b.toByteBuffer
+    new MongoObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
+
+  }
 
   def apply(b: Array[Byte]) = {
     require(b.length == 12, "ObjectIDs must consist of exactly 12 bytes.")
     val buf = ByteBuffer.wrap(b)
-    new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
+    new MongoObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
   }
 
   def apply(s: String) = {
-    require(ObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
+    require(MongoObjectID.isValid(s), "Invalid ObjectID String [%s]".format(s))
     val bytes = new Array[Byte](12)
     for (i <- 0 until 12) bytes(i) = Integer.parseInt(s.substring(i * 2, i * 2 + 2), 16).toByte
     val buf = ByteBuffer.wrap(bytes)
-    new ObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
+    new MongoObjectID(buf.getInt, buf.getInt, 0, buf.getInt, false)
   }
 
   private val increment = new AtomicInteger(new java.util.Random().nextInt())
@@ -176,6 +186,7 @@ object ObjectID extends StrictLogging {
 
   /**
     * Validates if a string could be a valid <code>ObjectID</code>
+    *
     * @return where or not the string *could* be an ObjectID
     */
   def isValid(s: String): Boolean = {

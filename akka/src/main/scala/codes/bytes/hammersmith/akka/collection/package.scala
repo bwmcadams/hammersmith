@@ -1,7 +1,7 @@
 package codes.bytes.hammersmith.akka
 
 import codes.bytes.hammersmith.akka.bson._
-import codes.bytes.hammersmith.bson.ObjectID
+import codes.bytes.hammersmith.bson.primitive.MongoObjectID$
 import codes.bytes.hammersmith.collection.BSONDocument
 import codes.bytes.hammersmith.collection.immutable.OrderedDocument
 import com.typesafe.scalalogging.StrictLogging
@@ -32,7 +32,7 @@ package object collection {
       */
     def checkID(doc: T): T = {
       doc.get("_id") match {
-        case Some(oid: ObjectID) ⇒ {
+        case Some(oid: MongoObjectID) ⇒ {
           logger.debug("Found an existing OID")
           oid
         }
@@ -42,7 +42,7 @@ package object collection {
         }
         case None ⇒ {
           // TODO - Replace me with new ObjectID Implementation
-          val oid = ObjectID()
+          val oid = MongoObjectID()
           logger.trace(s"no ObjectId. Generated: ${doc.get("_id")}")
           doc + "_id" -> oid
         }

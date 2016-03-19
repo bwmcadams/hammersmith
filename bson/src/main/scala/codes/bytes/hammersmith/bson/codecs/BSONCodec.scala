@@ -289,6 +289,10 @@ object BSONCodec extends StrictLogging {
   def decode(m: BitVector): Option[BSONRawDocument] = bsonDocumentCodec.decode(m).map { dr ⇒
     dr.value
   }.toOption
+
+  // todo - log errors
+  def encode(doc: BSONRawDocument): Option[BitVector] =
+    bsonDocumentCodec.encode(doc).toOption
 }
 
 /**
@@ -365,12 +369,14 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
 
   private val decoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 4)
 
+  private val encoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 4)
+
   // sizeBound is in Bits...
   def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
 
   // todo - make sure we're sticking in the Nul *AND* the proper length
   def encode(bsonDoc: BSONRawDocument) =
-    Encoder.encodeSeq(fieldCodec <~ Nul)(bsonDoc.entries)
+    encoder.encode(bsonDoc.entries)
 
   def decode(buffer: BitVector) = {
     decoder.decode(buffer).map { r ⇒

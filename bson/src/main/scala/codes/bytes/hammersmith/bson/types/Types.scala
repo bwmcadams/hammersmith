@@ -17,7 +17,7 @@
 
 package codes.bytes.hammersmith.bson.types
 
-import codes.bytes.hammersmith.bson.ObjectID
+import codes.bytes.hammersmith.bson.primitive.{MongoObjectID, MongoObjectID$}
 import com.typesafe.scalalogging.StrictLogging
 import scodec.bits._
 import scodec.codecs._
@@ -281,15 +281,14 @@ case object BSONObjectID extends BSONTypeCompanion {
   *
   * @note There's no value I know of in exposing the actual pieces of an ObjectID in user code... so we
   *       read & write as the raw binary value. Generation of new OIDs will hide those pieces too.
-  *
   * @see https://docs.mongodb.org/manual/reference/object-id/
   * @see https://github.com/mongodb/mongo/blob/master/src/mongo/bson/oid.h
   * @see http://stackoverflow.com/questions/23539486/endianess-of-parts-of-on-objectid-in-bson
   */
 final case class BSONObjectID(bytes: ByteVector) extends BSONType {
-  type Primitive = BSONObjectID
+  type Primitive = ByteVector
 
-  val primitiveValue: Primitive = this
+  val primitiveValue: Primitive = bytes
 
   // todo: to ObjectID
 }
@@ -469,5 +468,5 @@ case object BSONMaxKey extends BSONKeyBoundary with BSONKeyBoundaryCompanion {
 
 // Currently no dereferencing support, etc. (not a fan anyway)
 // not a BSON builtin type...
-final case class DBRef(namespace: String, oid: ObjectID)
+final case class DBRef(namespace: String, oid: MongoObjectID)
 

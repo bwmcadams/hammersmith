@@ -22,7 +22,7 @@ import java.util.{Date, UUID}
 
 import _root_.akka.util.{ByteString, ByteStringBuilder}
 import codes.bytes.hammersmith.bson._
-import codes.bytes.hammersmith.bson.primitive.BSONPrimitive
+import codes.bytes.hammersmith.bson.primitive.{BSONPrimitive, MongoObjectID$}
 import codes.bytes.hammersmith.bson.types._
 import codes.bytes.hammersmith.collection.immutable.{DBList => ImmutableDBList, Document => ImmutableDocument, OrderedDocument => ImmutableOrderedDocument}
 import codes.bytes.hammersmith.collection.{BSONDocument, BSONList}
@@ -240,7 +240,7 @@ trait BSONComposer[T] extends StrictLogging {
     case BSONBinaryUserDefined(bytes) =>
       composeBSONBinary(key, bytes.toArray, BSONBinaryType.Binary_UserDefined)
     // Things we treat as ObjectID
-    case oid: ObjectID =>
+    case oid: MongoObjectID =>
       composeBSONObjectID(key, oid)
     // Things we treat as Boolean
     case bool: Boolean =>
@@ -471,7 +471,7 @@ trait BSONComposer[T] extends StrictLogging {
     *
     * Obviously, ObjectIDs are serialized as 12 bytes
     */
-  protected def composeBSONObjectID(key: String, value: ObjectID)(implicit b: ByteStringBuilder): Int = {
+  protected def composeBSONObjectID(key: String, value: MongoObjectID)(implicit b: ByteStringBuilder): Int = {
     // type code
     b.putByte(BSONObjectIDType.typeCode)
     var len = 1 // type code is 1
@@ -653,6 +653,7 @@ trait BSONComposer[T] extends StrictLogging {
     * Calculates the length of a UTF8 String.
     *
     * // todo - i did basic tests on this, compared to hadoop impl but not against larger characters worth 2 or 3
+ *
     * @param value The String to write
     * @return An Int32 representing the length.
     */

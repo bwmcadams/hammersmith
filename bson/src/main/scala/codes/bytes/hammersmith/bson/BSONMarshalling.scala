@@ -17,7 +17,7 @@
 
 package codes.bytes.hammersmith.bson
 
-import codes.bytes.hammersmith.bson.primitive.MongoTimestamp
+import codes.bytes.hammersmith.bson.primitive.{MongoObjectID, MongoTimestamp}
 import codes.bytes.hammersmith.bson.types._
 
 import scala.util.matching.Regex
@@ -128,6 +128,14 @@ trait BSONUTCDateTimeSerializer[T] extends BSONSerializer[T] {
 
 trait BSONUTCDateTimeDeserializer[T] extends BSONDeserializer[T] {
   type BSONPrimitiveType = BSONUTCDateTime
+}
+
+trait BSONObjectIDSerializer[T] extends BSONSerializer[T] {
+  type BSONPrimitiveType = BSONObjectID
+}
+
+trait BSONObjectIDDeserializer[T] extends BSONDeserializer[T] {
+  type BSONPrimitiveType = BSONObjectID
 }
 
 object DefaultBSONMarshaller {
@@ -258,6 +266,18 @@ object DefaultBSONMarshaller {
   implicit object DefaultBSONUTCDateTimeSer extends BSONUTCDateTimeSerializer[java.util.Date] {
     def toBSONType(native: java.util.Date) = BSONUTCDateTime(native.getTime)
   }
+
+  implicit object DefaultBSONObjectIDDeser extends BSONObjectIDDeserializer[MongoObjectID] {
+    def toNative(bsonType: BSONObjectID) =
+      MongoObjectID(bsonType.primitiveValue)
+  }
+
+  implicit object DefaultBSONObjectIDSer extends BSONObjectIDSerializer[MongoObjectID] {
+    def toBSONType(native: MongoObjectID) = BSONObjectID(native.toByteVector)
+  }
+  // TODO: JSCode, ScopedJSCode, DBRef
+
+
 }
 
 // vim: set ts=2 sw=2 sts=2 et:
