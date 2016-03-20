@@ -79,7 +79,14 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
     "Encode and then Decode its own documents with the decoder from java" in {
       import BSONCodec.bsonFieldCodec
       val inBytes = javaBSON
-      val inBits = BitVector(inBytes)
+
+      val b = com.mongodb.BasicDBObjectBuilder.start()
+      b.append("str", testStr)
+      val t_doc = b.get()
+
+      val encoder = new org.bson.BasicBSONEncoder
+
+      val inBits = BitVector(encoder.encode(t_doc))
       val outDoc = BSONCodec.decode(inBits)
 
       println(outDoc)

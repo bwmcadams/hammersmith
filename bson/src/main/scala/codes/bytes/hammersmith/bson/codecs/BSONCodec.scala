@@ -16,6 +16,7 @@
  */
 package codes.bytes.hammersmith.bson.codecs
 
+import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.charset.Charset
 
 import codes.bytes.hammersmith.bson.types._
@@ -79,7 +80,7 @@ object BSONCodec extends StrictLogging {
      * @see http://bsonspec.org
      */
     val bsonString: Codec[BSONString] =
-      bsonUTF8StringBase.as[BSONString]
+      bsonUTF8StringBase.as[BSONString] <~ Nul
 
 
     /**
@@ -375,8 +376,14 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
   def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
 
   // todo - make sure we're sticking in the Nul *AND* the proper length
-  def encode(bsonDoc: BSONRawDocument) =
-    encoder.encode(bsonDoc.entries)
+  def encode(bsonDoc: BSONRawDocument) = {
+    val encoded = encoder.encode(bsonDoc.entries)
+    encoded.map { x =>
+      val sz = x.size.toInt + 4
+      val b = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(sz)
+      BitVector(b) ++ x
+    }
+  }
 
   def decode(buffer: BitVector) = {
     decoder.decode(buffer).map { r ⇒
