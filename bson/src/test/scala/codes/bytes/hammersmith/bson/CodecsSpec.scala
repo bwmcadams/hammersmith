@@ -20,14 +20,16 @@ package codes.bytes.hammersmith.bson
 import java.util.regex.Pattern
 
 import codes.bytes.hammersmith.bson.codecs.BSONCodec
+import codes.bytes.hammersmith.bson.primitive.MongoObjectID
 import codes.bytes.hammersmith.bson.types._
 import com.mongodb.{BasicDBObject, DBObject, MongoClient}
 import com.mongodb.connection.ByteBufferBsonOutput
 import org.bson.types.ObjectId
-import org.bson.{BasicBSONDecoder, BSONDecoder, BsonDocumentWriter, BasicBSONEncoder, Document}
-import org.scalatest.{OptionValues, MustMatchers, WordSpec}
+import org.bson.{BSONDecoder, BasicBSONDecoder, BasicBSONEncoder, BsonDocumentWriter, Document}
+import org.scalatest.{MustMatchers, OptionValues, WordSpec}
 import scodec.Codec
-import scodec.bits.BitVector
+import scodec.bits.{BitVector, ByteVector}
+
 import scala.collection.JavaConversions._
 import org.scalatest.OptionValues._
 
@@ -69,30 +71,65 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       DefaultBSONMarshaller.DefaultBSONUTCDateTimeDeser.toNative(map.get("date").value.asInstanceOf[BSONUTCDateTime]) mustBe testDate
       map.get("tsp").value mustBe BSONTimestamp(testTsp.getInc, testTsp.getTime)
     }
-    "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
+/*    "Not exhibit weird behavior with strings, decoding a doc with just a string cleanly with no remainder" in {
       val inBytes = bsonStringEncode
       val inBits = BitVector(inBytes)
       val outDoc = BSONCodec.decode(inBits)
 
       outDoc must be ('defined)
-    }
+    }*/
     "Encode and then Decode its own documents with the decoder from java" in {
       import BSONCodec.bsonFieldCodec
+
       val inBytes = javaBSON
+      val inBits = BitVector(inBytes)
+      //val outDoc = BSONCodec.decode(inBits)
+      val outDoc = BSONRawDocument(
+        Vector(
+          "_id" -> BSONObjectID(ByteVector(oid.toByteArray)),
+          "null" -> BSONNull,
+          "max" -> BSONMaxKey,
+          "min" -> BSONMinKey,
+          "booleanTrue" -> BSONBooleanTrue,
+          "booleanFalse" -> BSONBooleanFalse,
+          "str" -> BSONString(testStr),
+          "int1" -> BSONInteger(1),
+          "int1500" -> BSONInteger(1500),
+          "int3753" -> BSONInteger(3753),
+          "tsp" -> BSONTimestamp(3600, 42),
+          "date" -> BSONUTCDateTime(testDate.getTime),
+          "long5" -> BSONLong(5L),
+          "long3254525" -> BSONLong(3254525L),
+          "float324_582" -> BSONDouble(324.582f),
+          "double245_6289" -> BSONDouble(245.6289),
+          "object" -> BSONRawDocument(
+            Vector(
+              "foo" -> BSONString("bar"),
+              "x" -> BSONDouble(5.23)
+            )
+          ),
+          "array" -> BSONRawArray(
+            Vector(
+              BSONString("foo"),
+              BSONString("bar"),
+              BSONString("baz"),
+              BSONString("x"),
+              BSONString("y"),
+              BSONString("z")
+            )
+          )
+          /*
+          "oid" -> testOid,
+          "regex" -> testRE,
+          "symbol" -> testSym,
+          "object" -> testDoc,
+          "array" -> testList,
+          */
+        )
+      )
 
-      val b = com.mongodb.BasicDBObjectBuilder.start()
-      b.append("str", testStr)
-      val t_doc = b.get()
-
-      val encoder = new org.bson.BasicBSONEncoder
-
-      val inBits = BitVector(encoder.encode(t_doc))
-      val outDoc = BSONCodec.decode(inBits)
-
-      println(outDoc)
-      outDoc must be ('defined)
-
-      val encodedDoc = BSONCodec.encode(outDoc.value)
+      //val encodedDoc = BSONCodec.encode(outDoc.value)
+      val encodedDoc = BSONCodec.encode(outDoc)
 
       encodedDoc must be ('defined)
       encodedDoc.value must not be('empty)
@@ -102,7 +139,28 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
 
       val doc = dec.readObject(encodedDoc.value.toByteArray)
 
+      println(s"Java decoded Document: $doc")
       doc must not be null
+      doc.get("str") mustEqual testStr
+    }
+    "Encode and then Decode its own documents with its own decoder" in {
+      import BSONCodec.bsonFieldCodec
+
+      val outDoc = BSONRawDocument(Vector(("str", BSONString(testStr))))
+
+      val encodedDoc = BSONCodec.encode(outDoc)
+
+      encodedDoc must be ('defined)
+      encodedDoc.value must not be('empty)
+      println(s"Encoded Doc: ${encodedDoc.value}")
+
+      encodedDoc must not be null
+
+      val decoded = BSONCodec.decode(encodedDoc.value)
+
+      decoded must be ('defined)
+
+      println("DECODED VALUE: " + decoded.value)
     }
   }
 
@@ -112,6 +170,8 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
   lazy val oid = new org.bson.types.ObjectId
 
   lazy val testOid = new org.bson.types.ObjectId
+
+  //lazy val testOurOID = BSONObjectID(MongoObjectID.)
 
   lazy val testRefId = new org.bson.types.ObjectId
 
@@ -199,7 +259,14 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
     val doc = b.get()
     val encoder = new org.bson.BasicBSONEncoder
 
-    encoder.encode(doc)
+    val inBytes = encoder.encode(doc)
+    val inBits = BitVector(inBytes)
+    val outDoc = BSONCodec.decode(inBits)
+
+    println(outDoc)
+    outDoc must be ('defined)
+
+    val map = Map(outDoc.value.entries: _*)
   }
 }
 

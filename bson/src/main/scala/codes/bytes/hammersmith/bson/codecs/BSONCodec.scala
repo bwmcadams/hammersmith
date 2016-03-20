@@ -64,7 +64,7 @@ object BSONCodec extends StrictLogging {
      */
     val bsonDouble: Codec[BSONDouble] = doubleL.as[BSONDouble]
 
-    val bsonUTF8StringBase = variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1)
+    val bsonUTF8StringBase = variableSizeBytes(int32L, string(Charset.forName("UTF-8")), 1) <~ Nul
 
     /**
      * BSON String
@@ -80,7 +80,7 @@ object BSONCodec extends StrictLogging {
      * @see http://bsonspec.org
      */
     val bsonString: Codec[BSONString] =
-      bsonUTF8StringBase.as[BSONString] <~ Nul
+      bsonUTF8StringBase.as[BSONString]
 
 
     /**
@@ -370,7 +370,7 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
 
   private val decoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 4)
 
-  private val encoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 4)
+  private val encoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 5) <~ Nul
 
   // sizeBound is in Bits...
   def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
@@ -378,11 +378,12 @@ final class BSONDocumentCodec(fieldCodec: Codec[(String, BSONType)]) extends Cod
   // todo - make sure we're sticking in the Nul *AND* the proper length
   def encode(bsonDoc: BSONRawDocument) = {
     val encoded = encoder.encode(bsonDoc.entries)
-    encoded.map { x =>
+    encoded
+/*    encoded.map { x =>
       val sz = x.size.toInt + 4
       val b = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(sz)
       BitVector(b) ++ x
-    }
+    }*/
   }
 
   def decode(buffer: BitVector) = {
