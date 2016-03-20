@@ -416,13 +416,16 @@ final class BSONArrayCodec(fieldCodec: Codec[(String, BSONType)]) extends Codec[
 
   private val decoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 4)
 
+  private val encoder = variableSizeBytes(bsonSizeBytesHeaderCodec, vector(fieldCodec), 5) <~ Nul
+
   // sizeBound is in Bits...
   def sizeBound = bsonSizeBytesHeaderCodec.sizeBound.atLeast
 
   // todo - make sure we're sticking in the Nul *AND* the proper length
   def encode(bsonArray: BSONRawArray) =
-    Encoder.encodeSeq(fieldCodec <~ Nul)(
-      bsonArray.entries.zipWithIndex.map { case (e, i) ⇒ i.toString → e })
+    encoder.encode(
+      bsonArray.entries.zipWithIndex.map { case (e, i) ⇒ i.toString → e }
+    )
 
   def decode(buffer: BitVector) = {
     decoder.decode(buffer).map { r ⇒
