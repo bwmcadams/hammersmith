@@ -22,10 +22,8 @@ package object util extends codes.bytes.hammersmith.util.Imports with codes.byte
 
 package util {
 
-trait Imports
+  trait Imports
 
-trait Implicits {
-
-}
+  trait Implicits
 
 }
