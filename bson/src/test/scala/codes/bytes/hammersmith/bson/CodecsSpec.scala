@@ -129,7 +129,10 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
       )
 
       //val encodedDoc = BSONCodec.encode(outDoc.value)
+      val startTimer = System.currentTimeMillis()
       val encodedDoc = BSONCodec.encode(outDoc)
+      val postTimer = System.currentTimeMillis()
+      println(s"BSONCodec took ${postTimer - startTimer}ms to encode.")
 
       encodedDoc must be ('defined)
       encodedDoc.value must not be('empty)
@@ -248,7 +251,10 @@ class CodecsSpec extends WordSpec with MustMatchers with OptionValues {
 
     val doc = b.get()
 
+    val startTimer = System.currentTimeMillis()
     val encoder = new org.bson.BasicBSONEncoder
+    val postTimer = System.currentTimeMillis()
+    println(s"MongoDB BasicBSONEncoder took ${postTimer - startTimer}ms to encode.")
 
     encoder.encode(doc)
   }

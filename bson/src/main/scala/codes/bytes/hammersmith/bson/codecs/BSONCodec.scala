@@ -43,7 +43,7 @@ object BSONCodec extends StrictLogging {
 
   val Nul = constant(hex"00")
 
-  val bsonSizeBytesHeaderCodec = logToStdOut(int32L.bounded(Interval(4, MaxBSONSize)), "!!! HEADER: ")
+  val bsonSizeBytesHeaderCodec = int32L.bounded(Interval(4, MaxBSONSize))
 
   implicit val bsonDocumentCodec: Codec[BSONRawDocument] =
     new BSONDocumentCodec(bsonFieldCodec)
@@ -194,7 +194,6 @@ object BSONCodec extends StrictLogging {
      * @see http://bsonspec.org
      * @note Defined in the order they are in the BSON Spec , which is why the groupings are slightly odd
      */
-    logToStdOut(
       discriminated[(String, BSONType)].
         by(uint8L).
         subcaseO(BSONDouble.typeCode) {
@@ -281,8 +280,7 @@ object BSONCodec extends StrictLogging {
         subcaseO(BSONEndOfDocument.typeCode) {
           case (nme, BSONEndOfDocument) ⇒ Some(nme → BSONEndOfDocument)
           case _ ⇒ None
-        }(provide("") ~ provide(BSONEndOfDocument)),
-      "#\t ")
+        }(provide("") ~ provide(BSONEndOfDocument))
   }
 
   //def encode(d: BSONRawDocument) = bsonCodec.
